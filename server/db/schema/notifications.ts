@@ -1,5 +1,5 @@
 import { boolean, pgTable, primaryKey, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
-import { users } from '~~/server/db/schema/auth';
+import { users } from './auth';
 
 export const notifications = pgTable('notifications', {
   id: uuid('id').primaryKey().defaultRandom(),

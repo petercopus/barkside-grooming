@@ -9,8 +9,8 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { users } from '~~/server/db/schema/auth';
-import { services } from '~~/server/db/schema/services';
+import { users } from './auth';
+import { services } from './services';
 
 export const employeeSchedules = pgTable('employee_schedules', {
   id: serial('id').primaryKey(),

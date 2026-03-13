@@ -1,7 +1,7 @@
 import { date, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
-import { appointments } from '~~/server/db/schema/appointments';
-import { users } from '~~/server/db/schema/auth';
-import { pets } from '~~/server/db/schema/pets';
+import { appointments } from './appointments';
+import { users } from './auth';
+import { pets } from './pets';
 
 export const documents = pgTable('documents', {
   id: uuid('id').primaryKey().defaultRandom(),

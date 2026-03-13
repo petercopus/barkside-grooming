@@ -9,7 +9,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { users } from '~~/server/db/schema/auth';
+import { users } from './auth';
 
 export const petSizeCategories = pgTable('pet_size_categories', {
   id: serial('id').primaryKey(),

@@ -1,5 +1,5 @@
 import { boolean, integer, pgTable, serial, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
-import { appointments } from '~~/server/db/schema/appointments';
+import { appointments } from './appointments';
 
 export const payments = pgTable('payments', {
   id: uuid('id').primaryKey().defaultRandom(),

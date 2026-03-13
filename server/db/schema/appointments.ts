@@ -9,9 +9,9 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { users } from '~~/server/db/schema/auth';
-import { pets } from '~~/server/db/schema/pets';
-import { bundles, services } from '~~/server/db/schema/services';
+import { users } from './auth';
+import { pets } from './pets';
+import { bundles, services } from './services';
 
 export const appointments = pgTable('appointments', {
   id: uuid('id').primaryKey().defaultRandom(),

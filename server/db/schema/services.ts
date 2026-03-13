@@ -8,7 +8,7 @@ import {
   text,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { petSizeCategories } from '~~/server/db/schema/pets';
+import { petSizeCategories } from './pets';
 
 export const services = pgTable('services', {
   id: serial('id').primaryKey(),
