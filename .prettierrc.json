@@ -1,0 +1,17 @@
+{
+  "printWidth": 100,
+  "singleQuote": true,
+  "semi": true,
+  "trailingComma": "all",
+  "tabWidth": 2,
+  "useTabs": false,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "singleAttributePerLine": true,
+  "bracketSameLine": true,
+  "proseWrap": "preserve",
+  "quoteProps": "consistent",
+  "vueIndentScriptAndStyle": false,
+  "organizeImportsSkipDestructiveCodeActions": true,
+  "plugins": ["prettier-plugin-organize-imports", "prettier-plugin-packagejson"]
+}

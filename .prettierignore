@@ -1,0 +1,11 @@
+dist
+build
+coverage
+.turbo
+.pnpm-store
+pnpm-lock.yaml
+/.snap
+.nuxt/
+**/.min.
+**/.map
+*.md
