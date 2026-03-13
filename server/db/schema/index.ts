@@ -1,4 +1,5 @@
 // Schema tables barrel export
+export * from './appointments';
 export * from './auth';
 export * from './pets';
 export * from './scheduling';
