@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { updatePetSchema, type UpdatePetInput } from '~~/shared/schemas/pet';
+import { updatePetSchema, type CreatePetInput, type UpdatePetInput } from '~~/shared/schemas/pet';
 
 definePageMeta({
   layout: 'dashboard',
@@ -20,7 +20,7 @@ const pet = data.value.pet;
 const error = ref<string | null>(null);
 const loading = ref(false);
 
-async function onSubmit(data: UpdatePetInput) {
+async function onSubmit(data: CreatePetInput | UpdatePetInput) {
   error.value = null;
   loading.value = true;
 
