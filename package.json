@@ -6,23 +6,30 @@
     "build": "nuxt build",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx server/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "postinstall": "nuxt prepare",
-    "preview": "nuxt preview"
+    "preview": "nuxt preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@nuxt/ui": "^4.5.1",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "nuxt": "^4.4.2",
     "pg": "^8.20.0",
     "tailwindcss": "^4.2.1",
     "vue": "^3.5.30",
-    "vue-router": "^5.0.3"
+    "vue-router": "^5.0.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "^25.5.0",
     "@types/pg": "^8.18.0",
     "drizzle-kit": "^0.31.9",
@@ -34,6 +41,7 @@
     "prettier-plugin-packagejson": "^3.0.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.0"
+    "typescript-eslint": "^8.57.0",
+    "vitest": "^4.1.0"
   }
 }
