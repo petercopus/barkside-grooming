@@ -12,7 +12,5 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!user.value) await fetchUser();
 
   // if still no user, then not authenticated
-  if (!user.value) {
-    // TODO: redirect ro login page
-  }
+  if (!user.value) return navigateTo({ path: '/login', query: { redirect: to.fullPath } });
 });

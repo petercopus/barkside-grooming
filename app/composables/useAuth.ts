@@ -93,9 +93,7 @@ export function useAuth() {
     user.value = null;
     permissions.value = [];
 
-    if (!user.value) {
-      // TODO: redirect to login page here
-    }
+    await navigateTo('/login');
   }
 
   return {
