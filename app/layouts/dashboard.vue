@@ -15,6 +15,10 @@ const navItems = computed(() => {
   ];
 
   // Employee only
+  if (hasPerm('service:manage')) {
+    items.push({ label: 'Services', icon: 'i-lucide-scissors', to: '/employee/services' });
+  }
+
   if (hasPerm('schedule:read:own')) {
     items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/employee/me/schedule' });
   }
