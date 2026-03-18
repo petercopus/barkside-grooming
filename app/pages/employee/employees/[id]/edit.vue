@@ -86,7 +86,14 @@ function toggleService(serviceId: number) {
 
 <template>
   <div class="space-y-8">
-    <h1 class="text-2xl font-bold">Edit Employee</h1>
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold">Edit Employee</h1>
+      <UButton
+        :to="`/employee/employees/${id}/schedule`"
+        icon="i-lucide-calendar"
+        label="Manage Schedule"
+        variant="outline" />
+    </div>
 
     <!-- Details and role -->
     <UCard>
