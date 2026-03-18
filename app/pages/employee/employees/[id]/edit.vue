@@ -1,39 +1,51 @@
 <script setup lang="ts">
-import { updateEmployeeSchema, type UpdateEmployeeInput } from '~~/shared/schemas/employee';
-import type { FormSubmitEvent } from '@nuxt/ui';
+import {
+  updateEmployeeSchema,
+  type CreateEmployeeInput,
+  type UpdateEmployeeInput,
+} from '~~/shared/schemas/employee';
 
-definePageMeta({ layout: 'dashboard', middleware: 'permission', permission: 'employee:manage' });
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'permission',
+  permission: 'employee:manage',
+});
 
 const route = useRoute();
 const id = route.params.id as string;
 
 const { data: empData, refresh } = await useFetch(`/api/employees/${id}`);
-const { data: rolesData } = await useFetch('/api/roles');
 const { data: servicesData } = await useFetch('/api/services');
 
-// Details form
-const state = reactive({
-  firstName: empData.value?.employee.firstName ?? '',
-  lastName: empData.value?.employee.lastName ?? '',
-  phone: empData.value?.employee.phone ?? '',
-  isActive: empData.value?.employee.isActive ?? true,
-  roleIds: empData.value?.employee.roles.map((r: any) => r.id) ?? [],
-});
+if (!empData.value?.employee) {
+  throw createError({ statusCode: 404, message: 'Employee not found' });
+}
 
+const employee = {
+  firstName: empData.value.employee.firstName,
+  lastName: empData.value.employee.lastName,
+  phone: empData.value.employee.phone,
+  isActive: empData.value.employee.isActive,
+  roleIds: empData.value.employee.roles.map((r) => r.id),
+};
+
+const error = ref<string | null>(null);
+const success = ref<string | null>(null);
 const loading = ref(false);
-const error = ref('');
-const success = ref('');
 
-async function onSubmit(event: FormSubmitEvent<UpdateEmployeeInput>) {
+async function onSubmit(data: CreateEmployeeInput | UpdateEmployeeInput) {
+  error.value = null;
+  success.value = null;
   loading.value = true;
-  error.value = '';
-  success.value = '';
+
   try {
     await $fetch(`/api/employees/${id}`, {
       method: 'PATCH',
-      body: event.data,
+      body: data,
     });
+
     success.value = 'Employee updated';
+
     await refresh();
   } catch (e: any) {
     error.value = e.data?.message ?? 'Failed to update';
@@ -44,17 +56,19 @@ async function onSubmit(event: FormSubmitEvent<UpdateEmployeeInput>) {
 
 // Service qualifications
 const selectedServiceIds = ref<number[]>(empData.value?.employee.serviceIds ?? []);
+const servicesSuccess = ref<string | null>(null);
 const servicesLoading = ref(false);
-const servicesSuccess = ref('');
 
 async function saveServices() {
-  servicesLoading.value = true;
   servicesSuccess.value = '';
+  servicesLoading.value = true;
+
   try {
     await $fetch(`/api/employees/${id}/services`, {
       method: 'PUT',
       body: { serviceIds: selectedServiceIds.value },
     });
+
     servicesSuccess.value = 'Service qualifications updated';
   } catch (e: any) {
     error.value = e.data?.message ?? 'Failed to update services';
@@ -74,7 +88,7 @@ function toggleService(serviceId: number) {
   <div class="space-y-8">
     <h1 class="text-2xl font-bold">Edit Employee</h1>
 
-    <!-- ── Details + Roles ── -->
+    <!-- Details and role -->
     <UCard>
       <template #header>
         <h2 class="font-semibold">Details & Roles</h2>
@@ -85,68 +99,22 @@ function toggleService(serviceId: number) {
         color="error"
         :title="error"
         class="mb-4" />
+
       <UAlert
         v-if="success"
         color="success"
         :title="success"
         class="mb-4" />
 
-      <UForm
+      <EmployeesForm
         :schema="updateEmployeeSchema"
-        :state="state"
-        @submit="onSubmit"
-        class="space-y-4">
-        <UFormField
-          label="First Name"
-          name="firstName">
-          <UInput v-model="state.firstName" />
-        </UFormField>
-
-        <UFormField
-          label="Last Name"
-          name="lastName">
-          <UInput v-model="state.lastName" />
-        </UFormField>
-
-        <UFormField
-          label="Phone"
-          name="phone">
-          <UInput v-model="state.phone" />
-        </UFormField>
-
-        <UFormField
-          label="Active"
-          name="isActive">
-          <USwitch v-model="state.isActive" />
-        </UFormField>
-
-        <UFormField
-          label="Roles"
-          name="roleIds">
-          <div class="space-y-2">
-            <UCheckbox
-              v-for="role in rolesData?.roles ?? []"
-              :key="role.id"
-              :label="role.name"
-              :model-value="state.roleIds.includes(role.id)"
-              @update:model-value="
-                $event
-                  ? state.roleIds.push(role.id)
-                  : (state.roleIds = state.roleIds.filter((id: number) => id !== role.id))
-              " />
-          </div>
-        </UFormField>
-
-        <div class="flex gap-2">
-          <UButton
-            type="submit"
-            :loading="loading"
-            label="Save" />
-        </div>
-      </UForm>
+        :initial-values="employee"
+        :loading="loading"
+        submit-label="Save"
+        @submit="onSubmit" />
     </UCard>
 
-    <!-- ── Service Qualifications ── -->
+    <!-- Services -->
     <UCard>
       <template #header>
         <h2 class="font-semibold">Service Qualifications</h2>
