@@ -37,7 +37,7 @@ async function onSubmit(data: CreatePetInput | UpdatePetInput) {
 
 <template>
   <!-- TODO: Major duplication w/ form across edit/new pet pages. Extract to reusable component -->
-  <div class="max-w-lg">
+  <div>
     <h1 class="text-2xl font-bold mb-6">Edit {{ pet.name }}</h1>
 
     <UAlert

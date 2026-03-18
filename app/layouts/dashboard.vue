@@ -15,8 +15,12 @@ const navItems = computed(() => {
   ];
 
   // Employee only
-  if (hasPerm('service:manage')) {
+  if (hasPerm('service:read')) {
     items.push({ label: 'Services', icon: 'i-lucide-scissors', to: '/employee/services' });
+  }
+
+  if (hasPerm('employee:read')) {
+    items.push({ label: 'Employees', icon: 'i-lucide-users', to: '/employee/employees' });
   }
 
   if (hasPerm('schedule:read:own')) {
@@ -65,9 +69,9 @@ const navItems = computed(() => {
 
     <!-- Main content -->
     <div class="flex-1 flex flex-col">
-      <UDashboardNavbar title="Barkside Grooming" />
+      <!-- <UDashboardNavbar title="Barkside Grooming" /> -->
 
-      <main class="flex-1 p-6">
+      <main class="w-full max-w-4xl mx-auto flex-1 p-6">
         <slot />
       </main>
     </div>

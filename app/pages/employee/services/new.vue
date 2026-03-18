@@ -33,7 +33,7 @@ async function onSubmit(data: CreateServiceInput | UpdateServiceInput) {
 </script>
 
 <template>
-  <div class="max-w-lg">
+  <div>
     <h1 class="text-2xl font-bold mb-6">Add Service</h1>
     <UAlert
       v-if="error"
