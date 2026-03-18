@@ -25,7 +25,7 @@ async function onSubmit(data: CreatePetInput | UpdatePetInput) {
 </script>
 
 <template>
-  <div class="max-w-lg">
+  <div>
     <h1 class="text-2xl font-bold mb-6">Add Pet</h1>
 
     <UAlert

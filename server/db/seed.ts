@@ -48,6 +48,7 @@ async function seed() {
     { key: 'schedule:manage', description: 'Manage employee schedules' },
     { key: 'service:read', description: 'View services catalog' },
     { key: 'service:manage', description: 'Manage services and pricing' },
+    { key: 'employee:read', description: 'View employee accounts' },
     { key: 'employee:manage', description: 'Manage employee accounts' },
     { key: 'reports:view', description: 'View business reports' },
     { key: 'settings:manage', description: 'Manage business settings' },
@@ -85,6 +86,7 @@ async function seed() {
       'document:read:all',
       'schedule:read:own',
       'service:read',
+      'employee:read',
     ],
     front_desk: [
       'booking:create',
@@ -96,6 +98,7 @@ async function seed() {
       'document:read:all',
       'schedule:read:all',
       'service:read',
+      'employee:read',
     ],
     admin: [
       'booking:create',
@@ -110,6 +113,7 @@ async function seed() {
       'service:read',
       'service:manage',
       'employee:manage',
+      'employee:read',
       'reports:view',
       'settings:manage',
       'promo:manage',

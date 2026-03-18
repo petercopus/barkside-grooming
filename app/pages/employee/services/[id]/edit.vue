@@ -89,7 +89,7 @@ async function savePricing() {
 </script>
 
 <template>
-  <div class="max-w-lg space-y-4">
+  <div class="space-y-4">
     <!-- Service Details -->
     <div>
       <h1 class="text-2xl font-bold mb-6">{{ service.name }}</h1>
