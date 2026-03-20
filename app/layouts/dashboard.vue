@@ -71,7 +71,7 @@ const navItems = computed(() => {
     <div class="flex-1 flex flex-col">
       <!-- <UDashboardNavbar title="Barkside Grooming" /> -->
 
-      <main class="w-full max-w-4xl mx-auto flex-1 p-6">
+      <main class="w-full max-w-6xl mx-auto flex-1 p-6">
         <slot />
       </main>
     </div>

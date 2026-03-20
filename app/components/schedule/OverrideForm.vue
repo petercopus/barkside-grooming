@@ -18,11 +18,15 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
+const dateCalendar = shallowRef(parseCalendarDate(props.initialValues?.date));
+const startTimeValue = shallowRef(parseTime(props.initialValues?.startTime) ?? parseTime('09:00'));
+const endTimeValue = shallowRef(parseTime(props.initialValues?.endTime) ?? parseTime('17:00'));
+
 const state = reactive({
-  date: props.initialValues?.date ?? '',
+  date: computed(() => formatCalendarDate(dateCalendar.value) ?? ''),
   isAvailable: props.initialValues?.isAvailable ?? false,
-  startTime: props.initialValues?.startTime?.slice(0, 5) ?? '09:00',
-  endTime: props.initialValues?.endTime?.slice(0, 5) ?? '17:00',
+  startTime: computed(() => formatTime(startTimeValue.value) ?? '09:00'),
+  endTime: computed(() => formatTime(endTimeValue.value) ?? '17:00'),
   reason: props.initialValues?.reason ?? '',
 });
 
@@ -37,14 +41,14 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
     :state="state"
     class="space-y-4"
     @submit="onSubmit">
+    <!-- Date input -->
     <UFormField
       label="Date"
       name="date">
-      <UInput
-        v-model="state.date"
-        type="date" />
+      <AppDatePicker v-model="dateCalendar" />
     </UFormField>
 
+    <!-- Available switch -->
     <UFormField
       label="Available"
       name="isAvailable">
@@ -55,17 +59,17 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
       <UFormField
         label="Start Time"
         name="startTime">
-        <UInput
-          v-model="state.startTime"
-          type="time" />
+        <UInputTime
+          v-model="startTimeValue"
+          :hour-cycle="24" />
       </UFormField>
 
       <UFormField
         label="End Time"
         name="endTime">
-        <UInput
-          v-model="state.endTime"
-          type="time" />
+        <UInputTime
+          v-model="endTimeValue"
+          :hour-cycle="24" />
       </UFormField>
     </template>
 

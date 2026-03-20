@@ -27,36 +27,21 @@ const employeeName = computed(
 );
 
 //#region Weekly schedule
-const scheduleError = ref<string | null>(null);
-const scheduleSuccess = ref<string | null>(null);
-const scheduleLoading = ref(false);
+const schedule = useFormAction({
+  successMessage: 'Schedule saved',
+  onSuccess: () => refreshSchedule(),
+});
 
 async function saveSchedule(
   entries: { dayOfWeek: number; startTime: string; endTime: string; isAvailable: boolean }[],
 ) {
-  scheduleError.value = null;
-  scheduleSuccess.value = null;
-  scheduleLoading.value = true;
-
-  try {
-    await $fetch(`/api/employees/${id}/schedule`, {
-      method: 'PUT',
-      body: { entries },
-    });
-    scheduleSuccess.value = 'Schedule saved';
-    await refreshSchedule();
-  } catch (e: any) {
-    scheduleError.value = e.data?.message ?? 'Failed to save schedule';
-  } finally {
-    scheduleLoading.value = false;
-  }
+  await schedule.execute(() =>
+    $fetch(`/api/employees/${id}/schedule`, { method: 'PUT', body: { entries } }),
+  );
 }
 //#endregion
 
 //#region Overrides
-const overrideError = ref<string | null>(null);
-const overrideSuccess = ref<string | null>(null);
-const overrideLoading = ref(false);
 const showOverrideForm = ref(false);
 const editingOverride = ref<(typeof overrideRows.value)[number] | null>(null);
 
@@ -80,113 +65,72 @@ function startEditOverride(override: (typeof overrideRows.value)[number]) {
   showOverrideForm.value = true;
 }
 
-async function onOverrideSubmit(data: CreateOverrideInput) {
-  overrideError.value = null;
-  overrideSuccess.value = null;
-  overrideLoading.value = true;
+const overrideSubmit = useFormAction({
+  onSuccess: () => {
+    showOverrideForm.value = false;
+    editingOverride.value = null;
+    return refreshOverrides();
+  },
+});
 
-  try {
-    if (editingOverride.value) {
-      await $fetch(`/api/employees/${id}/overrides/${editingOverride.value.id}`, {
+async function onOverrideSubmit(data: CreateOverrideInput) {
+  const isEdit = editingOverride.value;
+  overrideSubmit.execute(async () => {
+    if (isEdit) {
+      await $fetch(`/api/employees/${id}/overrides/${isEdit.id}`, {
         method: 'PATCH',
         body: data,
       });
-      overrideSuccess.value = 'Override updated';
     } else {
       await $fetch(`/api/employees/${id}/overrides`, {
         method: 'POST',
         body: data,
       });
-      overrideSuccess.value = 'Override added';
     }
-
-    showOverrideForm.value = false;
-    editingOverride.value = null;
-    await refreshOverrides();
-  } catch (e: any) {
-    overrideError.value = e.data?.message ?? 'Failed to save override';
-  } finally {
-    overrideLoading.value = false;
-  }
+  });
 }
 
-async function deleteOverride(overrideId: number) {
-  overrideError.value = null;
-  overrideSuccess.value = null;
+const overrideDelete = useFormAction({
+  successMessage: 'Override deleted',
+  onSuccess: () => refreshOverrides(),
+});
 
-  try {
-    await $fetch(`/api/employees/${id}/overrides/${overrideId}`, {
-      method: 'DELETE',
-    });
-    overrideSuccess.value = 'Override deleted';
-    await refreshOverrides();
-  } catch (e: any) {
-    overrideError.value = e.data?.message ?? 'Failed to delete override';
-  }
+async function deleteOverride(overrideId: number) {
+  await overrideDelete.execute(() =>
+    $fetch(`/api/employees/${id}/overrides/${overrideId}`, { method: 'DELETE' }),
+  );
 }
 //#endregion
 </script>
 
 <template>
   <div class="space-y-8">
-    <div class="flex items-center gap-4">
-      <UButton
-        :to="`/employee/employees/${id}/edit`"
-        icon="i-lucide-arrow-left"
-        variant="ghost"
-        size="sm" />
-      <h1 class="text-2xl font-bold">Schedule — {{ employeeName }}</h1>
-    </div>
+    <AppPageHeader
+      :title="`Schedule — ${employeeName}`"
+      :back-to="`/employee/employees/${id}/edit`" />
 
     <!-- Weekly Schedule -->
-    <UCard>
-      <template #header>
-        <h2 class="font-semibold">Weekly Hours</h2>
-      </template>
-
-      <UAlert
-        v-if="scheduleError"
-        color="error"
-        :title="scheduleError"
-        class="mb-4" />
-
-      <UAlert
-        v-if="scheduleSuccess"
-        color="success"
-        :title="scheduleSuccess"
-        class="mb-4" />
-
+    <AppSection
+      title="Weekly Hours"
+      :error="schedule.error.value">
       <ScheduleWeeklyEditor
         :entries="scheduleData?.entries ?? []"
-        :loading="scheduleLoading"
+        :loading="schedule.loading.value"
         @save="saveSchedule" />
-    </UCard>
+    </AppSection>
 
     <!-- Schedule Overrides -->
-    <UCard>
-      <template #header>
-        <div class="flex items-center justify-between">
-          <h2 class="font-semibold">Schedule Overrides</h2>
-          <UButton
-            v-if="!showOverrideForm"
-            icon="i-lucide-plus"
-            label="Add Override"
-            size="sm"
-            @click="startAddOverride" />
-        </div>
+    <AppSection
+      title="Schedule Overrides"
+      :error="overrideSubmit.error.value || overrideDelete.error.value">
+      <template #actions>
+        <UButton
+          v-if="!showOverrideForm"
+          icon="i-lucide-plus"
+          label="Add Override"
+          size="sm"
+          @click="startAddOverride" />
       </template>
-
-      <UAlert
-        v-if="overrideError"
-        color="error"
-        :title="overrideError"
-        class="mb-4" />
-
-      <UAlert
-        v-if="overrideSuccess"
-        color="success"
-        :title="overrideSuccess"
-        class="mb-4" />
 
       <!-- Add/Edit form -->
       <div
@@ -197,7 +141,7 @@ async function deleteOverride(overrideId: number) {
         </h3>
         <ScheduleOverrideForm
           :initial-values="editingOverride ?? undefined"
-          :loading="overrideLoading"
+          :loading="overrideSubmit.loading.value"
           @submit="onOverrideSubmit"
           @cancel="showOverrideForm = false" />
       </div>
@@ -252,6 +196,6 @@ async function deleteOverride(overrideId: number) {
         class="text-sm text-muted">
         No overrides scheduled.
       </p>
-    </UCard>
+    </AppSection>
   </div>
 </template>

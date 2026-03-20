@@ -7,12 +7,15 @@ export const createEmployeeSchema = z.object({
   lastName: z.string().min(1, 'Last name required').max(100),
   phone: z.string().max(20).optional(),
   roleIds: z.array(z.number().int()).min(1, 'At least one role required'),
+  isActive: z.boolean().default(true),
+  serviceIds: z.array(z.number().int()).default([]),
 });
 
 export const updateEmployeeSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
   phone: z.string().max(20).optional(),
+  email: z.email().optional(),
   isActive: z.boolean().optional(),
   roleIds: z.array(z.number().int()).optional(),
 });

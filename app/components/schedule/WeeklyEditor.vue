@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Time } from '@internationalized/date';
+
 const props = defineProps<{
   entries: {
     dayOfWeek: number;
@@ -28,8 +30,8 @@ const days = reactive(
     return {
       dayOfWeek: i,
       isAvailable: existing?.isAvailable ?? false,
-      startTime: existing?.startTime?.slice(0, 5) ?? '09:00',
-      endTime: existing?.endTime?.slice(0, 5) ?? '17:00',
+      startTime: shallowRef<Time | undefined>(parseTime(existing?.startTime) ?? parseTime('09:00')),
+      endTime: shallowRef<Time | undefined>(parseTime(existing?.endTime) ?? parseTime('17:00')),
     };
   }),
 );
@@ -39,8 +41,8 @@ function onSave() {
     .filter((d) => d.isAvailable)
     .map((d) => ({
       dayOfWeek: d.dayOfWeek,
-      startTime: d.startTime,
-      endTime: d.endTime,
+      startTime: formatTime(d.startTime) ?? '09:00',
+      endTime: formatTime(d.endTime) ?? '17:00',
       isAvailable: true,
     }));
 
@@ -61,15 +63,13 @@ function onSave() {
       <USwitch v-model="day.isAvailable" />
 
       <template v-if="day.isAvailable">
-        <UInput
+        <UInputTime
           v-model="day.startTime"
-          type="time"
-          class="w-32" />
+          :hour-cycle="24" />
         <span class="text-sm text-muted">to</span>
-        <UInput
+        <UInputTime
           v-model="day.endTime"
-          type="time"
-          class="w-32" />
+          :hour-cycle="24" />
       </template>
 
       <span

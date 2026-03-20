@@ -1,7 +1,18 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'dashboard', middleware: 'permission', permission: 'employee:read' });
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'permission',
+  permission: 'employee:read',
+});
 
-const { data } = await useFetch('/api/employees');
+const { data, status } = await useFetch('/api/employees');
+
+const loading = computed(() => status.value === 'pending');
+const rows = computed(() => (data.value?.employees ?? []) as Record<string, unknown>[]);
+
+function onRowSelect(_e: Event, row: any) {
+  navigateTo(`/employee/employees/${row.original.id}/edit`);
+}
 
 const columns = [
   { accessorKey: 'firstName', header: 'First Name' },
@@ -15,46 +26,62 @@ const columns = [
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">Employees</h1>
-      <UButton
-        to="/employee/employees/new"
-        icon="i-lucide-plus"
-        label="Add Employee" />
-    </div>
+    <AppPageHeader
+      title="Employees"
+      description="Manage employees, permissions, and schedules" />
 
-    <UTable
-      :data="data?.employees ?? []"
-      :columns="columns">
-      <!-- Roles -->
-      <template #roles-cell="{ row }">
-        <div class="flex gap-1">
+    <div class="py-4">
+      <AppTable
+        card="default"
+        title="All Employees"
+        :columns="columns"
+        :data="rows"
+        :loading="loading"
+        :on-select="onRowSelect"
+        empty-icon="i-lucide-users"
+        empty-title="No employees found"
+        empty-description="Add your first employee to get started."
+        empty-action-label="Add Employee"
+        empty-action-icon="i-lucide-plus"
+        @empty-action="navigateTo('/employee/employees/new')">
+        <template #actions>
+          <UButton
+            to="/employee/employees/new"
+            icon="i-lucide-plus"
+            label="Add Employee"
+            size="sm" />
+        </template>
+
+        <!-- Roles -->
+        <template #roles-cell="{ row }">
+          <div class="flex gap-1">
+            <UBadge
+              v-for="role in row.original.roles as { id: number; name: string }[]"
+              :key="role.id"
+              variant="subtle">
+              {{ role.name }}
+            </UBadge>
+          </div>
+        </template>
+
+        <!-- Status -->
+        <template #isActive-cell="{ row }">
           <UBadge
-            v-for="role in row.original.roles"
-            :key="role.id"
+            :color="row.original.isActive ? 'success' : 'error'"
             variant="subtle">
-            {{ role.name }}
+            {{ row.original.isActive ? 'Active' : 'Inactive' }}
           </UBadge>
-        </div>
-      </template>
+        </template>
 
-      <!-- Status -->
-      <template #isActive-cell="{ row }">
-        <UBadge
-          :color="row.original.isActive ? 'success' : 'error'"
-          variant="subtle">
-          {{ row.original.isActive ? 'Active' : 'Inactive' }}
-        </UBadge>
-      </template>
-
-      <!-- Actions -->
-      <template #actions-cell="{ row }">
-        <UButton
-          :to="`/employee/employees/${row.original.id}/edit`"
-          icon="i-lucide-pencil"
-          variant="ghost"
-          size="sm" />
-      </template>
-    </UTable>
+        <!-- Actions -->
+        <template #actions-cell="{ row }">
+          <UButton
+            :to="`/employee/employees/${row.original.id}/edit`"
+            icon="i-lucide-pencil"
+            variant="ghost"
+            size="sm" />
+        </template>
+      </AppTable>
+    </div>
   </div>
 </template>

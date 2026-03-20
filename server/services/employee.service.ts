@@ -74,6 +74,7 @@ export async function createEmployee(input: CreateEmployeeInput) {
       firstName: input.firstName,
       lastName: input.lastName,
       phone: input.phone ?? null,
+      isActive: input.isActive ?? true,
     })
     .returning();
 
@@ -91,6 +92,13 @@ export async function createEmployee(input: CreateEmployeeInput) {
     );
   }
 
+  // assign service qualifications
+  if (input.serviceIds && input.serviceIds.length > 0) {
+    await db
+      .insert(employeeServices)
+      .values(input.serviceIds.map((serviceId) => ({ userId: user.id, serviceId })));
+  }
+
   return getEmployee(user.id);
 }
 
@@ -102,6 +110,7 @@ export async function updateEmployee(id: string, input: UpdateEmployeeInput) {
   if (input.firstName !== undefined) updates.firstName = input.firstName;
   if (input.lastName !== undefined) updates.lastName = input.lastName;
   if (input.phone !== undefined) updates.phone = input.phone;
+  if (input.email !== undefined) updates.email = input.email;
   if (input.isActive !== undefined) updates.isActive = input.isActive;
 
   if (Object.keys(updates).length > 0) {

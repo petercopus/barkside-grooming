@@ -9,8 +9,9 @@ const { user, permissions } = useAuth();
 
 <template>
   <div>
-    <h1 class="text-2xl font-bold">Welcome, {{ user?.firstName }}</h1>
-    <p class="text-muted mt-1">Lorem ipsum, dolor sit amet consectetur adipisicing.</p>
+    <AppPageHeader
+      :title="`Welcome, ${user?.firstName}`"
+      description="Lorem ipsum, dolor sit amet consectetur adipisicing." />
 
     <!-- TODO: remove this, for testing for now -->
     <div class="mt-6 p-4">

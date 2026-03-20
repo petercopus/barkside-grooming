@@ -5,75 +5,59 @@ definePageMeta({
   permission: 'service:read',
 });
 
-const { data, refresh } = await useFetch('/api/services');
+const { data, status } = await useFetch('/api/services');
 
-async function deleteService(id: number) {
-  if (!confirm('Deactive thi servie?')) return;
-  await $fetch(`/api/services/${id}`, { method: 'DELETE' });
-  await refresh();
+const loading = computed(() => status.value === 'pending');
+const rows = computed(() => (data.value?.services ?? []) as Record<string, unknown>[]);
+
+function onRowSelect(_e: Event, row: any) {
+  navigateTo(`/employee/services/${row.original.id}/edit`);
 }
+const columns = [
+  { accessorKey: 'name', header: 'Name' },
+  { accessorKey: 'category', header: 'Category' },
+  { accessorKey: 'isAddon', header: 'Addon' },
+  { accessorKey: 'sortOrder', header: 'Order' },
+];
 </script>
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">Services</h1>
-      <UButton
-        to="/employee/services/new"
-        icon="i-lucide-plus">
-        Add Service
-      </UButton>
-    </div>
+    <AppPageHeader
+      title="Services"
+      description="Manage services, addons, and bundles" />
 
-    <div
-      v-if="!data?.services?.length"
-      class="text-center py-12 text-muted">
-      <p>No services yet.</p>
-    </div>
-
-    <UTable
-      v-else
-      :data="data.services"
-      :columns="[
-        { accessorKey: 'name', header: 'Name' },
-        { accessorKey: 'category', header: 'Category' },
-        { accessorKey: 'isAddon', header: 'Addon' },
-        { accessorKey: 'sortOrder', header: 'Order' },
-        { accessorKey: 'actions', header: '' },
-      ]">
-      <template #isAddon-cell="{ row }">
-        <UBadge
-          v-if="row.original.isAddon"
-          color="info"
-          >Addon</UBadge
-        >
-      </template>
-
-      <!-- Active status -->
-      <template #isActive-cell="{ row }">
-        <UBadge :color="row.original.isActive ? 'success' : 'neutral'">
-          {{ row.original.isActive ? 'Active' : 'Inactive' }}
-        </UBadge>
-      </template>
-
-      <!-- Actions -->
-      <template #actions-cell="{ row }">
-        <div class="flex gap-2 justify-end">
+    <div class="py-4">
+      <AppTable
+        card="default"
+        title="All Services"
+        :columns="columns"
+        :data="rows"
+        :loading="loading"
+        :on-select="onRowSelect"
+        empty-icon="i-lucide-scissors"
+        empty-title="No services found"
+        empty-description="Add your first service to get started."
+        empty-action-label="Add Service"
+        empty-action-icon="i-lucide-plus"
+        @empty-action="navigateTo('/employee/services/new')">
+        <template #actions>
           <UButton
-            :to="`/employee/services/${row.original.id}/edit`"
-            variant="ghost"
-            size="sm"
-            icon="i-lucide-pencil" />
+            to="/employee/services/new"
+            icon="i-lucide-plus"
+            label="Add Service"
+            size="sm" />
+        </template>
 
-          <UButton
-            v-if="row.original.isActive"
-            variant="ghost"
-            size="sm"
-            color="error"
-            icon="i-lucide-trash-2"
-            @click="deleteService(row.original.id)" />
-        </div>
-      </template>
-    </UTable>
+        <!-- Addon -->
+        <template #isAddon-cell="{ row }">
+          <UBadge
+            v-if="row.original.isAddon"
+            color="info">
+            Addon
+          </UBadge>
+        </template>
+      </AppTable>
+    </div>
   </div>
 </template>
