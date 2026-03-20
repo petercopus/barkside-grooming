@@ -9,15 +9,15 @@ const navItems = computed(() => {
   const items = [];
 
   if (hasPerm('service:read'))
-    items.push({ label: 'Services', icon: 'i-lucide-scissors', to: '/employee/services' });
+    items.push({ label: 'Services', icon: 'i-lucide-scissors', to: '/admin/services' });
   if (hasPerm('employee:read'))
-    items.push({ label: 'Employees', icon: 'i-lucide-users', to: '/employee/employees' });
+    items.push({ label: 'Employees', icon: 'i-lucide-users', to: '/admin/employees' });
   if (hasPerm('schedule:read:own'))
-    items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/employee/me/schedule' });
+    items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/admin/me/schedule' });
   if (hasPerm('booking:read:all'))
-    items.push({ label: 'Check-In', icon: 'i-lucide-clipboard-check', to: '/employee/check-in' });
+    items.push({ label: 'Check-In', icon: 'i-lucide-clipboard-check', to: '/admin/check-in' });
   if (hasPerm('settings:manage'))
-    items.push({ label: 'Settings', icon: 'i-lucide-settings', to: '/employee/settings' });
+    items.push({ label: 'Settings', icon: 'i-lucide-settings', to: '/admin/settings' });
 
   return items;
 });

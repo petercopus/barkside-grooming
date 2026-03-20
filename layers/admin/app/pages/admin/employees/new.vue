@@ -10,7 +10,7 @@ definePageMeta({
   <div class="space-y-6">
     <AppPageHeader
       title="Add Employee"
-      back-to="/employee/employees" />
+      back-to="/admin/employees" />
 
     <EmployeesEditLayout mode="create" />
   </div>

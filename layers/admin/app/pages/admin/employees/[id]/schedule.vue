@@ -10,12 +10,12 @@ definePageMeta({
 const route = useRoute();
 const id = route.params.id as string;
 
-const { data: empData } = await useFetch(`/api/employees/${id}`);
+const { data: empData } = await useFetch(`/api/admin/employees/${id}`);
 const { data: scheduleData, refresh: refreshSchedule } = await useFetch(
-  `/api/employees/${id}/schedule`,
+  `/api/admin/employees/${id}/schedule`,
 );
 const { data: overridesData, refresh: refreshOverrides } = await useFetch(
-  `/api/employees/${id}/overrides`,
+  `/api/admin/employees/${id}/overrides`,
 );
 
 if (!empData.value?.employee) {
@@ -36,7 +36,7 @@ async function saveSchedule(
   entries: { dayOfWeek: number; startTime: string; endTime: string; isAvailable: boolean }[],
 ) {
   await schedule.execute(() =>
-    $fetch(`/api/employees/${id}/schedule`, { method: 'PUT', body: { entries } }),
+    $fetch(`/api/admin/employees/${id}/schedule`, { method: 'PUT', body: { entries } }),
   );
 }
 //#endregion
@@ -77,12 +77,12 @@ async function onOverrideSubmit(data: CreateOverrideInput) {
   const isEdit = editingOverride.value;
   overrideSubmit.execute(async () => {
     if (isEdit) {
-      await $fetch(`/api/employees/${id}/overrides/${isEdit.id}`, {
+      await $fetch(`/api/admin/employees/${id}/overrides/${isEdit.id}`, {
         method: 'PATCH',
         body: data,
       });
     } else {
-      await $fetch(`/api/employees/${id}/overrides`, {
+      await $fetch(`/api/admin/employees/${id}/overrides`, {
         method: 'POST',
         body: data,
       });
@@ -97,7 +97,7 @@ const overrideDelete = useFormAction({
 
 async function deleteOverride(overrideId: number) {
   await overrideDelete.execute(() =>
-    $fetch(`/api/employees/${id}/overrides/${overrideId}`, { method: 'DELETE' }),
+    $fetch(`/api/admin/employees/${id}/overrides/${overrideId}`, { method: 'DELETE' }),
   );
 }
 //#endregion
@@ -107,7 +107,7 @@ async function deleteOverride(overrideId: number) {
   <div class="space-y-8">
     <AppPageHeader
       :title="`Schedule — ${employeeName}`"
-      :back-to="`/employee/employees/${id}/edit`" />
+      :back-to="`/admin/employees/${id}/edit`" />
 
     <!-- Weekly Schedule -->
     <AppSection

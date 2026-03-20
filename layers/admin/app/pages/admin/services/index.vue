@@ -5,13 +5,13 @@ definePageMeta({
   permission: 'service:read',
 });
 
-const { data, status } = await useFetch('/api/services');
+const { data, status } = await useFetch('/api/admin/services');
 
 const loading = computed(() => status.value === 'pending');
 const rows = computed(() => (data.value?.services ?? []) as Record<string, unknown>[]);
 
 function onRowSelect(_e: Event, row: any) {
-  navigateTo(`/employee/services/${row.original.id}/edit`);
+  navigateTo(`/admin/services/${row.original.id}/edit`);
 }
 const columns = [
   { accessorKey: 'name', header: 'Name' },
@@ -40,10 +40,10 @@ const columns = [
         empty-description="Add your first service to get started."
         empty-action-label="Add Service"
         empty-action-icon="i-lucide-plus"
-        @empty-action="navigateTo('/employee/services/new')">
+        @empty-action="navigateTo('/admin/services/new')">
         <template #actions>
           <UButton
-            to="/employee/services/new"
+            to="/admin/services/new"
             icon="i-lucide-plus"
             label="Add Service"
             size="sm" />

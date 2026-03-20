@@ -16,8 +16,8 @@ const props = defineProps<{
 const isCreate = computed(() => props.mode === 'create');
 const schema = computed(() => (isCreate.value ? createEmployeeSchema : updateEmployeeSchema));
 
-const { data: servicesData } = await useFetch('/api/services');
-const { data: rolesData } = await useFetch('/api/roles');
+const { data: servicesData } = await useFetch('/api/admin/services');
+const { data: rolesData } = await useFetch('/api/admin/roles');
 
 /* ─────────────────────────────────── *
  *  Form State
@@ -52,7 +52,7 @@ function toggleService(serviceId: number) {
  * ─────────────────────────────────── */
 const create = isCreate.value
   ? useFormAction({
-      redirectTo: (res: any) => `/employee/employees/${res.employee.id}/edit`,
+      redirectTo: (res: any) => `/admin/employees/${res.employee.id}/edit`,
     })
   : null;
 
@@ -72,12 +72,12 @@ const pageSave = !isCreate.value
             roleIds: [...state.roleIds].sort(),
           }),
           save: (data) =>
-            $fetch(`/api/employees/${props.employeeId}`, { method: 'PATCH', body: data }),
+            $fetch(`/api/admin/employees/${props.employeeId}`, { method: 'PATCH', body: data }),
         },
         services: {
           track: () => [...selectedServiceIds.value].sort(),
           save: (serviceIds) =>
-            $fetch(`/api/employees/${props.employeeId}/services`, {
+            $fetch(`/api/admin/employees/${props.employeeId}/services`, {
               method: 'PUT',
               body: { serviceIds },
             }),
@@ -100,7 +100,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
       serviceIds: selectedServiceIds.value,
     };
 
-    create!.execute(() => $fetch('/api/employees', { method: 'POST', body }));
+    create!.execute(() => $fetch('/api/admin/employees', { method: 'POST', body }));
   } else {
     pageSave!.submit();
   }
@@ -204,7 +204,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 
     <div class="flex justify-end gap-2 mt-6">
       <UButton
-        to="/employee/employees"
+        to="/admin/employees"
         variant="ghost"
         label="Cancel" />
       <UButton

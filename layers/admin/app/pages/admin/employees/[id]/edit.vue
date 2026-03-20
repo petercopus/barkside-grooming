@@ -8,7 +8,7 @@ definePageMeta({
 const route = useRoute();
 const id = route.params.id as string;
 
-const { data: empData } = await useFetch(`/api/employees/${id}`);
+const { data: empData } = await useFetch(`/api/admin/employees/${id}`);
 
 if (!empData.value?.employee) {
   throw createError({ statusCode: 404, message: 'Employee not found' });
@@ -31,7 +31,7 @@ const initialValues = {
     <AppPageHeader title="Edit Employee">
       <template #actions>
         <UButton
-          :to="`/employee/employees/${id}/schedule`"
+          :to="`/admin/employees/${id}/schedule`"
           icon="i-lucide-calendar"
           label="Manage Schedule"
           variant="outline" />

@@ -7,6 +7,7 @@ import {
   employeeServices,
   scheduleOverrides,
 } from '~~/server/db/schema';
+import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
 
 import type {
   CreateOverrideInput,
@@ -202,21 +203,6 @@ export async function getAvailableSlots(date: string, durationMinutes: number, s
 //#endregion
 
 //#region Helpers
-/** Convert "HH:MM" or "HH:MM:SS" to total minutes from midnight */
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':') as [string, string];
-  return parseInt(h, 10) * 60 + parseInt(m, 10);
-}
-
-/** Convert minutes from midnight to "HH:MM" */
-function minutesToTime(minutes: number): string {
-  const h = Math.floor(minutes / 60)
-    .toString()
-    .padStart(2, '0');
-  const m = (minutes % 60).toString().padStart(2, '0');
-  return `${h}:${m}`;
-}
-
 /**
  * Given a work block and a list of booked appointments,
  * return the free time ranges within the block.

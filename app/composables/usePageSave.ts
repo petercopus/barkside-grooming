@@ -9,11 +9,11 @@
  *   sections: {
  *     details: {
  *       track: () => ({ firstName: state.firstName, lastName: state.lastName }),
- *       save: (data) => $fetch(`/api/employees/${id}`, { method: 'PATCH', body: data }),
+ *       save: (data) => $fetch(`/api/admin/employees/${id}`, { method: 'PATCH', body: data }),
  *     },
  *     services: {
  *       track: () => ({ serviceIds: selectedServiceIds.value }),
- *       save: (data) => $fetch(`/api/employees/${id}/services`, { method: 'PUT', body: data }),
+ *       save: (data) => $fetch(`/api/admin/employees/${id}/services`, { method: 'PUT', body: data }),
  *     },
  *   },
  *   successMessage: 'Employee updated',

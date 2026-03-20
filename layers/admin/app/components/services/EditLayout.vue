@@ -16,7 +16,7 @@ const props = defineProps<{
 const isCreate = computed(() => props.mode === 'create');
 const schema = computed(() => (isCreate.value ? createServiceSchema : updateServiceSchema));
 
-const { data: categoryData } = await useFetch('/api/size-categories');
+const { data: categoryData } = await useFetch('/api/admin/size-categories');
 const categories = computed(() => categoryData.value?.categories ?? []);
 
 /* ─────────────────────────────────── *
@@ -57,7 +57,7 @@ function buildPricingRows() {
  * ─────────────────────────────────── */
 const create = isCreate.value
   ? useFormAction({
-      redirectTo: (res: any) => `/employee/services/${res.service.id}/edit`,
+      redirectTo: (res: any) => `/admin/services/${res.service.id}/edit`,
     })
   : null;
 
@@ -76,12 +76,12 @@ const pageSave = !isCreate.value
             sortOrder: state.sortOrder,
           }),
           save: (data) =>
-            $fetch(`/api/services/${props.serviceId}`, { method: 'PATCH', body: data }),
+            $fetch(`/api/admin/services/${props.serviceId}`, { method: 'PATCH', body: data }),
         },
         pricing: {
           track: () => buildPricingRows(),
           save: (rows) =>
-            $fetch(`/api/services/${props.serviceId}/pricing`, {
+            $fetch(`/api/admin/services/${props.serviceId}/pricing`, {
               method: 'PUT',
               body: { pricing: rows },
             }),
@@ -100,7 +100,7 @@ const error = computed(() => (isCreate.value ? create!.error.value : pageSave!.e
 function onSubmit(event: FormSubmitEvent<unknown>) {
   if (isCreate.value) {
     create!.execute(() =>
-      $fetch('/api/services', { method: 'POST', body: event.data as CreateServiceInput }),
+      $fetch('/api/admin/services', { method: 'POST', body: event.data as CreateServiceInput }),
     );
   } else {
     pageSave!.submit();
@@ -211,7 +211,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 
     <div class="flex justify-end gap-2 mt-6">
       <UButton
-        to="/employee/services"
+        to="/admin/services"
         variant="ghost"
         label="Cancel" />
       <UButton

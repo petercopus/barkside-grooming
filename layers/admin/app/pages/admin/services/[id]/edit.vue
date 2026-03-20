@@ -8,7 +8,7 @@ definePageMeta({
 const route = useRoute();
 const serviceId = Number(route.params.id);
 
-const { data: serviceData } = await useFetch(`/api/services/${serviceId}`);
+const { data: serviceData } = await useFetch(`/api/admin/services/${serviceId}`);
 
 if (!serviceData.value?.service) {
   throw createError({ statusCode: 404, message: 'Service not found' });
@@ -29,7 +29,7 @@ const initialValues = {
   <div class="space-y-6">
     <AppPageHeader
       :title="service.name"
-      back-to="/employee/services" />
+      back-to="/admin/services" />
 
     <ServicesEditLayout
       mode="edit"

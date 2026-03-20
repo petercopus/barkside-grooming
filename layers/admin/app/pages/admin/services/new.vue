@@ -10,7 +10,7 @@ definePageMeta({
   <div class="space-y-6">
     <AppPageHeader
       title="Add Service"
-      back-to="/employee/services" />
+      back-to="/admin/services" />
 
     <ServicesEditLayout mode="create" />
   </div>
