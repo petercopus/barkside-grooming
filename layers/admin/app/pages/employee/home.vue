@@ -1,7 +1,8 @@
 <script setup lang="ts">
 definePageMeta({
   layout: 'dashboard',
-  middleware: 'auth',
+  middleware: 'permission',
+  permission: 'service:read',
 });
 
 const { user, permissions } = useAuth();

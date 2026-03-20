@@ -93,7 +93,7 @@ export function useAuth() {
     user.value = null;
     permissions.value = [];
 
-    await navigateTo('/login');
+    await navigateTo('/home');
   }
 
   return {

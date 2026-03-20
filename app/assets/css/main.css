@@ -1,8 +1,34 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
 
-@theme {
+@theme static {
   --font-sans: 'Plus Jakarta Sans', sans-serif;
+
+  /* Barkside brand */
+  --color-barkside-50: #f0f5f8;
+  --color-barkside-100: #d9e5ed;
+  --color-barkside-200: #b3cbdb;
+  --color-barkside-300: #8db1c9;
+  --color-barkside-400: #5a8aa8;
+  --color-barkside-500: #3a6585;
+  --color-barkside-600: #2a4c66;
+  --color-barkside-700: #1f3a4f;
+  --color-barkside-800: #1b3342;
+  --color-barkside-900: #142732;
+  --color-barkside-950: #0d1a22;
+
+  /* Barkside accent */
+  --color-coral-50: #fef2f2;
+  --color-coral-100: #fde3e3;
+  --color-coral-200: #fccbcc;
+  --color-coral-300: #f9a8a9;
+  --color-coral-400: #f08687;
+  --color-coral-500: #e67576;
+  --color-coral-600: #cf5556;
+  --color-coral-700: #ae4243;
+  --color-coral-800: #903a3b;
+  --color-coral-900: #783536;
+  --color-coral-950: #411919;
 }
 
 /* ─── Light mode ─── */

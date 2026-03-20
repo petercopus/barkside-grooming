@@ -8,7 +8,7 @@ const { login, isLoggedIn } = useAuth();
 const route = useRoute();
 
 // if we hit this page with valid session cookie, redirect
-if (isLoggedIn.value) await navigateTo('/me/home');
+if (isLoggedIn.value) await navigateTo('/home');
 
 const fields: AuthFormField[] = [
   {
@@ -37,7 +37,7 @@ async function onSubmit(event: FormSubmitEvent<LoginInput>) {
   try {
     await login(event.data);
 
-    const redirect = (route.query.redirect as string) || '/me/home';
+    const redirect = (route.query.redirect as string) || '/home';
     await navigateTo(redirect);
   } catch (e: any) {
     error.value = e.data?.message || 'Invalid email or password';

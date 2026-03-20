@@ -10,5 +10,5 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!user.value) return navigateTo({ path: '/login', query: { redirect: to.fullPath } });
 
   const required = to.meta.permission as string | undefined;
-  if (required && !hasPerm(required)) return navigateTo('/me/home');
+  if (required && !hasPerm(required)) return navigateTo('/home');
 });

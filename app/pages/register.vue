@@ -7,7 +7,7 @@ definePageMeta({ layout: 'default' });
 const { register, isLoggedIn } = useAuth();
 
 // if we hit this page with valid session cookie, redirect
-if (isLoggedIn.value) await navigateTo('/me/home');
+if (isLoggedIn.value) await navigateTo('/home');
 
 const fields: AuthFormField[] = [
   {
@@ -55,7 +55,7 @@ async function onSubmit(event: FormSubmitEvent<RegisterInput>) {
 
   try {
     await register(event.data);
-    await navigateTo('/me/home');
+    await navigateTo('/home');
   } catch (e: any) {
     error.value = e.data?.message || 'Registration failed';
   } finally {

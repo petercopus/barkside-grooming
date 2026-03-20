@@ -4,7 +4,7 @@ definePageMeta({ layout: 'default' });
 const { isLoggedIn } = useAuth();
 
 // if we hit this page with valid session cookie, redirect
-if (isLoggedIn.value) await navigateTo('/me/home');
+if (isLoggedIn.value) await navigateTo('/home');
 </script>
 
 <template>
