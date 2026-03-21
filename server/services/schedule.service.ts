@@ -6,6 +6,7 @@ import {
   employeeSchedules,
   employeeServices,
   scheduleOverrides,
+  users,
 } from '~~/server/db/schema';
 import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
 
@@ -154,6 +155,16 @@ export async function getAvailableSlots(date: string, durationMinutes: number, s
       ),
     );
 
+  // get groomer names
+  const groomerRows = await db
+    .select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+    })
+    .from(users)
+    .where(inArray(users.id, groomerIds));
+
   const results: GroomerSlot[] = [];
 
   for (const groomerId of groomerIds) {
@@ -194,7 +205,8 @@ export async function getAvailableSlots(date: string, durationMinutes: number, s
     }
 
     if (available.length > 0) {
-      results.push({ groomerId, groomerName: '', slots: available });
+      const groomer = groomerRows.find((g) => g.id === groomerId);
+      results.push({ groomerId, groomerName: `${groomer?.firstName ?? ''}`, slots: available });
     }
   }
 

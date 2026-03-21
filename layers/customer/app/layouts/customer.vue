@@ -50,7 +50,10 @@ const userItems = computed(() => [
 /* ─────────────────────────────────── *
  *  Main Nav
  * ─────────────────────────────────── */
-const navItems = [{ label: 'Home', icon: 'i-lucide-house', to: '/home' }];
+const navItems = [
+  { icon: 'i-lucide-house', to: '/home' },
+  { label: 'Book Now', icon: 'i-lucide-book-open', to: '/me/book' },
+];
 
 const mobileNavItems = computed(() => {
   if (!isLoggedIn.value) {

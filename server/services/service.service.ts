@@ -7,7 +7,7 @@ import type {
   UpdateServiceInput,
 } from '~~/shared/schemas/service';
 
-export async function listServies(includeInactive = false) {
+export async function listServices(includeInactive = false) {
   const query = db.select().from(services).orderBy(services.sortOrder);
 
   if (!includeInactive) return query.where(eq(services.isActive, true));

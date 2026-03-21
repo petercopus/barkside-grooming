@@ -29,3 +29,10 @@ export function formatTime(value: Time | undefined | null): string | undefined {
   if (!value) return undefined;
   return value.toString().slice(0, 5);
 }
+
+/**
+ * Calendar
+ */
+export function calendarDateToString(d: CalendarDate): string {
+  return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
+}
