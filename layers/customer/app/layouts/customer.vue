@@ -50,10 +50,8 @@ const userItems = computed(() => [
 /* ─────────────────────────────────── *
  *  Main Nav
  * ─────────────────────────────────── */
-const navItems = [
-  { icon: 'i-lucide-house', to: '/home' },
-  { label: 'Book Now', icon: 'i-lucide-book-open', to: '/me/book' },
-];
+const homeItem = [{ icon: 'i-lucide-house', to: '/home' }];
+const navItems = [{ label: 'Book Now', icon: 'i-lucide-book-open', to: '/me/book' }];
 
 const mobileNavItems = computed(() => {
   if (!isLoggedIn.value) {
@@ -79,7 +77,16 @@ const mobileNavItems = computed(() => {
       </template>
 
       <!-- Main navigation -->
-      <UNavigationMenu :items="navItems" />
+      <div class="flex items-center">
+        <UNavigationMenu
+          :items="homeItem"
+          trailing-icon="i-lucide-ellipses-vertical" />
+        <UIcon
+          name="i-lucide-ellipsis-vertical"
+          size="2xl"
+          class="text-muted" />
+        <UNavigationMenu :items="navItems" />
+      </div>
 
       <template #right>
         <!-- Auth'd user menu -->
