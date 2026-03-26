@@ -30,6 +30,7 @@ function toggle(petId: string) {
         'opacity-50': selectable && !pet.sizeCategoryId,
         'ring-2 ring-success-400': selectable && selected.includes(pet.id),
       }"
+      class="mb-4"
       @click="selectable && pet.sizeCategoryId && toggle(pet.id)">
       <template #body>
         <UUser

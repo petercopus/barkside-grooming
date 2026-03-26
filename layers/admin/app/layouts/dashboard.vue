@@ -8,14 +8,15 @@ const { hasPerm } = usePermissions();
 const navItems = computed(() => {
   const items = [];
 
+  if (hasPerm('booking:read:all'))
+    items.push({ label: 'Appointments', icon: 'i-lucide-book-open', to: '/admin/appointments' });
+  if (hasPerm('schedule:read:own'))
+    items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/admin/me/schedule' });
   if (hasPerm('service:read'))
     items.push({ label: 'Services', icon: 'i-lucide-scissors', to: '/admin/services' });
   if (hasPerm('employee:read'))
     items.push({ label: 'Employees', icon: 'i-lucide-users', to: '/admin/employees' });
-  if (hasPerm('schedule:read:own'))
-    items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/admin/me/schedule' });
-  if (hasPerm('booking:read:all'))
-    items.push({ label: 'Check-In', icon: 'i-lucide-clipboard-check', to: '/admin/check-in' });
+
   if (hasPerm('settings:manage'))
     items.push({ label: 'Settings', icon: 'i-lucide-settings', to: '/admin/settings' });
 
@@ -57,7 +58,7 @@ const userItems = computed(() => [
     <!-- Sidebar -->
     <UDashboardSidebar>
       <template #header>
-        <span class="text-lg font-bold">Barkside</span>
+        <AppLogo />
       </template>
 
       <!-- Nav -->

@@ -135,7 +135,7 @@ async function deleteOverride(overrideId: number) {
       <!-- Add/Edit form -->
       <div
         v-if="showOverrideForm"
-        class="mb-6 p-4 border rounded-lg">
+        class="mb-6 p-4 border border-default rounded-lg">
         <h3 class="font-medium mb-3">
           {{ editingOverride ? 'Edit Override' : 'New Override' }}
         </h3>

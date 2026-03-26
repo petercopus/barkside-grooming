@@ -55,7 +55,7 @@ function onSave() {
     <div
       v-for="day in days"
       :key="day.dayOfWeek"
-      class="flex items-center gap-4 p-3 border rounded-lg">
+      class="flex items-center gap-4 p-3 border border-default rounded-lg">
       <div class="w-28 font-medium text-sm">
         {{ dayNames[day.dayOfWeek] }}
       </div>

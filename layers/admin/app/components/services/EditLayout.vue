@@ -156,7 +156,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
             <div
               v-for="cat in categories"
               :key="cat.id"
-              class="p-3 border rounded-lg space-y-2">
+              class="p-3 border border-default rounded-lg space-y-2">
               <span class="font-medium text-sm">{{ cat.name }}</span>
 
               <div class="flex gap-3">

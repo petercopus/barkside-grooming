@@ -7,12 +7,13 @@ import {
   pets,
   servicePricing,
   services,
+  users,
 } from '~~/server/db/schema';
 import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
 import { CreateBookingInput } from '~~/shared/schemas/appointment';
 
 /**
- * Batch load pets and services for a set of appointments
+ * Batch load pets, services, customer for a set of appointments
  *
  * Avoid N+1 by fetching all related rows in two batches then group in JS
  */
@@ -38,21 +39,42 @@ async function enrichAppointments(appointmentRows: (typeof appointments.$inferSe
           .where(inArray(appointmentServices.appointmentPetId, petIds))
       : [];
 
-  return appointmentRows.map((appt) => ({
-    ...appt,
-    pets: petRows
-      .filter((pr) => pr.appointment_pets.appointmentId === appt.id)
-      .map((pr) => ({
-        ...pr.appointment_pets,
-        petName: pr.pets.name,
-        services: serviceRows
-          .filter((sr) => sr.appointment_services.appointmentPetId === pr.appointment_pets.id)
-          .map((sr) => ({
-            ...sr.appointment_services,
-            serviceName: sr.services.name,
-          })),
-      })),
-  }));
+  const customerIds = [
+    ...new Set(appointmentRows.map((ar) => ar.customerId).filter(Boolean)),
+  ] as string[];
+
+  const customerRows =
+    customerIds.length > 0
+      ? await db
+          .select({
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          })
+          .from(users)
+          .where(inArray(users.id, customerIds))
+      : [];
+
+  return appointmentRows.map((appt) => {
+    const customer = customerRows.find((cr) => cr.id === appt.customerId);
+
+    return {
+      ...appt,
+      customerName: customer ? `${customer.firstName} ${customer.lastName}` : 'Guest',
+      pets: petRows
+        .filter((pr) => pr.appointment_pets.appointmentId === appt.id)
+        .map((pr) => ({
+          ...pr.appointment_pets,
+          petName: pr.pets.name,
+          services: serviceRows
+            .filter((sr) => sr.appointment_services.appointmentPetId === pr.appointment_pets.id)
+            .map((sr) => ({
+              ...sr.appointment_services,
+              serviceName: sr.services.name,
+            })),
+        })),
+    };
+  });
 }
 
 /**
