@@ -1,4 +1,4 @@
-import { and, eq, gt } from 'drizzle-orm';
+import { and, eq, gt, inArray } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import {
   permissions,
@@ -54,7 +54,7 @@ export async function register(input: RegisterInput) {
   const [customerRole] = await db
     .select({ id: roles.id })
     .from(roles)
-    .where(eq(roles.name, 'customer'))
+    .where(eq(roles.name, 'Customer'))
     .limit(1);
 
   if (customerRole) {
@@ -149,17 +149,42 @@ export async function validateSession(token: string) {
 }
 
 async function getUserPermissions(userId: string): Promise<string[]> {
-  // 1. Permissions from roles
+  // 1. Get users assigned roles
+  const userRoleRows = await db
+    .select({ roleId: userRoles.roleId })
+    .from(userRoles)
+    .where(eq(userRoles.userId, userId));
+
+  if (userRoleRows.length === 0) return [];
+
+  // 2. Load all roles to walk inheritance chains
+  const allRolesData = await db.select().from(roles);
+  const roleMap = new Map(allRolesData.map((r) => [r.id, r]));
+  const assignedRoleIds = userRoleRows.map((r) => r.roleId);
+
+  // 3. Expand to include all ancestor roles via parentRoleId chain
+  // Also check for hasAllPermissions (wildcard) along the way
+  const effectiveRoleIds = new Set<number>();
+
+  for (const roleId of assignedRoleIds) {
+    let current = roleMap.get(roleId);
+    while (current) {
+      if (current.hasAllPermissions) return ['*'];
+      effectiveRoleIds.add(current.id);
+      current = current.parentRoleId ? roleMap.get(current.parentRoleId) : undefined;
+    }
+  }
+
+  // 4. Permissions from all effective roles (assigned + inherited)
   const rolePerms = await db
     .select({ key: permissions.key })
-    .from(userRoles)
-    .innerJoin(rolePermissions, eq(userRoles.roleId, rolePermissions.roleId))
+    .from(rolePermissions)
     .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-    .where(eq(userRoles.userId, userId));
+    .where(inArray(rolePermissions.roleId, [...effectiveRoleIds]));
 
   const permSet = new Set(rolePerms.map((r) => r.key));
 
-  // 2. Direct grants/denies
+  // 5. Direct grants/denies
   const directPerms = await db
     .select({
       key: permissions.key,
@@ -169,7 +194,7 @@ async function getUserPermissions(userId: string): Promise<string[]> {
     .innerJoin(permissions, eq(userPermissions.permissionId, permissions.id))
     .where(eq(userPermissions.userId, userId));
 
-  // 3. Merge role perms and direct grants/denies
+  // 6. Merge role perms and direct grants/denies
   for (const dp of directPerms) {
     if (dp.granted) permSet.add(dp.key);
     else permSet.delete(dp.key);

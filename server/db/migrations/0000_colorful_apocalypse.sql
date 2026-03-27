@@ -75,6 +75,8 @@ CREATE TABLE "roles" (
 	"name" varchar(100) NOT NULL,
 	"description" text,
 	"is_system" boolean DEFAULT false NOT NULL,
+	"parent_role_id" integer,
+	"has_all_permissions" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "roles_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint

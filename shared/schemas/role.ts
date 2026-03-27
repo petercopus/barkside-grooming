@@ -5,6 +5,8 @@ export const createRoleSchema = z.object({
   description: z.string().max(500).optional(),
   permissionIds: z.array(z.number().int()).default([]),
   defaultServiceIds: z.array(z.number().int()).default([]),
+  parentRoleId: z.number().int().nullable().default(null),
+  hasAllPermissions: z.boolean().default(false),
 });
 
 export const updateRoleSchema = z.object({
@@ -12,6 +14,8 @@ export const updateRoleSchema = z.object({
   description: z.string().max(500).optional(),
   permissionIds: z.array(z.number().int()).optional(),
   defaultServiceIds: z.array(z.number().int()).optional(),
+  parentRoleId: z.number().int().nullable().optional(),
+  hasAllPermissions: z.boolean().optional(),
 });
 
 export type CreateRoleInput = z.infer<typeof createRoleSchema>;

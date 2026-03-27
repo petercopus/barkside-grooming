@@ -49,14 +49,12 @@ const columns = [
             size="sm" />
         </template>
 
-        <!-- system badge -->
         <template #isSystem-cell="{ row }">
-          <UBadge
+          <UIcon
             v-if="row.original.isSystem"
-            color="neutral"
-            variant="subtle">
-            System
-          </UBadge>
+            name="i-lucide-check"
+            class="text-muted" />
+          <span v-else />
         </template>
       </AppTable>
     </div>

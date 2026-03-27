@@ -30,6 +30,24 @@ async function seed() {
   const allRoles = await db.select().from(roles);
   const roleMap = Object.fromEntries(allRoles.map((r) => [r.name, r.id]));
 
+  // Set role hierarchy
+  await db
+    .update(roles)
+    .set({ parentRoleId: roleMap['Customer'] })
+    .where(eq(roles.name, 'Employee'));
+  await db
+    .update(roles)
+    .set({ parentRoleId: roleMap['Employee'] })
+    .where(eq(roles.name, 'Groomer'));
+  await db.update(roles).set({ parentRoleId: roleMap['Employee'] }).where(eq(roles.name, 'Bather'));
+  await db
+    .update(roles)
+    .set({ parentRoleId: roleMap['Employee'] })
+    .where(eq(roles.name, 'Front Desk'));
+
+  // Admin gets all permissions via wildcard
+  await db.update(roles).set({ hasAllPermissions: true }).where(eq(roles.name, 'Admin'));
+
   console.log('✓ Roles seeded');
 
   // ─── 2. Permissions ────────────────────────────────────
@@ -156,10 +174,10 @@ async function seed() {
       .returning();
 
     // Assign admin role
-    if (adminUser && roleMap['admin']) {
+    if (adminUser && roleMap['Admin']) {
       await db.insert(userRoles).values({
         userId: adminUser.id,
-        roleId: roleMap['admin'],
+        roleId: roleMap['Admin'],
       });
     }
 

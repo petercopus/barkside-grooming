@@ -28,6 +28,8 @@ export const roles = pgTable('roles', {
   name: varchar('name', { length: 100 }).notNull().unique(),
   description: text('description'),
   isSystem: boolean('is_system').notNull().default(false),
+  parentRoleId: integer('parent_role_id'),
+  hasAllPermissions: boolean('has_all_permissions').notNull().default(false),
 });
 
 export const permissions = pgTable('permissions', {

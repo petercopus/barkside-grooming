@@ -14,7 +14,7 @@ export function requirePermission(event: H3Event, permission: string) {
   const user = requireAuth(event);
   const perms: string[] = event.context.permissions ?? [];
 
-  if (!perms.includes(permission)) {
+  if (!perms.includes('*') && !perms.includes(permission)) {
     throw createError({ statusCode: 403, message: 'Forbidden' });
   }
 

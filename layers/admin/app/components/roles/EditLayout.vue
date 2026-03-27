@@ -13,6 +13,14 @@ const schema = computed(() => (isCreate.value ? createRoleSchema : updateRoleSch
 
 const { data: permissionsData } = await useFetch('/api/admin/permissions');
 const { data: servicesData } = await useFetch('/api/admin/services');
+const { data: rolesData } = await useFetch('/api/admin/roles');
+
+// exclude current role from parent options
+const parentRoleOptions = computed(() =>
+  (rolesData.value?.roles ?? [])
+    .filter((r: any) => r.id !== props.roleId)
+    .map((r: any) => ({ label: r.name, id: r.id })),
+);
 
 /* ─────────────────────────────────── *
  *  Form State
@@ -20,14 +28,24 @@ const { data: servicesData } = await useFetch('/api/admin/services');
 const state = reactive({
   name: (props.initialValues?.name as string) ?? undefined,
   description: (props.initialValues?.description as string) ?? undefined,
+  parentRoleId: (props.initialValues?.parentRoleId as number | null) ?? null,
+  hasAllPermissions: (props.initialValues?.hasAllPermissions as boolean) ?? false,
 });
 
 const selectedPermissionIds = ref<number[]>((props.initialValues?.permissionIds as number[]) ?? []);
+const inheritedPermissionIds = ref<number[]>(
+  (props.initialValues?.inheritedPermissionIds as number[]) ?? [],
+);
 const selectedDefaultServiceIds = ref<number[]>(
   (props.initialValues?.defaultServiceIds as number[]) ?? [],
 );
 
+function isInherited(permId: number) {
+  return inheritedPermissionIds.value.includes(permId);
+}
+
 function togglePermission(id: number) {
+  if (isInherited(id)) return;
   const idx = selectedPermissionIds.value.indexOf(id);
   if (idx === -1) selectedPermissionIds.value.push(id);
   else selectedPermissionIds.value.splice(idx, 1);
@@ -58,6 +76,8 @@ const pageSave = !isCreate.value
           track: () => ({
             name: state.name,
             description: state.description,
+            parentRoleId: state.parentRoleId,
+            hasAllPermissions: state.hasAllPermissions,
             permissionIds: [...selectedPermissionIds.value].sort(),
             defaultServiceIds: [...selectedDefaultServiceIds.value].sort(),
           }),
@@ -114,19 +134,38 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
               name="description">
               <UTextarea v-model="state.description" />
             </UFormField>
+
+            <!-- Parent Role -->
+            <UFormField
+              label="Inherits From"
+              name="parentRoleId">
+              <USelectMenu
+                v-model="state.parentRoleId"
+                :items="parentRoleOptions"
+                placeholder="None"
+                value-key="id" />
+            </UFormField>
           </div>
         </AppSection>
 
         <!-- Permissions -->
         <AppSection title="Permissions">
-          <div class="space-y-2 max-h-80 overflow-y-auto">
+          <div
+            v-if="state.hasAllPermissions"
+            class="text-sm text-muted">
+            This role has full system access.
+          </div>
+          <div
+            v-else
+            class="space-y-2 max-h-80 overflow-y-auto">
             <div
               v-for="perm in permissionsData?.permissions ?? []"
               :key="perm.id"
               class="flex items-center gap-2">
               <UCheckbox
                 :label="perm.key"
-                :model-value="selectedPermissionIds.includes(perm.id)"
+                :model-value="isInherited(perm.id) || selectedPermissionIds.includes(perm.id)"
+                :disabled="isInherited(perm.id)"
                 @update:model-value="togglePermission(perm.id)" />
             </div>
           </div>
@@ -135,6 +174,13 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 
       <!-- Right -->
       <div class="space-y-6">
+        <!-- Access Level -->
+        <AppSection title="Access Level">
+          <USwitch
+            v-model="state.hasAllPermissions"
+            label="Full access (all permissions)" />
+        </AppSection>
+
         <!-- Default Service Qualifications -->
         <AppSection title="Default Services">
           <p class="text-sm text-muted mb-3">

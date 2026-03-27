@@ -22,7 +22,10 @@ const initialValues = {
   name: role.name,
   description: role.description,
   permissionIds: role.permissionIds,
+  inheritedPermissionIds: role.inheritedPermissionIds,
   defaultServiceIds: role.defaultServiceIds,
+  parentRoleId: role.parentRoleId,
+  hasAllPermissions: role.hasAllPermissions,
 };
 
 async function onDelete() {

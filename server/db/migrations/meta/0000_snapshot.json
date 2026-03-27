@@ -1,5 +1,5 @@
 {
-  "id": "86340e3e-0f4c-4d9c-865f-1ebeccd1fb77",
+  "id": "84687aa0-fe16-45ac-8759-a761d943a13d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -609,6 +609,19 @@
         },
         "is_system": {
           "name": "is_system",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "parent_role_id": {
+          "name": "parent_role_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "has_all_permissions": {
+          "name": "has_all_permissions",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
