@@ -2,10 +2,10 @@ import { z } from 'zod';
 
 const timeString = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Must be HH:MM or HH:MM:SS');
 
-// one pet + service + slot selection
+// one pet + services + slot selection
 const bookingPetSchema = z.object({
   petId: z.uuid(),
-  serviceId: z.number().int().positive(),
+  serviceIds: z.array(z.number().int().positive()).min(1, 'At least one service is required'),
   groomerId: z.uuid(),
   scheduledDate: z.iso.date('Must be YYYY-MM-DD'),
   startTime: timeString,

@@ -103,19 +103,35 @@ interface GroomerSlot {
  * 4. Subtract existing appointments.
  * 5. Return slots where the remaining contiguous block >= requested duration.
  */
-export async function getAvailableSlots(date: string, durationMinutes: number, serviceId?: number) {
+export async function getAvailableSlots(
+  date: string,
+  durationMinutes: number,
+  serviceIds?: number[],
+) {
   const dayOfWeek = new Date(date).getUTCDay();
 
   // 1. Find qualified groomers
   let groomerIds: string[];
 
-  if (serviceId) {
-    const qualified = await db
-      .select({ userId: employeeServices.userId })
-      .from(employeeServices)
-      .where(eq(employeeServices.serviceId, serviceId));
+  if (serviceIds && serviceIds.length > 0) {
+    // For each service, find qualified groomers, then intersect
+    const qualifiedSets: Set<string>[] = [];
 
-    groomerIds = qualified.map((q) => q.userId);
+    for (const serviceId of serviceIds) {
+      const qualified = await db
+        .select({ userId: employeeServices.userId })
+        .from(employeeServices)
+        .where(eq(employeeServices.serviceId, serviceId));
+
+      qualifiedSets.push(new Set(qualified.map((q) => q.userId)));
+    }
+
+    // Intersect only groomers qualified for ALL requested services
+    const intersection = qualifiedSets.reduce((acc, set) => {
+      return new Set([...acc].filter((id) => set.has(id)));
+    });
+
+    groomerIds = [...intersection];
     if (groomerIds.length === 0) return [];
   } else {
     // All groomers who have any schedule entry

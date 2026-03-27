@@ -5,7 +5,13 @@ defineProps<{
   services: ServiceWithPricing[];
 }>();
 
-const selected = defineModel<number | null>('selected', { default: null });
+const selected = defineModel<number[]>('selected', { default: () => [] });
+
+function toggle(id: number) {
+  const idx = selected.value.indexOf(id);
+  if (idx === -1) selected.value = [...selected.value, id];
+  else selected.value = selected.value.filter((s) => s !== id);
+}
 </script>
 
 <template>
@@ -15,9 +21,9 @@ const selected = defineModel<number | null>('selected', { default: null });
       :key="service.id"
       variant="subtle"
       :class="{
-        'ring-2 ring-success-400': selected === service.id,
+        'ring-2 ring-success-400': selected.includes(service.id),
       }"
-      @click="selected = service.id">
+      @click="toggle(service.id)">
       <template #body>
         <UUser
           :name="service.name"

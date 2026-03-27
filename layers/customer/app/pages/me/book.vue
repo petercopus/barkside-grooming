@@ -38,7 +38,7 @@ const canNextStep = computed(() => {
       additionalCheck = selectedPetIds.value.length > 0;
       break;
     case 1:
-      additionalCheck = selectedPetIds.value.every((id) => petServices.value[id]);
+      additionalCheck = selectedPetIds.value.every((id) => (petServices.value[id] ?? []).length > 0);
       break;
     case 2:
       additionalCheck = selectedPetIds.value.every((id) => petSlots.value[id]);
@@ -66,7 +66,7 @@ const selectedPetIds = ref<string[]>([]);
  *  Step 2: Select services and dates
  * ─────────────────────────────────── */
 const { data: serviceData } = await useFetch('/api/services');
-const petServices = ref<Record<string, number>>({});
+const petServices = ref<Record<string, number[]>>({});
 
 const petSlots = ref<
   Record<
@@ -94,15 +94,22 @@ async function fetchAvailability(petId: string) {
   const date = petDates.value[petId];
   if (!date) return;
 
-  const serviceId = petServices.value[petId];
-  const service = availableServicesForPet(petId).find((s) => s.id === serviceId);
-  if (!service) return;
+  const serviceIds = petServices.value[petId];
+  if (!serviceIds?.length) return;
+
+  const allServices = availableServicesForPet(petId);
+  const totalDuration = serviceIds.reduce((sum, svcId) => {
+    const svc = allServices.find((s) => s.id === svcId);
+    return sum + (svc?.pricing.durationMinutes ?? 0);
+  }, 0);
+
+  if (totalDuration <= 0) return;
 
   const { slots } = await $fetch('/api/availability', {
     params: {
       date: calendarDateToString(date),
-      duration: service.pricing.durationMinutes,
-      serviceId: service.id,
+      duration: totalDuration,
+      serviceIds: serviceIds.join(','),
     },
   });
 
@@ -119,7 +126,7 @@ async function submitBooking() {
   const body = {
     pets: selectedPetIds.value.map((petId) => ({
       petId,
-      serviceId: petServices.value[petId],
+      serviceIds: petServices.value[petId],
       ...petSlots.value[petId],
     })),
     notes: notes.value || undefined,

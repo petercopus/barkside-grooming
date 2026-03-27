@@ -13,9 +13,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'duration (minutes) is required' });
   }
 
-  const serviceId = query.serviceId ? Number(query.serviceId) : undefined;
+  const serviceIds = query.serviceIds
+    ? String(query.serviceIds).split(',').map(Number)
+    : undefined;
 
-  const slots = await getAvailableSlots(date, duration, serviceId);
+  const slots = await getAvailableSlots(date, duration, serviceIds);
 
   return { slots };
 });

@@ -109,42 +109,70 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
     }
 
     // 2. Batch fetch pricing rows for all requested services
-    const serviceIds = [...new Set(input.pets.map((p) => p.serviceId))];
+    const allServiceIds = [...new Set(input.pets.flatMap((p) => p.serviceIds))];
 
     const pricingRows = await tx
       .select()
       .from(servicePricing)
-      .where(inArray(servicePricing.serviceId, serviceIds));
+      .where(inArray(servicePricing.serviceId, allServiceIds));
 
     const petBookings = input.pets.map((p) => {
       const pet = customerPets.find((cp) => cp.id === p.petId)!;
-      const pricing = pricingRows.find(
-        (pr) => pr.serviceId === p.serviceId && pr.sizeCategoryId === pet.sizeCategoryId,
-      );
 
-      if (!pricing) {
-        throw createError({
-          statusCode: 400,
-          message: `No pricing found for service ${p.serviceId} at size ${pet.sizeCategoryId}`,
-        });
-      }
+      // Find pricing for each selected service at this pet's size
+      const petPricingRows = p.serviceIds.map((svcId) => {
+        const pricing = pricingRows.find(
+          (pr) => pr.serviceId === svcId && pr.sizeCategoryId === pet.sizeCategoryId,
+        );
+
+        if (!pricing) {
+          throw createError({
+            statusCode: 400,
+            message: `No pricing found for service ${svcId} at size ${pet.sizeCategoryId}`,
+          });
+        }
+
+        return pricing;
+      });
+
+      // Sum durations across all selected services
+      const totalDuration = petPricingRows.reduce((sum, pr) => sum + pr.durationMinutes, 0);
 
       // calculate end time
       const startMinutes = timeToMinutes(p.startTime);
-      const endMinutes = startMinutes + pricing.durationMinutes;
+      const endMinutes = startMinutes + totalDuration;
       const endTime = minutesToTime(endMinutes);
 
       return {
         ...p,
         pet,
-        pricing,
+        pricingRows: petPricingRows,
+        totalDuration,
         endTime,
       };
     });
 
-    // 3. Verify no groomer has an overlapping booking on the same date
-    // overlap is existing.start < new.end && new.start < existing.end
-    // TODO: also check for overlap between petBookings in this request (same groomer, same date)
+    // 3a. Check for intra-request conflicts (same groomer, same date, overlapping times)
+    for (let i = 0; i < petBookings.length; i++) {
+      for (let j = i + 1; j < petBookings.length; j++) {
+        const a = petBookings[i]!;
+        const b = petBookings[j]!;
+        if (
+          a.groomerId === b.groomerId &&
+          a.scheduledDate === b.scheduledDate &&
+          timeToMinutes(a.startTime) < timeToMinutes(b.endTime) &&
+          timeToMinutes(b.startTime) < timeToMinutes(a.endTime)
+        ) {
+          throw createError({
+            statusCode: 409,
+            message:
+              'Groomer time conflict: two pets are booked with the same groomer at overlapping times',
+          });
+        }
+      }
+    }
+
+    // 3b. Verify no groomer has an overlapping booking on the same date in DB
     for (const booking of petBookings) {
       const conflicts = await tx
         .select({ id: appointmentPets.id })
@@ -194,7 +222,7 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
           scheduledDate: pb.scheduledDate,
           startTime: pb.startTime,
           endTime: pb.endTime,
-          estimatedDurationMinutes: pb.pricing.durationMinutes,
+          estimatedDurationMinutes: pb.totalDuration,
         })
         .returning({ id: appointmentPets.id });
 
@@ -202,16 +230,18 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
         throw createError({ statusCode: 400, message: 'Failed to create appointmentPets' });
       }
 
-      // appointmentServices
-      await tx.insert(appointmentServices).values({
-        appointmentPetId: appointmentPetId.id,
-        serviceId: pb.serviceId,
-        priceAtBookingCents: pb.pricing.priceCents,
-        durationAtBookingMinutes: pb.pricing.durationMinutes,
-      });
+      // appointmentServices — one row per service
+      for (const svcId of pb.serviceIds) {
+        const pricing = pb.pricingRows.find((pr) => pr.serviceId === svcId)!;
+        await tx.insert(appointmentServices).values({
+          appointmentPetId: appointmentPetId.id,
+          serviceId: svcId,
+          priceAtBookingCents: pricing.priceCents,
+          durationAtBookingMinutes: pricing.durationMinutes,
+        });
+      }
     }
 
-    //
     return appointmentId.id;
   });
 }
