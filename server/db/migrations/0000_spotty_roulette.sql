@@ -229,6 +229,12 @@ CREATE TABLE "employee_services" (
 	CONSTRAINT "employee_services_user_id_service_id_pk" PRIMARY KEY("user_id","service_id")
 );
 --> statement-breakpoint
+CREATE TABLE "role_default_services" (
+	"role_id" integer NOT NULL,
+	"service_id" integer NOT NULL,
+	CONSTRAINT "role_default_services_role_id_service_id_pk" PRIMARY KEY("role_id","service_id")
+);
+--> statement-breakpoint
 CREATE TABLE "schedule_overrides" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" uuid NOT NULL,
@@ -307,6 +313,8 @@ ALTER TABLE "pets" ADD CONSTRAINT "pets_size_category_id_pet_size_categories_id_
 ALTER TABLE "employee_schedules" ADD CONSTRAINT "employee_schedules_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "employee_services" ADD CONSTRAINT "employee_services_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "employee_services" ADD CONSTRAINT "employee_services_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "role_default_services" ADD CONSTRAINT "role_default_services_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "role_default_services" ADD CONSTRAINT "role_default_services_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "schedule_overrides" ADD CONSTRAINT "schedule_overrides_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bundle_services" ADD CONSTRAINT "bundle_services_bundle_id_bundles_id_fk" FOREIGN KEY ("bundle_id") REFERENCES "public"."bundles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bundle_services" ADD CONSTRAINT "bundle_services_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

@@ -1,6 +1,12 @@
 import { eq, inArray, ne } from 'drizzle-orm';
 import { db } from '~~/server/db';
-import { employeeServices, roles, userRoles, users } from '~~/server/db/schema';
+import {
+  employeeServices,
+  roleDefaultServices,
+  roles,
+  userRoles,
+  users,
+} from '~~/server/db/schema';
 import type { CreateEmployeeInput, UpdateEmployeeInput } from '~~/shared/schemas/employee';
 
 /**
@@ -99,6 +105,9 @@ export async function createEmployee(input: CreateEmployeeInput) {
       .values(input.serviceIds.map((serviceId) => ({ userId: user.id, serviceId })));
   }
 
+  // merge default services from assigned roles
+  await mergeDefaultServices(user.id, input.roleIds);
+
   return getEmployee(user.id);
 }
 
@@ -122,10 +131,39 @@ export async function updateEmployee(id: string, input: UpdateEmployeeInput) {
     await db.delete(userRoles).where(eq(userRoles.userId, id));
     if (input.roleIds.length > 0) {
       await db.insert(userRoles).values(input.roleIds.map((roleId) => ({ userId: id, roleId })));
+      // merge default services from newly assigned roles
+      await mergeDefaultServices(id, input.roleIds);
     }
   }
 
   return getEmployee(id);
+}
+
+/**
+ * Merge default service qualifications from roles into an employee's services.
+ */
+async function mergeDefaultServices(userId: string, roleIds: number[]) {
+  if (roleIds.length === 0) return;
+
+  const defaults = await db
+    .select({ serviceId: roleDefaultServices.serviceId })
+    .from(roleDefaultServices)
+    .where(inArray(roleDefaultServices.roleId, roleIds));
+
+  const defaultServiceIds = [...new Set(defaults.map((d) => d.serviceId))];
+  if (defaultServiceIds.length === 0) return;
+
+  const current = await db
+    .select({ serviceId: employeeServices.serviceId })
+    .from(employeeServices)
+    .where(eq(employeeServices.userId, userId));
+
+  const currentIds = new Set(current.map((c) => c.serviceId));
+  const toAdd = defaultServiceIds.filter((id) => !currentIds.has(id));
+
+  if (toAdd.length > 0) {
+    await db.insert(employeeServices).values(toAdd.map((serviceId) => ({ userId, serviceId })));
+  }
 }
 
 export async function setEmployeeServices(userId: string, serviceIds: number[]) {

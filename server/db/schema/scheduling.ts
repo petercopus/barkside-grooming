@@ -9,7 +9,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { users } from './auth';
+import { roles, users } from './auth';
 import { services } from './services';
 
 export const employeeSchedules = pgTable('employee_schedules', {
@@ -46,4 +46,17 @@ export const employeeServices = pgTable(
       .references(() => services.id, { onDelete: 'cascade' }),
   },
   (table) => [primaryKey({ columns: [table.userId, table.serviceId] })],
+);
+
+export const roleDefaultServices = pgTable(
+  'role_default_services',
+  {
+    roleId: integer('role_id')
+      .notNull()
+      .references(() => roles.id, { onDelete: 'cascade' }),
+    serviceId: integer('service_id')
+      .notNull()
+      .references(() => services.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.roleId, table.serviceId] })],
 );

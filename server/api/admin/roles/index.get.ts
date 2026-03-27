@@ -1,9 +1,7 @@
-import { db } from '~~/server/db';
-import { roles } from '~~/server/db/schema';
+import { listRoles } from '~~/server/services/role.service';
 
 export default defineEventHandler(async (event) => {
-  requirePermission(event, 'employee:manage');
-
-  const allRoles = await db.select().from(roles);
-  return { roles: allRoles };
+  requireAuth(event);
+  const roles = await listRoles();
+  return { roles };
 });

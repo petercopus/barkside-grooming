@@ -18,6 +18,8 @@ const navItems = computed(() => {
     items.push({ label: 'Size Categories', icon: 'i-lucide-ruler', to: '/admin/size-categories' });
   if (hasPerm('employee:read'))
     items.push({ label: 'Employees', icon: 'i-lucide-users', to: '/admin/employees' });
+  if (hasPerm('role:manage'))
+    items.push({ label: 'Roles', icon: 'i-lucide-shield', to: '/admin/roles' });
 
   if (hasPerm('settings:manage'))
     items.push({ label: 'Settings', icon: 'i-lucide-settings', to: '/admin/settings' });

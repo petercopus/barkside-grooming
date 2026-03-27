@@ -13,10 +13,12 @@ async function seed() {
 
   // ─── 1. Roles ──────────────────────────────────────────
   const roleData = [
-    { name: 'customer', description: 'Default customer role', isSystem: true },
-    { name: 'employee', description: 'Groomer / staff member', isSystem: true },
-    { name: 'front_desk', description: 'Front desk staff', isSystem: true },
-    { name: 'admin', description: 'Business owner / administrator', isSystem: true },
+    { name: 'Customer', description: 'Default customer role', isSystem: true },
+    { name: 'Employee', description: 'Default employee role', isSystem: true },
+    { name: 'Admin', description: 'Full system access', isSystem: true },
+    { name: 'Groomer', description: '', isSystem: false },
+    { name: 'Bather', description: '', isSystem: false },
+    { name: 'Front Desk', description: '', isSystem: false },
   ] as const;
 
   // Upsert: insert or skip if already exists
@@ -43,6 +45,7 @@ async function seed() {
     { key: 'document:upload:own', description: 'Upload own documents' },
     { key: 'document:request', description: 'Request documents from customers' },
     { key: 'document:read:all', description: 'View all documents' },
+    { key: 'document:read:own', description: 'View all documents' },
     { key: 'schedule:read:own', description: 'View own schedule' },
     { key: 'schedule:read:all', description: 'View all schedules' },
     { key: 'schedule:manage', description: 'Manage employee schedules' },
@@ -56,6 +59,7 @@ async function seed() {
     { key: 'review:create', description: 'Create reviews' },
     { key: 'review:moderate', description: 'Moderate reviews' },
     { key: 'size-category:manage', description: 'Manage pet size categories' },
+    { key: 'role:manage', description: 'Manage roles and permissions' },
   ];
 
   for (const perm of permissionData) {
@@ -71,56 +75,28 @@ async function seed() {
   // Maps each role to the permission keys it should have.
   // Matches the table from the project plan exactly.
   const matrix: Record<string, string[]> = {
-    customer: [
+    'Customer': [
       'booking:create',
       'booking:read:own',
       'booking:update:own',
       'booking:cancel',
       'pet:manage:own',
       'document:upload:own',
+      'document:read:own',
       'service:read',
-      'review:create',
     ],
-    employee: [
-      'booking:read:own',
-      'pet:read:all',
-      'document:read:all',
-      'schedule:read:own',
-      'service:read',
-      'employee:read',
-    ],
-    front_desk: [
-      'booking:create',
+    'Employee': [
       'booking:read:all',
-      'booking:update:all',
-      'booking:cancel',
       'pet:read:all',
-      'document:request',
       'document:read:all',
       'schedule:read:all',
       'service:read',
       'employee:read',
     ],
-    admin: [
-      'booking:create',
-      'booking:read:all',
-      'booking:update:all',
-      'booking:cancel',
-      'pet:read:all',
-      'document:request',
-      'document:read:all',
-      'schedule:read:all',
-      'schedule:manage',
-      'service:read',
-      'service:manage',
-      'employee:manage',
-      'employee:read',
-      'reports:view',
-      'settings:manage',
-      'promo:manage',
-      'review:moderate',
-      'size-category:manage',
-    ],
+    'Groomer': [],
+    'Bather': [],
+    'Front Desk': [],
+    'Admin': [],
   };
 
   for (const [roleName, permKeys] of Object.entries(matrix)) {
