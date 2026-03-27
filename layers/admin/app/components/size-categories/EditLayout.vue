@@ -13,7 +13,9 @@ const props = defineProps<{
 }>();
 
 const isCreate = computed(() => props.mode === 'create');
-const schema = computed(() => (isCreate.value ? createSizeCategorySchema : updateSizeCategorySchema));
+const schema = computed(() =>
+  isCreate.value ? createSizeCategorySchema : updateSizeCategorySchema,
+);
 
 /* ─────────────────────────────────── *
  *  Form State
@@ -29,7 +31,7 @@ const state = reactive({
  * ─────────────────────────────────── */
 const create = isCreate.value
   ? useFormAction({
-      redirectTo: (res: any) => `/admin/size-categories/${res.category.id}/edit`,
+      redirectTo: (res: any) => `/admin/settings/size-categories/${res.category.id}/edit`,
     })
   : null;
 
@@ -55,6 +57,8 @@ const pageSave = !isCreate.value
       successMessage: 'Size category updated',
     })
   : null;
+
+const { discardChanges } = useDiscardable(state, pageSave);
 
 /* ─────────────────────────────────── *
  *  Submit
@@ -117,9 +121,15 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 
     <div class="flex justify-end gap-2 mt-6">
       <UButton
-        to="/admin/size-categories"
+        v-if="isCreate"
+        to="/admin/settings/size-categories"
         variant="ghost"
         label="Cancel" />
+      <UButton
+        v-else-if="pageSave?.isDirty.value"
+        variant="ghost"
+        label="Discard"
+        @click="discardChanges" />
       <UButton
         type="submit"
         :loading="loading"

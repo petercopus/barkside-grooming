@@ -1,17 +1,11 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'dashboard',
-  middleware: 'permission',
-  permission: 'employee:read',
-});
-
 const { data, status } = await useFetch('/api/admin/employees');
 
 const loading = computed(() => status.value === 'pending');
 const rows = computed(() => (data.value?.employees ?? []) as Record<string, unknown>[]);
 
 function onRowSelect(_e: Event, row: any) {
-  navigateTo(`/admin/employees/${row.original.id}/edit`);
+  navigateTo(`/admin/settings/employees/${row.original.id}/edit`);
 }
 
 const columns = [
@@ -43,10 +37,10 @@ const columns = [
         empty-description="Add your first employee to get started."
         empty-action-label="Add Employee"
         empty-action-icon="i-lucide-plus"
-        @empty-action="navigateTo('/admin/employees/new')">
+        @empty-action="navigateTo('/admin/settings/employees/new')">
         <template #actions>
           <UButton
-            to="/admin/employees/new"
+            to="/admin/settings/employees/new"
             icon="i-lucide-plus"
             label="Add Employee"
             size="sm" />
@@ -76,7 +70,7 @@ const columns = [
         <!-- Actions -->
         <template #actions-cell="{ row }">
           <UButton
-            :to="`/admin/employees/${row.original.id}/edit`"
+            :to="`/admin/settings/employees/${row.original.id}/edit`"
             icon="i-lucide-pencil"
             variant="ghost"
             size="sm" />

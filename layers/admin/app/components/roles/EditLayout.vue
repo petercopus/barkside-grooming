@@ -30,14 +30,13 @@ const state = reactive({
   description: (props.initialValues?.description as string) ?? undefined,
   parentRoleId: (props.initialValues?.parentRoleId as number | null) ?? null,
   hasAllPermissions: (props.initialValues?.hasAllPermissions as boolean) ?? false,
+  permissionIds: [...((props.initialValues?.permissionIds as number[]) ?? [])],
+  defaultServiceIds: [...((props.initialValues?.defaultServiceIds as number[]) ?? [])],
 });
 
-const selectedPermissionIds = ref<number[]>((props.initialValues?.permissionIds as number[]) ?? []);
+// Read-only display data — not form state
 const inheritedPermissionIds = ref<number[]>(
   (props.initialValues?.inheritedPermissionIds as number[]) ?? [],
-);
-const selectedDefaultServiceIds = ref<number[]>(
-  (props.initialValues?.defaultServiceIds as number[]) ?? [],
 );
 
 function isInherited(permId: number) {
@@ -46,15 +45,15 @@ function isInherited(permId: number) {
 
 function togglePermission(id: number) {
   if (isInherited(id)) return;
-  const idx = selectedPermissionIds.value.indexOf(id);
-  if (idx === -1) selectedPermissionIds.value.push(id);
-  else selectedPermissionIds.value.splice(idx, 1);
+  const idx = state.permissionIds.indexOf(id);
+  if (idx === -1) state.permissionIds.push(id);
+  else state.permissionIds.splice(idx, 1);
 }
 
 function toggleDefaultService(id: number) {
-  const idx = selectedDefaultServiceIds.value.indexOf(id);
-  if (idx === -1) selectedDefaultServiceIds.value.push(id);
-  else selectedDefaultServiceIds.value.splice(idx, 1);
+  const idx = state.defaultServiceIds.indexOf(id);
+  if (idx === -1) state.defaultServiceIds.push(id);
+  else state.defaultServiceIds.splice(idx, 1);
 }
 
 /* ─────────────────────────────────── *
@@ -62,7 +61,7 @@ function toggleDefaultService(id: number) {
  * ─────────────────────────────────── */
 const create = isCreate.value
   ? useFormAction({
-      redirectTo: (res: any) => `/admin/roles/${res.role.id}/edit`,
+      redirectTo: (res: any) => `/admin/settings/roles/${res.role.id}/edit`,
     })
   : null;
 
@@ -78,8 +77,8 @@ const pageSave = !isCreate.value
             description: state.description,
             parentRoleId: state.parentRoleId,
             hasAllPermissions: state.hasAllPermissions,
-            permissionIds: [...selectedPermissionIds.value].sort(),
-            defaultServiceIds: [...selectedDefaultServiceIds.value].sort(),
+            permissionIds: [...state.permissionIds].sort(),
+            defaultServiceIds: [...state.defaultServiceIds].sort(),
           }),
           save: (data) =>
             $fetch(`/api/admin/roles/${props.roleId}`, { method: 'PATCH', body: data }),
@@ -88,6 +87,8 @@ const pageSave = !isCreate.value
       successMessage: 'Role updated',
     })
   : null;
+
+const { discardChanges } = useDiscardable(state, pageSave);
 
 /* ─────────────────────────────────── *
  *  Submit
@@ -99,8 +100,8 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
   if (isCreate.value) {
     const body = {
       ...(event.data as CreateRoleInput),
-      permissionIds: selectedPermissionIds.value,
-      defaultServiceIds: selectedDefaultServiceIds.value,
+      permissionIds: state.permissionIds,
+      defaultServiceIds: state.defaultServiceIds,
     };
 
     create!.execute(() => $fetch('/api/admin/roles', { method: 'POST', body }));
@@ -164,7 +165,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
               class="flex items-center gap-2">
               <UCheckbox
                 :label="perm.key"
-                :model-value="isInherited(perm.id) || selectedPermissionIds.includes(perm.id)"
+                :model-value="isInherited(perm.id) || state.permissionIds.includes(perm.id)"
                 :disabled="isInherited(perm.id)"
                 @update:model-value="togglePermission(perm.id)" />
             </div>
@@ -193,7 +194,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
               class="flex items-center gap-2">
               <UCheckbox
                 :label="service.name"
-                :model-value="selectedDefaultServiceIds.includes(service.id)"
+                :model-value="state.defaultServiceIds.includes(service.id)"
                 @update:model-value="toggleDefaultService(service.id)" />
               <UBadge
                 v-if="service.isAddon"
@@ -209,9 +210,15 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 
     <div class="flex justify-end gap-2 mt-6">
       <UButton
-        to="/admin/roles"
+        v-if="isCreate"
+        to="/admin/settings/roles"
         variant="ghost"
         label="Cancel" />
+      <UButton
+        v-else-if="pageSave?.isDirty.value"
+        variant="ghost"
+        label="Discard"
+        @click="discardChanges" />
       <UButton
         type="submit"
         :loading="loading"

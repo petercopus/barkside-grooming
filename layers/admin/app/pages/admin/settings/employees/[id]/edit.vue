@@ -1,10 +1,4 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'dashboard',
-  middleware: 'permission',
-  permission: 'employee:manage',
-});
-
 const route = useRoute();
 const id = route.params.id as string;
 
@@ -23,15 +17,18 @@ const initialValues = {
   phone: emp.phone,
   isActive: emp.isActive,
   roleIds: emp.roles.map((r) => r.id),
+  serviceIds: emp.serviceIds,
 };
 </script>
 
 <template>
   <div class="space-y-6">
-    <AppPageHeader title="Edit Employee">
+    <AppPageHeader
+      title="Edit Employee"
+      back-to="/admin/settings/employees">
       <template #actions>
         <UButton
-          :to="`/admin/employees/${id}/schedule`"
+          :to="`/admin/settings/employees/${id}/schedule`"
           icon="i-lucide-calendar"
           label="Manage Schedule"
           variant="outline" />
@@ -41,7 +38,6 @@ const initialValues = {
     <EmployeesEditLayout
       mode="edit"
       :initial-values="initialValues"
-      :initial-service-ids="emp.serviceIds"
       :employee-id="id" />
   </div>
 </template>

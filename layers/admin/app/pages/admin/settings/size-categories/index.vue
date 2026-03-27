@@ -1,17 +1,11 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'dashboard',
-  middleware: 'permission',
-  permission: 'size-category:manage',
-});
-
 const { data, status } = await useFetch('/api/admin/size-categories');
 
 const loading = computed(() => status.value === 'pending');
 const rows = computed(() => (data.value?.categories ?? []) as Record<string, unknown>[]);
 
 function onRowSelect(_e: Event, row: any) {
-  navigateTo(`/admin/size-categories/${row.original.id}/edit`);
+  navigateTo(`/admin/settings/size-categories/${row.original.id}/edit`);
 }
 
 const columns = [
@@ -40,10 +34,10 @@ const columns = [
         empty-description="Add your first size category to get started."
         empty-action-label="Add Size Category"
         empty-action-icon="i-lucide-plus"
-        @empty-action="navigateTo('/admin/size-categories/new')">
+        @empty-action="navigateTo('/admin/settings/size-categories/new')">
         <template #actions>
           <UButton
-            to="/admin/size-categories/new"
+            to="/admin/settings/size-categories/new"
             icon="i-lucide-plus"
             label="Add Size Category"
             size="sm" />

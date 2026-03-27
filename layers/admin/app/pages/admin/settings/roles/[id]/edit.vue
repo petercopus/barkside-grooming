@@ -1,10 +1,4 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'dashboard',
-  middleware: 'permission',
-  permission: 'role:manage',
-});
-
 const route = useRoute();
 const toast = useToast();
 const confirm = useConfirmDialog();
@@ -41,7 +35,7 @@ async function onDelete() {
   try {
     await $fetch(`/api/admin/roles/${roleId}`, { method: 'DELETE' });
     toast.add({ title: 'Role deleted', color: 'success' });
-    await navigateTo('/admin/roles');
+    await navigateTo('/admin/settings/roles');
   } catch (e: any) {
     toast.add({
       title: 'Cannot delete',
@@ -56,7 +50,7 @@ async function onDelete() {
   <div class="space-y-6">
     <AppPageHeader
       :title="role.name"
-      back-to="/admin/roles">
+      back-to="/admin/settings/roles">
       <template
         v-if="!role.isSystem"
         #actions>

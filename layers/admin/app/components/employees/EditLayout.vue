@@ -9,7 +9,6 @@ import {
 const props = defineProps<{
   mode: 'create' | 'edit';
   initialValues?: Record<string, unknown>;
-  initialServiceIds?: number[];
   employeeId?: string;
 }>();
 
@@ -30,9 +29,8 @@ const state = reactive({
   phone: (props.initialValues?.phone as string) ?? undefined,
   isActive: (props.initialValues?.isActive as boolean) ?? true,
   roleIds: (props.initialValues?.roleIds as number[]) ?? [],
+  serviceIds: [...((props.initialValues?.serviceIds as number[]) ?? [])],
 });
-
-const selectedServiceIds = ref<number[]>(props.initialServiceIds ?? []);
 
 const roleItems = computed(() =>
   (rolesData.value?.roles ?? []).map((role) => ({
@@ -42,9 +40,9 @@ const roleItems = computed(() =>
 );
 
 function toggleService(serviceId: number) {
-  const idx = selectedServiceIds.value.indexOf(serviceId);
-  if (idx === -1) selectedServiceIds.value.push(serviceId);
-  else selectedServiceIds.value.splice(idx, 1);
+  const idx = state.serviceIds.indexOf(serviceId);
+  if (idx === -1) state.serviceIds.push(serviceId);
+  else state.serviceIds.splice(idx, 1);
 }
 
 /* ─────────────────────────────────── *
@@ -52,7 +50,7 @@ function toggleService(serviceId: number) {
  * ─────────────────────────────────── */
 const create = isCreate.value
   ? useFormAction({
-      redirectTo: (res: any) => `/admin/employees/${res.employee.id}/edit`,
+      redirectTo: (res: any) => `/admin/settings/employees/${res.employee.id}/edit`,
     })
   : null;
 
@@ -75,7 +73,7 @@ const pageSave = !isCreate.value
             $fetch(`/api/admin/employees/${props.employeeId}`, { method: 'PATCH', body: data }),
         },
         services: {
-          track: () => [...selectedServiceIds.value].sort(),
+          track: () => [...state.serviceIds].sort(),
           save: (serviceIds) =>
             $fetch(`/api/admin/employees/${props.employeeId}/services`, {
               method: 'PUT',
@@ -87,6 +85,8 @@ const pageSave = !isCreate.value
     })
   : null;
 
+const { discardChanges } = useDiscardable(state, pageSave);
+
 /* ─────────────────────────────────── *
  *  Submit
  * ─────────────────────────────────── */
@@ -97,7 +97,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
   if (isCreate.value) {
     const body = {
       ...(event.data as CreateEmployeeInput),
-      serviceIds: selectedServiceIds.value,
+      serviceIds: state.serviceIds,
     };
 
     create!.execute(() => $fetch('/api/admin/employees', { method: 'POST', body }));
@@ -162,7 +162,6 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
       <div class="space-y-6">
         <AppSection title="Status">
           <UFormField name="isActive">
-            <!-- Active switch -->
             <USwitch
               v-model="state.isActive"
               label="Active" />
@@ -188,7 +187,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
               class="flex items-center gap-2">
               <UCheckbox
                 :label="service.name"
-                :model-value="selectedServiceIds.includes(service.id)"
+                :model-value="state.serviceIds.includes(service.id)"
                 @update:model-value="toggleService(service.id)" />
               <UBadge
                 v-if="service.isAddon"
@@ -204,9 +203,15 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 
     <div class="flex justify-end gap-2 mt-6">
       <UButton
-        to="/admin/employees"
+        v-if="isCreate"
+        to="/admin/settings/employees"
         variant="ghost"
         label="Cancel" />
+      <UButton
+        v-else-if="pageSave?.isDirty.value"
+        variant="ghost"
+        label="Discard"
+        @click="discardChanges" />
       <UButton
         type="submit"
         :loading="loading"

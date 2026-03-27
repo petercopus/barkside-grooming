@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import type { CreateOverrideInput } from '~~/shared/schemas/schedule';
 
-definePageMeta({
-  layout: 'dashboard',
-  middleware: 'permission',
-  permission: 'employee:manage',
-});
-
 const route = useRoute();
 const id = route.params.id as string;
 
@@ -107,7 +101,7 @@ async function deleteOverride(overrideId: number) {
   <div class="space-y-8">
     <AppPageHeader
       :title="`Schedule — ${employeeName}`"
-      :back-to="`/admin/employees/${id}/edit`" />
+      :back-to="`/admin/settings/employees/${id}/edit`" />
 
     <!-- Weekly Schedule -->
     <AppSection

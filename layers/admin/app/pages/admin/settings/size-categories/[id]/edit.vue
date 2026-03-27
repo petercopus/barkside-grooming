@@ -1,10 +1,4 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'dashboard',
-  middleware: 'permission',
-  permission: 'size-category:manage',
-});
-
 const route = useRoute();
 const toast = useToast();
 const confirm = useConfirmDialog();
@@ -27,7 +21,8 @@ const initialValues = {
 async function onDelete() {
   const confirmed = await confirm({
     title: 'Delete size category?',
-    description: 'This action cannot be undone. Categories referenced by services or pets cannot be deleted.',
+    description:
+      'This action cannot be undone. Categories referenced by services or pets cannot be deleted.',
     confirmLabel: 'Delete',
     confirmColor: 'error',
   });
@@ -37,7 +32,7 @@ async function onDelete() {
   try {
     await $fetch(`/api/admin/size-categories/${categoryId}`, { method: 'DELETE' });
     toast.add({ title: 'Size category deleted', color: 'success' });
-    await navigateTo('/admin/size-categories');
+    await navigateTo('/admin/settings/size-categories');
   } catch (e: any) {
     toast.add({
       title: 'Cannot delete',
@@ -52,7 +47,7 @@ async function onDelete() {
   <div class="space-y-6">
     <AppPageHeader
       :title="category.name"
-      back-to="/admin/size-categories">
+      back-to="/admin/settings/size-categories">
       <template #actions>
         <UButton
           color="error"

@@ -1,17 +1,11 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'dashboard',
-  middleware: 'permission',
-  permission: 'role:manage',
-});
-
 const { data, status } = await useFetch('/api/admin/roles');
 
 const loading = computed(() => status.value === 'pending');
 const rows = computed(() => (data.value?.roles ?? []) as Record<string, unknown>[]);
 
 function onRowSelect(_e: Event, row: any) {
-  navigateTo(`/admin/roles/${row.original.id}/edit`);
+  navigateTo(`/admin/settings/roles/${row.original.id}/edit`);
 }
 
 const columns = [
@@ -40,10 +34,10 @@ const columns = [
         empty-description="Add your first role to get started."
         empty-action-label="Add Role"
         empty-action-icon="i-lucide-plus"
-        @empty-action="navigateTo('/admin/roles/new')">
+        @empty-action="navigateTo('/admin/settings/roles/new')">
         <template #actions>
           <UButton
-            to="/admin/roles/new"
+            to="/admin/settings/roles/new"
             icon="i-lucide-plus"
             label="Add Role"
             size="sm" />

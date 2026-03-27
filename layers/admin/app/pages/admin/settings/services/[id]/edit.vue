@@ -1,10 +1,4 @@
 <script setup lang="ts">
-definePageMeta({
-  layout: 'dashboard',
-  middleware: 'permission',
-  permission: 'service:manage',
-});
-
 const route = useRoute();
 const serviceId = Number(route.params.id);
 
@@ -29,7 +23,7 @@ const initialValues = {
   <div class="space-y-6">
     <AppPageHeader
       :title="service.name"
-      back-to="/admin/services" />
+      back-to="/admin/settings/services" />
 
     <ServicesEditLayout
       mode="edit"

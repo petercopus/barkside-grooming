@@ -22,17 +22,10 @@ const categories = computed(() => categoryData.value?.categories ?? []);
 /* ─────────────────────────────────── *
  *  Form State
  * ─────────────────────────────────── */
-const state = reactive({
-  name: (props.initialValues?.name as string) ?? undefined,
-  description: (props.initialValues?.description as string) ?? undefined,
-  category: (props.initialValues?.category as string) ?? undefined,
-  isAddon: (props.initialValues?.isAddon as boolean) ?? false,
-  sortOrder: (props.initialValues?.sortOrder as number) ?? 0,
-});
-
-const pricingMap = reactive<
-  Record<number, { priceDollars: number | undefined; durationMinutes: number | undefined }>
->({});
+const pricingMap: Record<
+  number,
+  { priceDollars: number | undefined; durationMinutes: number | undefined }
+> = {};
 
 for (const cat of categories.value) {
   const existing = props.initialPricing?.find((p) => p.sizeCategoryId === cat.id);
@@ -42,8 +35,17 @@ for (const cat of categories.value) {
   };
 }
 
+const state = reactive({
+  name: (props.initialValues?.name as string) ?? undefined,
+  description: (props.initialValues?.description as string) ?? undefined,
+  category: (props.initialValues?.category as string) ?? undefined,
+  isAddon: (props.initialValues?.isAddon as boolean) ?? false,
+  sortOrder: (props.initialValues?.sortOrder as number) ?? 0,
+  pricingMap,
+});
+
 function buildPricingRows() {
-  return Object.entries(pricingMap)
+  return Object.entries(state.pricingMap)
     .filter(([_, v]) => v.priceDollars != null && v.durationMinutes != null)
     .map(([sizeCategoryId, v]) => ({
       sizeCategoryId: Number(sizeCategoryId),
@@ -57,7 +59,7 @@ function buildPricingRows() {
  * ─────────────────────────────────── */
 const create = isCreate.value
   ? useFormAction({
-      redirectTo: (res: any) => `/admin/services/${res.service.id}/edit`,
+      redirectTo: (res: any) => `/admin/settings/services/${res.service.id}/edit`,
     })
   : null;
 
@@ -90,6 +92,8 @@ const pageSave = !isCreate.value
       successMessage: 'Service updated',
     })
   : null;
+
+const { discardChanges } = useDiscardable(state, pageSave);
 
 /* ─────────────────────────────────── *
  *  Submit
@@ -152,7 +156,6 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
           <div
             v-else
             class="space-y-3">
-            <!-- Size category list -->
             <div
               v-for="cat in categories"
               :key="cat.id"
@@ -165,7 +168,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
                   label="Price ($)"
                   class="flex-1">
                   <UInputNumber
-                    v-model="pricingMap[cat.id]!.priceDollars"
+                    v-model="state.pricingMap[cat.id]!.priceDollars"
                     :min="0"
                     :step="0.01" />
                 </UFormField>
@@ -175,7 +178,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
                   label="Duration (min)"
                   class="flex-1">
                   <UInputNumber
-                    v-model="pricingMap[cat.id]!.durationMinutes"
+                    v-model="state.pricingMap[cat.id]!.durationMinutes"
                     :min="1"
                     :step="5" />
                 </UFormField>
@@ -211,9 +214,15 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 
     <div class="flex justify-end gap-2 mt-6">
       <UButton
-        to="/admin/services"
+        v-if="isCreate"
+        to="/admin/settings/services"
         variant="ghost"
         label="Cancel" />
+      <UButton
+        v-else-if="pageSave?.isDirty.value"
+        variant="ghost"
+        label="Discard"
+        @click="discardChanges" />
       <UButton
         type="submit"
         :loading="loading"

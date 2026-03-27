@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const route = useRoute();
 const { user, logout } = useAuth();
 const { hasPerm } = usePermissions();
 
@@ -8,21 +9,57 @@ const { hasPerm } = usePermissions();
 const navItems = computed(() => {
   const items = [];
 
-  if (hasPerm('booking:read:all'))
-    items.push({ label: 'Appointments', icon: 'i-lucide-book-open', to: '/admin/appointments' });
-  if (hasPerm('schedule:read:own'))
-    items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/admin/me/schedule' });
-  if (hasPerm('service:read'))
-    items.push({ label: 'Services', icon: 'i-lucide-scissors', to: '/admin/services' });
-  if (hasPerm('size-category:manage'))
-    items.push({ label: 'Size Categories', icon: 'i-lucide-ruler', to: '/admin/size-categories' });
-  if (hasPerm('employee:read'))
-    items.push({ label: 'Employees', icon: 'i-lucide-users', to: '/admin/employees' });
-  if (hasPerm('role:manage'))
-    items.push({ label: 'Roles', icon: 'i-lucide-shield', to: '/admin/roles' });
+  items.push({ label: 'Home', icon: 'i-lucide-house', to: '/admin/home' });
 
-  if (hasPerm('settings:manage'))
-    items.push({ label: 'Settings', icon: 'i-lucide-settings', to: '/admin/settings' });
+  if (hasPerm('booking:read:all')) {
+    items.push({ label: 'Appointments', icon: 'i-lucide-book-open', to: '/admin/appointments' });
+  }
+
+  // if (hasPerm('schedule:read:own')) {
+  //   items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/admin/me/schedule' });
+  // }
+
+  const settingsChildren = [];
+  if (hasPerm('service:read')) {
+    settingsChildren.push({
+      label: 'Services',
+      to: '/admin/settings/services',
+      active: route.path.startsWith('/admin/settings/services'),
+    });
+  }
+
+  if (hasPerm('size-category:read')) {
+    settingsChildren.push({
+      label: 'Size Categories',
+      to: '/admin/settings/size-categories',
+      active: route.path.startsWith('/admin/settings/size-categories'),
+    });
+  }
+
+  if (hasPerm('employee:read')) {
+    settingsChildren.push({
+      label: 'Employees',
+      to: '/admin/settings/employees',
+      active: route.path.startsWith('/admin/settings/employees'),
+    });
+  }
+
+  if (hasPerm('role:read')) {
+    settingsChildren.push({
+      label: 'Roles',
+      to: '/admin/settings/roles',
+      active: route.path.startsWith('/admin/settings/roles'),
+    });
+  }
+
+  if (settingsChildren.length > 0) {
+    items.push({
+      label: 'Settings',
+      icon: 'i-lucide-settings',
+      children: settingsChildren,
+      defaultOpen: true,
+    });
+  }
 
   return items;
 });
