@@ -14,6 +14,8 @@ const navItems = computed(() => {
     items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/admin/me/schedule' });
   if (hasPerm('service:read'))
     items.push({ label: 'Services', icon: 'i-lucide-scissors', to: '/admin/services' });
+  if (hasPerm('size-category:manage'))
+    items.push({ label: 'Size Categories', icon: 'i-lucide-ruler', to: '/admin/size-categories' });
   if (hasPerm('employee:read'))
     items.push({ label: 'Employees', icon: 'i-lucide-users', to: '/admin/employees' });
 

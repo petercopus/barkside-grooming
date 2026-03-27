@@ -1,9 +1,7 @@
-import { db } from '~~/server/db';
-import { petSizeCategories } from '~~/server/db/schema';
+import { listSizeCategories } from '~~/server/services/size-category.service';
 
-// TODO: move DB call to service for size cats
 export default defineEventHandler(async (event) => {
   requireAuth(event);
-  const categories = await db.select().from(petSizeCategories).orderBy(petSizeCategories.minWeight);
+  const categories = await listSizeCategories();
   return { categories };
 });

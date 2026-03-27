@@ -55,6 +55,7 @@ async function seed() {
     { key: 'promo:manage', description: 'Manage promotions and bundles' },
     { key: 'review:create', description: 'Create reviews' },
     { key: 'review:moderate', description: 'Moderate reviews' },
+    { key: 'size-category:manage', description: 'Manage pet size categories' },
   ];
 
   for (const perm of permissionData) {
@@ -118,6 +119,7 @@ async function seed() {
       'settings:manage',
       'promo:manage',
       'review:moderate',
+      'size-category:manage',
     ],
   };
 
