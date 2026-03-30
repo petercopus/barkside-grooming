@@ -261,7 +261,8 @@ CREATE TABLE "bundles" (
 	"discount_value" integer NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"start_date" date,
-	"end_date" date
+	"end_date" date,
+	CONSTRAINT "bundles_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
 CREATE TABLE "service_addons" (
@@ -285,7 +286,8 @@ CREATE TABLE "services" (
 	"category" varchar(50),
 	"is_addon" boolean DEFAULT false NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
-	"sort_order" integer DEFAULT 0 NOT NULL
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	CONSTRAINT "services_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
 ALTER TABLE "appointment_addons" ADD CONSTRAINT "appointment_addons_appointment_pet_id_appointment_pets_id_fk" FOREIGN KEY ("appointment_pet_id") REFERENCES "public"."appointment_pets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

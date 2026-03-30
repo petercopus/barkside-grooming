@@ -12,7 +12,7 @@ import { petSizeCategories } from './pets';
 
 export const services = pgTable('services', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
   description: text('description'),
   category: varchar('category', { length: 50 }),
   isAddon: boolean('is_addon').notNull().default(false),
@@ -34,7 +34,7 @@ export const servicePricing = pgTable('service_pricing', {
 
 export const bundles = pgTable('bundles', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
   description: text('description'),
   discountType: varchar('discount_type', { length: 20 }).notNull(), // percent | fixed
   discountValue: integer('discount_value').notNull(),
