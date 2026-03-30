@@ -1,12 +1,13 @@
 import { eq } from 'drizzle-orm';
 import { db } from '~~/server/db';
-import { servicePricing, services } from '~~/server/db/schema';
+import { serviceAddons, servicePricing, services } from '~~/server/db/schema';
 import type {
   CreateServiceInput,
   ServicePricingInput,
   UpdateServiceInput,
 } from '~~/shared/schemas/service';
 
+//#region SERVICES
 export async function listServices(includeInactive = false) {
   const query = db.select().from(services).orderBy(services.sortOrder);
 
@@ -35,8 +36,65 @@ export async function deleteService(id: number) {
   await getService(id);
   await db.update(services).set({ isActive: false }).where(eq(services.id, id));
 }
+//#endregion
 
-// PRICING
+//#region ADDONS
+/**
+ * Get which base services an addon is compatible with
+ */
+export async function getServiceAddonLinks(addonServiceId: number) {
+  const rows = await db
+    .select({ baseServiceId: serviceAddons.baseServiceId })
+    .from(serviceAddons)
+    .where(eq(serviceAddons.addonServiceId, addonServiceId));
+
+  return rows.map((r) => r.baseServiceId);
+}
+
+/**
+ * Set which base services an addon is compatible with
+ */
+export async function setServiceAddonLinks(addonServiceId: number, baseServiceIds: number[]) {
+  await db.transaction(async (tx) => {
+    await tx.delete(serviceAddons).where(eq(serviceAddons.addonServiceId, addonServiceId));
+
+    if (baseServiceIds.length > 0) {
+      await tx
+        .insert(serviceAddons)
+        .values(baseServiceIds.map((baseServiceId) => ({ baseServiceId, addonServiceId })));
+    }
+  });
+}
+
+/**
+ * Get which addons are available for a base service
+ */
+export async function getBaseServiceAddonLinks(baseServiceId: number) {
+  const rows = await db
+    .select({ addonServiceId: serviceAddons.addonServiceId })
+    .from(serviceAddons)
+    .where(eq(serviceAddons.baseServiceId, baseServiceId));
+
+  return rows.map((r) => r.addonServiceId);
+}
+
+/**
+ * Set which addons are available for a base service
+ */
+export async function setBaseServiceAddonLinks(baseServiceId: number, addonServiceIds: number[]) {
+  await db.transaction(async (tx) => {
+    await tx.delete(serviceAddons).where(eq(serviceAddons.baseServiceId, baseServiceId));
+
+    if (addonServiceIds.length > 0) {
+      await tx
+        .insert(serviceAddons)
+        .values(addonServiceIds.map((addonServiceId) => ({ baseServiceId, addonServiceId })));
+    }
+  });
+}
+//#endregion
+
+//#region PRICING
 export async function getServicePricing(serviceId: number) {
   return db.select().from(servicePricing).where(eq(servicePricing.serviceId, serviceId));
 }
@@ -56,3 +114,4 @@ export async function setServicePricing(serviceId: number, pricing: ServicePrici
 
   return getServicePricing(serviceId);
 }
+//#endregion

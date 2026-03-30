@@ -264,6 +264,12 @@ CREATE TABLE "bundles" (
 	"end_date" date
 );
 --> statement-breakpoint
+CREATE TABLE "service_addons" (
+	"base_service_id" integer NOT NULL,
+	"addon_service_id" integer NOT NULL,
+	CONSTRAINT "service_addons_base_service_id_addon_service_id_pk" PRIMARY KEY("base_service_id","addon_service_id")
+);
+--> statement-breakpoint
 CREATE TABLE "service_pricing" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"service_id" integer NOT NULL,
@@ -320,5 +326,7 @@ ALTER TABLE "role_default_services" ADD CONSTRAINT "role_default_services_servic
 ALTER TABLE "schedule_overrides" ADD CONSTRAINT "schedule_overrides_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bundle_services" ADD CONSTRAINT "bundle_services_bundle_id_bundles_id_fk" FOREIGN KEY ("bundle_id") REFERENCES "public"."bundles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bundle_services" ADD CONSTRAINT "bundle_services_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "service_addons" ADD CONSTRAINT "service_addons_base_service_id_services_id_fk" FOREIGN KEY ("base_service_id") REFERENCES "public"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "service_addons" ADD CONSTRAINT "service_addons_addon_service_id_services_id_fk" FOREIGN KEY ("addon_service_id") REFERENCES "public"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "service_pricing" ADD CONSTRAINT "service_pricing_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "service_pricing" ADD CONSTRAINT "service_pricing_size_category_id_pet_size_categories_id_fk" FOREIGN KEY ("size_category_id") REFERENCES "public"."pet_size_categories"("id") ON DELETE cascade ON UPDATE no action;

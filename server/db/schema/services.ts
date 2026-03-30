@@ -55,3 +55,16 @@ export const bundleServices = pgTable(
   },
   (table) => [primaryKey({ columns: [table.bundleId, table.serviceId] })],
 );
+
+export const serviceAddons = pgTable(
+  'service_addons',
+  {
+    baseServiceId: integer('base_service_id')
+      .notNull()
+      .references(() => services.id, { onDelete: 'cascade' }),
+    addonServiceId: integer('addon_service_id')
+      .notNull()
+      .references(() => services.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.baseServiceId, table.addonServiceId] })],
+);

@@ -22,7 +22,19 @@ export const updateServicePricingSchema = z.object({
   pricing: z.array(servicePricingSchema),
 });
 
+// addon/service association
+export const updateServiceAddonsSchema = z.object({
+  baseServiceIds: z.array(z.number().int().positive()),
+});
+
+export const updateBaseServiceAddonsSchema = z.object({
+  addonServiceIds: z.array(z.number().int().positive()),
+});
+
+// Types
 export type CreateServiceInput = z.infer<typeof createServiceSchema>;
 export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
 export type ServicePricingInput = z.infer<typeof servicePricingSchema>;
 export type UpdateServicePricingInput = z.infer<typeof updateServicePricingSchema>;
+export type UpdateServiceAddonsInput = z.infer<typeof updateServiceAddonsSchema>;
+export type UpdateBaseServiceAddonsInput = z.infer<typeof updateBaseServiceAddonsSchema>;
