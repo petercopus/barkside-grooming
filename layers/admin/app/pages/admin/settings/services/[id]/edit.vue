@@ -3,6 +3,7 @@ const route = useRoute();
 const serviceId = Number(route.params.id);
 
 const { data: serviceData } = await useFetch(`/api/admin/services/${serviceId}`);
+const { data: addonData } = await useFetch(`/api/admin/services/${serviceId}/addons`);
 
 if (!serviceData.value?.service) {
   throw createError({ statusCode: 404, message: 'Service not found' });
@@ -29,6 +30,7 @@ const initialValues = {
       mode="edit"
       :initial-values="initialValues"
       :initial-pricing="serviceData?.pricing ?? []"
+      :initial-addon-links="addonData"
       :service-id="serviceId" />
   </div>
 </template>
