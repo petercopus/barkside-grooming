@@ -1,9 +1,13 @@
 import { and, desc, eq, gt, inArray, lt, notInArray } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import {
+  appointmentAddons,
+  appointmentBundles,
   appointmentPets,
   appointments,
   appointmentServices,
+  bundles,
+  bundleServices,
   pets,
   servicePricing,
   services,
@@ -11,6 +15,28 @@ import {
 } from '~~/server/db/schema';
 import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
 import { CreateBookingInput } from '~~/shared/schemas/appointment';
+
+function resolvePricing(
+  serviceIds: number[],
+  pricingRows: (typeof servicePricing.$inferSelect)[],
+  sizeCategoryId: number | null,
+  label: string,
+) {
+  return serviceIds.map((svcId) => {
+    const pricing = pricingRows.find(
+      (pr) => pr.serviceId === svcId && pr.sizeCategoryId === sizeCategoryId,
+    );
+
+    if (!pricing) {
+      throw createError({
+        statusCode: 400,
+        message: `No pricing found for ${label} ${svcId} at size ${sizeCategoryId}`,
+      });
+    }
+
+    return pricing;
+  });
+}
 
 /**
  * Batch load pets, services, customer for a set of appointments
@@ -37,6 +63,24 @@ async function enrichAppointments(appointmentRows: (typeof appointments.$inferSe
           .from(appointmentServices)
           .innerJoin(services, eq(appointmentServices.serviceId, services.id))
           .where(inArray(appointmentServices.appointmentPetId, petIds))
+      : [];
+
+  const addonRows =
+    petIds.length > 0
+      ? await db
+          .select()
+          .from(appointmentAddons)
+          .innerJoin(services, eq(appointmentAddons.serviceId, services.id))
+          .where(inArray(appointmentAddons.appointmentPetId, petIds))
+      : [];
+
+  const bundleRows =
+    petIds.length > 0
+      ? await db
+          .select()
+          .from(appointmentBundles)
+          .innerJoin(bundles, eq(appointmentBundles.bundleId, bundles.id))
+          .where(inArray(appointmentBundles.appointmentPetId, petIds))
       : [];
 
   const customerIds = [
@@ -71,6 +115,18 @@ async function enrichAppointments(appointmentRows: (typeof appointments.$inferSe
             .map((sr) => ({
               ...sr.appointment_services,
               serviceName: sr.services.name,
+            })),
+          addons: addonRows
+            .filter((ar) => ar.appointment_addons.appointmentPetId === pr.appointment_pets.id)
+            .map((ar) => ({
+              ...ar.appointment_addons,
+              serviceName: ar.services.name,
+            })),
+          bundles: bundleRows
+            .filter((br) => br.appointment_bundles.appointmentPetId === pr.appointment_pets.id)
+            .map((br) => ({
+              ...br.appointment_bundles,
+              bundleName: br.bundles.name,
             })),
         })),
     };
@@ -109,7 +165,7 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
     }
 
     // 2. Batch fetch pricing rows for all requested services
-    const allServiceIds = [...new Set(input.pets.flatMap((p) => p.serviceIds))];
+    const allServiceIds = [...new Set(input.pets.flatMap((p) => [...p.serviceIds, ...p.addonIds]))];
 
     const pricingRows = await tx
       .select()
@@ -119,24 +175,21 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
     const petBookings = input.pets.map((p) => {
       const pet = customerPets.find((cp) => cp.id === p.petId)!;
 
-      // Find pricing for each selected service at this pet's size
-      const petPricingRows = p.serviceIds.map((svcId) => {
-        const pricing = pricingRows.find(
-          (pr) => pr.serviceId === svcId && pr.sizeCategoryId === pet.sizeCategoryId,
-        );
+      // Pricing for base services
+      const basePricingRows = resolvePricing(
+        p.serviceIds,
+        pricingRows,
+        pet.sizeCategoryId,
+        'service',
+      );
 
-        if (!pricing) {
-          throw createError({
-            statusCode: 400,
-            message: `No pricing found for service ${svcId} at size ${pet.sizeCategoryId}`,
-          });
-        }
+      // Pricing for addons
+      const addonPricingRows = resolvePricing(p.addonIds, pricingRows, pet.sizeCategoryId, 'addon');
 
-        return pricing;
-      });
-
-      // Sum durations across all selected services
-      const totalDuration = petPricingRows.reduce((sum, pr) => sum + pr.durationMinutes, 0);
+      // Sum durations across all selected services and addons
+      const totalDuration =
+        basePricingRows.reduce((sum, pr) => sum + pr.durationMinutes, 0) +
+        addonPricingRows.reduce((sum, pr) => sum + pr.durationMinutes, 0);
 
       // calculate end time
       const startMinutes = timeToMinutes(p.startTime);
@@ -146,7 +199,8 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
       return {
         ...p,
         pet,
-        pricingRows: petPricingRows,
+        basePricingRows,
+        addonPricingRows,
         totalDuration,
         endTime,
       };
@@ -232,12 +286,72 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
 
       // appointmentServices — one row per service
       for (const svcId of pb.serviceIds) {
-        const pricing = pb.pricingRows.find((pr) => pr.serviceId === svcId)!;
+        const pricing = pb.basePricingRows.find((pr) => pr.serviceId === svcId)!;
         await tx.insert(appointmentServices).values({
           appointmentPetId: appointmentPetId.id,
           serviceId: svcId,
           priceAtBookingCents: pricing.priceCents,
           durationAtBookingMinutes: pricing.durationMinutes,
+        });
+      }
+
+      // appointmentAddons — one row per addon
+      for (const addonId of pb.addonIds) {
+        const pricing = pb.addonPricingRows.find((pr) => pr.serviceId === addonId)!;
+        await tx.insert(appointmentAddons).values({
+          appointmentPetId: appointmentPetId.id,
+          serviceId: addonId,
+          priceAtBookingCents: pricing.priceCents,
+        });
+      }
+
+      // appointmentBundles
+      if (pb.bundleId) {
+        const [bundle] = await tx
+          .select()
+          .from(bundles)
+          .where(and(eq(bundles.id, pb.bundleId), eq(bundles.isActive, true)));
+
+        if (!bundle) {
+          throw createError({ statusCode: 400, message: `Bundle ${pb.bundleId} not found` });
+        }
+
+        // fetch bundle's required services
+        const bundleSvcRows = await tx
+          .select()
+          .from(bundleServices)
+          .where(eq(bundleServices.bundleId, bundle.id));
+        const bundleServiceIds = bundleSvcRows.map((r) => r.serviceId);
+
+        // verify all bundle services are in the booking
+        const allBookedIds = new Set([...pb.serviceIds, ...pb.addonIds]);
+        const allPresent = bundleServiceIds.every((id) => allBookedIds.has(id));
+
+        if (!allPresent) {
+          throw createError({
+            statusCode: 400,
+            message: 'Selected services fo not match bundle requirements',
+          });
+        }
+
+        // recompute discount from bundle definition
+        const bundleTotal = bundleServiceIds.reduce((sum, svcId) => {
+          const pricing = [...pb.basePricingRows, ...pb.addonPricingRows].find(
+            (pr) => pr.serviceId === svcId,
+          );
+
+          return sum + (pricing?.priceCents ?? 0);
+        }, 0);
+
+        const discountCents =
+          bundle.discountType === 'percent'
+            ? Math.round(bundleTotal * (bundle.discountValue / 100))
+            : bundle.discountValue;
+
+        await tx.insert(appointmentBundles).values({
+          appointmentPetId: appointmentPetId.id,
+          bundleId: pb.bundleId,
+          discountAppliedCents: discountCents,
         });
       }
     }

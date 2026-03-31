@@ -1,5 +1,5 @@
 {
-  "id": "84687aa0-fe16-45ac-8759-a761d943a13d",
+  "id": "d7f0d05c-ef1e-4ce0-aca2-d15023cfd76e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2041,6 +2041,74 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "bundles_name_unique": {
+          "name": "bundles_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.service_addons": {
+      "name": "service_addons",
+      "schema": "",
+      "columns": {
+        "base_service_id": {
+          "name": "base_service_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "addon_service_id": {
+          "name": "addon_service_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "service_addons_base_service_id_services_id_fk": {
+          "name": "service_addons_base_service_id_services_id_fk",
+          "tableFrom": "service_addons",
+          "tableTo": "services",
+          "columnsFrom": [
+            "base_service_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "service_addons_addon_service_id_services_id_fk": {
+          "name": "service_addons_addon_service_id_services_id_fk",
+          "tableFrom": "service_addons",
+          "tableTo": "services",
+          "columnsFrom": [
+            "addon_service_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "service_addons_base_service_id_addon_service_id_pk": {
+          "name": "service_addons_base_service_id_addon_service_id_pk",
+          "columns": [
+            "base_service_id",
+            "addon_service_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -2169,7 +2237,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "services_name_unique": {
+          "name": "services_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

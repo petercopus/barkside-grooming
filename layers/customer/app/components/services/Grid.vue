@@ -30,7 +30,7 @@ function toggle(id: number) {
           :description="service.description ?? undefined" />
 
         <p class="text-sm text-muted">{{ service?.pricing.durationMinutes }} minutes</p>
-        <p class="text-sm font-medium">${{ (service?.pricing.priceCents / 100).toFixed(2) }}</p>
+        <p class="text-sm font-medium">${{ formatCents(service?.pricing.priceCents) }}</p>
       </template>
     </UPageCard>
   </UPageGrid>

@@ -40,9 +40,7 @@ const roleItems = computed(() =>
 );
 
 function toggleService(serviceId: number) {
-  const idx = state.serviceIds.indexOf(serviceId);
-  if (idx === -1) state.serviceIds.push(serviceId);
-  else state.serviceIds.splice(idx, 1);
+  toggleArrayItem(state.serviceIds, serviceId);
 }
 
 /* ─────────────────────────────────── *

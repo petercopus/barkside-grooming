@@ -24,6 +24,11 @@ const stepperItems: StepperItem[] = [
     icon: 'i-lucide-scissors',
   },
   {
+    title: 'Schedule',
+    description: 'Pick date & time',
+    icon: 'i-lucide-calendar',
+  },
+  {
     title: 'Finalize',
     icon: 'i-lucide-check',
   },
@@ -38,11 +43,17 @@ const canNextStep = computed(() => {
       additionalCheck = selectedPetIds.value.length > 0;
       break;
     case 1:
-      additionalCheck = selectedPetIds.value.every((id) => (petServices.value[id] ?? []).length > 0);
+      additionalCheck = selectedPetIds.value.every(
+        (id) => (petBaseServices.value[id] ?? []).length > 0,
+      );
       break;
     case 2:
       additionalCheck = selectedPetIds.value.every((id) => petSlots.value[id]);
       break;
+    case 3:
+      return true;
+    default:
+      return false;
   }
 
   return stepCheck && additionalCheck;
@@ -66,7 +77,12 @@ const selectedPetIds = ref<string[]>([]);
  *  Step 2: Select services and dates
  * ─────────────────────────────────── */
 const { data: serviceData } = await useFetch('/api/services');
-const petServices = ref<Record<string, number[]>>({});
+const { data: bundleData } = await useFetch('/api/bundles');
+const { data: addonMapData } = await useFetch('/api/services/addon-map');
+
+const petBaseServices = ref<Record<string, number[]>>({});
+const petAddons = ref<Record<string, number[]>>({});
+const petBundles = ref<Record<string, { bundleId: number; discountCents: number } | null>>({});
 
 const petSlots = ref<
   Record<
@@ -94,11 +110,12 @@ async function fetchAvailability(petId: string) {
   const date = petDates.value[petId];
   if (!date) return;
 
-  const serviceIds = petServices.value[petId];
-  if (!serviceIds?.length) return;
+  const baseIds = petBaseServices.value[petId] ?? [];
+  const addonIds = petAddons.value[petId] ?? [];
+  if (!baseIds.length) return;
 
   const allServices = availableServicesForPet(petId);
-  const totalDuration = serviceIds.reduce((sum, svcId) => {
+  const totalDuration = [...baseIds, ...addonIds].reduce((sum, svcId) => {
     const svc = allServices.find((s) => s.id === svcId);
     return sum + (svc?.pricing.durationMinutes ?? 0);
   }, 0);
@@ -109,7 +126,7 @@ async function fetchAvailability(petId: string) {
     params: {
       date: calendarDateToString(date),
       duration: totalDuration,
-      serviceIds: serviceIds.join(','),
+      serviceIds: [...baseIds, ...addonIds].join(','),
     },
   });
 
@@ -126,7 +143,10 @@ async function submitBooking() {
   const body = {
     pets: selectedPetIds.value.map((petId) => ({
       petId,
-      serviceIds: petServices.value[petId],
+      serviceIds: petBaseServices.value[petId] ?? [],
+      addonIds: petAddons.value[petId] ?? [],
+      bundleId: petBundles.value[petId]?.bundleId,
+      discountAppliedCents: petBundles.value[petId]?.discountCents,
       ...petSlots.value[petId],
     })),
     notes: notes.value || undefined,
@@ -143,6 +163,11 @@ function getPetName(petId: string) {
   return petData.value?.pets.find((p) => p.id === petId)?.name ?? '';
 }
 
+function baseServicesForPet(petId: string) {
+  return availableServicesForPet(petId).filter((s) => !s.isAddon);
+}
+
+// Retuns services where pet has valid pricing
 function availableServicesForPet(petId: string) {
   const pet = petData.value?.pets.find((p) => p.id === petId);
   if (!pet?.sizeCategoryId) return [];
@@ -155,6 +180,146 @@ function availableServicesForPet(petId: string) {
       return { ...s, pricing };
     })
     .filter((s): s is NonNullable<typeof s> => s !== null);
+}
+
+// Returns bundles where pet has valid pricing for every included service
+function availableBundlesForPet(petId: string) {
+  const petServices = availableServicesForPet(petId);
+  const petServiceIds = new Set(petServices.map((s) => s.id));
+
+  return (bundleData.value?.bundles ?? []).filter((bundle) =>
+    bundle.serviceIds.every((id) => petServiceIds.has(id)),
+  );
+}
+
+// Returns addon services compatible with any of the pets selected base services
+function compatibleAddonsForPet(petId: string) {
+  const baseIds = petBaseServices.value[petId] ?? [];
+  if (!baseIds.length) return [];
+
+  const addonMap = addonMapData.value?.addonMap ?? {};
+  const compatibleAddonIds = new Set(baseIds.flatMap((id) => addonMap[id] ?? []));
+
+  return availableServicesForPet(petId).filter((s) => s.isAddon && compatibleAddonIds.has(s.id));
+}
+
+function partitionBundleServices(petId: string, bundle: { serviceIds: number[] }) {
+  const allServices = availableServicesForPet(petId);
+  const baseIds = bundle.serviceIds.filter((id) => {
+    const svc = allServices.find((s) => s.id === id);
+    return svc && !svc.isAddon;
+  });
+
+  const addonIds = bundle.serviceIds.filter((id) => {
+    const svc = allServices.find((s) => s.id === id);
+    return svc?.isAddon;
+  });
+
+  return { baseIds, addonIds };
+}
+
+function toggleBundle(petId: string, bundleId: number) {
+  const current = petBundles.value[petId];
+  const bundle = (bundleData.value?.bundles ?? []).find((b) => b.id === bundleId);
+  if (!bundle) return;
+
+  const { baseIds, addonIds } = partitionBundleServices(petId, bundle);
+
+  // deselect if same bundle clicked again
+  if (current?.bundleId === bundleId) {
+    petBundles.value[petId] = null;
+    petBaseServices.value[petId] = (petBaseServices.value[petId] ?? []).filter(
+      (id) => !baseIds.includes(id),
+    );
+    petAddons.value[petId] = (petAddons.value[petId] ?? []).filter((id) => !addonIds.includes(id));
+
+    return;
+  }
+
+  // select bundle and merge with existing selections
+  // we dont want to remove manually selected services
+  petBaseServices.value[petId] = [
+    ...new Set([...(petBaseServices.value[petId] ?? []), ...baseIds]),
+  ];
+
+  petAddons.value[petId] = [...new Set([...(petAddons.value[petId] ?? []), ...addonIds])];
+
+  // compute discount
+  const discountCents = computeBundleDiscount(petId, bundle);
+
+  // set bundle
+  petBundles.value[petId] = { bundleId, discountCents };
+}
+
+// After any service selection change, check if a bundle should auto apply
+function autoDetectBundle(petId: string) {
+  const baseIds = petBaseServices.value[petId] ?? [];
+  const addonIds = petAddons.value[petId] ?? [];
+  const allSelectedIds = new Set([...baseIds, ...addonIds]);
+
+  const available = availableBundlesForPet(petId);
+  let bestBundle: (typeof available)[0] | null = null;
+  let bestDiscount = 0;
+
+  for (const bundle of available) {
+    const isMatch = bundle.serviceIds.every((id) => allSelectedIds.has(id));
+    if (!isMatch) continue;
+
+    const discount = computeBundleDiscount(petId, bundle);
+    if (discount > bestDiscount) {
+      bestDiscount = discount;
+      bestBundle = bundle;
+    }
+  }
+
+  if (bestBundle)
+    petBundles.value[petId] = { bundleId: bestBundle.id, discountCents: bestDiscount };
+  else petBundles.value[petId] = null;
+}
+
+function computeBundleDiscount(
+  petId: string,
+  bundle: { discountType: string; discountValue: number; serviceIds: number[] },
+) {
+  const allServices = availableServicesForPet(petId);
+  const bundleTotal = bundle.serviceIds.reduce((sum, id) => {
+    const svc = allServices.find((s) => s.id === id);
+    return sum + (svc?.pricing.priceCents ?? 0);
+  }, 0);
+
+  if (bundle.discountType === 'percent') {
+    return Math.round(bundleTotal * (bundle.discountValue / 100));
+  }
+
+  return bundle.discountValue;
+}
+
+function petTotal(petId: string) {
+  const allServices = availableServicesForPet(petId);
+  const baseIds = petBaseServices.value[petId] ?? [];
+  const addonIds = petAddons.value[petId] ?? [];
+
+  const baseItems = baseIds.map((id) => {
+    const svc = allServices.find((s) => s.id === id);
+    return { name: svc?.name ?? '', priceCents: svc?.pricing.priceCents ?? 0 };
+  });
+
+  const addonItems = addonIds.map((id) => {
+    const svc = allServices.find((s) => s.id === id);
+    return { name: svc?.name ?? '', priceCents: svc?.pricing.priceCents ?? 0 };
+  });
+
+  const subtotal = [...baseItems, ...addonItems].reduce((sum, item) => sum + item.priceCents, 0);
+  const discountCents = petBundles.value[petId]?.discountCents ?? 0;
+  const total = subtotal - discountCents;
+
+  return {
+    baseItems,
+    addonItems,
+    discountCents,
+    subtotal,
+    total,
+  };
 }
 </script>
 
@@ -174,22 +339,111 @@ function availableServicesForPet(petId: string) {
         v-model:selected="selectedPetIds" />
     </div>
 
-    <!-- Step 2: Select services -->
+    <!-- Step 2: Bundles, Services, Addons -->
     <div v-if="step === 1">
       <div
         v-for="petId in selectedPetIds"
         :key="petId"
-        class="space-y-3 mb-6">
-        <h3 class="font-semibold">{{ getPetName(petId) }}</h3>
+        class="mb-10">
+        <h3 class="text-lg font-semibold mb-4">{{ getPetName(petId) }}</h3>
 
-        <!-- Service options -->
-        <ServicesGrid
-          :services="availableServicesForPet(petId)"
-          v-model:selected="petServices[petId]" />
+        <!-- Bundles -->
+        <div
+          v-if="availableBundlesForPet(petId).length"
+          class="mb-6">
+          <h4 class="text-sm font-medium text-muted mb-2">Bundles</h4>
+
+          <UPageGrid>
+            <UPageCard
+              v-for="bundle in availableBundlesForPet(petId)"
+              :key="bundle.id"
+              variant="subtle"
+              :class="{
+                'ring-2 ring-success-400': petBundles[petId]?.bundleId === bundle.id,
+              }"
+              @click="toggleBundle(petId, bundle.id)">
+              <template #body>
+                <div class="space-y-1">
+                  <p class="font-medium">{{ bundle.name }}</p>
+                  <p
+                    v-if="bundle.description"
+                    class="text-sm text-muted">
+                    {{ bundle.description }}
+                  </p>
+                  <UBadge color="success">
+                    {{
+                      bundle.discountType === 'percent'
+                        ? `${bundle.discountValue}% off`
+                        : `$${formatCents(bundle.discountValue)} off`
+                    }}
+                  </UBadge>
+                </div>
+              </template>
+            </UPageCard>
+          </UPageGrid>
+        </div>
+
+        <!-- Base Services -->
+        <div class="mb-6">
+          <h4 class="text-sm font-medium text-muted mb-2">Services</h4>
+          <ServicesGrid
+            :services="baseServicesForPet(petId)"
+            v-model:selected="petBaseServices[petId]"
+            @update:selected="autoDetectBundle(petId)" />
+        </div>
+
+        <!-- Compatible Addons -->
+        <div
+          v-if="compatibleAddonsForPet(petId).length"
+          class="mb-6">
+          <h4 class="text-sm font-medium text-muted mb-2">Addons</h4>
+          <ServicesGrid
+            :services="compatibleAddonsForPet(petId)"
+            v-model:selected="petAddons[petId]"
+            @update:selected="autoDetectBundle(petId)" />
+        </div>
+
+        <!-- Total -->
+        <AppCard v-if="(petBaseServices[petId] ?? []).length > 0">
+          <div class="p-4 space-y-1 text-sm">
+            <!-- base services -->
+            <div
+              v-for="item in petTotal(petId).baseItems"
+              :key="item.name"
+              class="flex justify-between">
+              <span>{{ item.name }}</span>
+              <span>${{ formatCents(item.priceCents) }}</span>
+            </div>
+
+            <!-- addons -->
+            <div
+              v-for="item in petTotal(petId).addonItems"
+              :key="item.name"
+              class="flex justify-between text-muted">
+              <span>{{ item.name }}</span>
+              <span>${{ formatCents(item.priceCents) }}</span>
+            </div>
+
+            <!-- discount -->
+            <div
+              v-if="petTotal(petId).discountCents > 0"
+              class="flex justify-between text-success">
+              <span>Bundle discount</span>
+              <span>-${{ formatCents(petTotal(petId).discountCents) }}</span>
+            </div>
+
+            <!-- grand total -->
+            <hr class="my-2 border-default" />
+            <div class="flex justify-between font-semibold">
+              <span>Total</span>
+              <span>${{ formatCents(petTotal(petId).total) }}</span>
+            </div>
+          </div>
+        </AppCard>
       </div>
     </div>
 
-    <!-- Step 3: Finalize -->
+    <!-- Step 3: Schedule -->
     <div v-if="step === 2">
       <div
         v-for="petId in selectedPetIds"
@@ -247,6 +501,81 @@ function availableServicesForPet(petId: string) {
         v-model="notes"
         placeholder="Any special notes or requests..."
         class="mt-4" />
+    </div>
+
+    <!-- Step 4: Review -->
+    <div v-if="step === 3">
+      <div
+        v-for="petId in selectedPetIds"
+        :key="petId"
+        class="mb-8">
+        <h4 class="font-semibold mb-3">{{ getPetName(petId) }}</h4>
+
+        <AppCard>
+          <!-- services -->
+          <div>
+            <p class="font-medium mb-1">Services</p>
+            <div
+              v-for="item in petTotal(petId).baseItems"
+              :key="item.name"
+              class="flex justify-between">
+              <span>{{ item.name }}</span>
+              <span>${{ formatCents(item.priceCents) }}</span>
+            </div>
+          </div>
+
+          <!-- addons -->
+          <div v-if="petTotal(petId).addonItems.length">
+            <p class="font-medium mb-1">Add-ons</p>
+            <div
+              v-for="item in petTotal(petId).addonItems"
+              :key="item.name"
+              class="flex justify-between">
+              <span>{{ item.name }}</span>
+              <span>${{ formatCents(item.priceCents) }}</span>
+            </div>
+          </div>
+
+          <!-- bundle -->
+          <div
+            v-if="petTotal(petId).discountCents > 0"
+            class="flex justify-between text-success">
+            <span>Bundle discount</span>
+            <span>-${{ formatCents(petTotal(petId).discountCents) }}</span>
+          </div>
+
+          <hr class="border-default" />
+
+          <!-- schedule -->
+          <div
+            v-if="petSlots[petId]"
+            class="flex justify-between">
+            <span>{{ petSlots[petId].scheduledDate }} at {{ petSlots[petId].startTime }}</span>
+          </div>
+
+          <!-- total -->
+          <div class="flex justify-between font-semibold text-base">
+            <span>Total</span>
+            <span>${{ formatCents(petTotal(petId).total) }}</span>
+          </div>
+        </AppCard>
+      </div>
+
+      <!-- notes -->
+      <div
+        v-if="notes"
+        class="mb-6">
+        <p class="text-sm font-medium mb-1">Notes</p>
+        <p class="text-sm text-muted">{{ notes }}</p>
+      </div>
+
+      <!-- grand total -->
+      <div class="flex justify-between text-lg font-bold px-1">
+        <span>Grand Total</span>
+        <span>
+          ${{ formatCents(selectedPetIds.reduce((sum, petId) => sum + petTotal(petId).total, 0)) }}
+        </span>
+      </div>
     </div>
 
     <div class="flex justify-end gap-2 mt-6">

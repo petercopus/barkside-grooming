@@ -10,11 +10,20 @@ const props = defineProps<{
   mode: 'create' | 'edit';
   initialValues?: Record<string, unknown>;
   initialPricing?: { sizeCategoryId: number; priceCents: number; durationMinutes: number }[];
+  initialAddonLinks?: { baseServiceIds?: number[]; addonServiceIds?: number[] };
   serviceId?: number;
 }>();
 
 const isCreate = computed(() => props.mode === 'create');
 const schema = computed(() => (isCreate.value ? createServiceSchema : updateServiceSchema));
+
+const { data: allServicesData } = await useFetch('/api/admin/services');
+const baseServices = computed(() =>
+  (allServicesData.value?.services ?? []).filter((s) => !s.isAddon && s.id !== props.serviceId),
+);
+const addonServices = computed(() =>
+  (allServicesData.value?.services ?? []).filter((s) => s.isAddon && s.id !== props.serviceId),
+);
 
 const { data: categoryData } = await useFetch('/api/admin/size-categories');
 const categories = computed(() => categoryData.value?.categories ?? []);
@@ -42,6 +51,10 @@ const state = reactive({
   isAddon: (props.initialValues?.isAddon as boolean) ?? false,
   sortOrder: (props.initialValues?.sortOrder as number) ?? 0,
   pricingMap,
+  addonLinkIds:
+    props.initialAddonLinks?.baseServiceIds ??
+    props.initialAddonLinks?.addonServiceIds ??
+    ([] as number[]),
 });
 
 function buildPricingRows() {
@@ -52,6 +65,10 @@ function buildPricingRows() {
       priceCents: Math.round(v.priceDollars! * 100),
       durationMinutes: v.durationMinutes!,
     }));
+}
+
+function toggleAddonLink(id: number) {
+  toggleArrayItem(state.addonLinkIds, id);
 }
 
 /* ─────────────────────────────────── *
@@ -86,6 +103,14 @@ const pageSave = !isCreate.value
             $fetch(`/api/admin/services/${props.serviceId}/pricing`, {
               method: 'PUT',
               body: { pricing: rows },
+            }),
+        },
+        addons: {
+          track: () => [...state.addonLinkIds].sort(),
+          save: (ids) =>
+            $fetch(`/api/admin/services/${props.serviceId}/addons`, {
+              method: 'PUT',
+              body: state.isAddon ? { baseServiceIds: ids } : { addonServiceIds: ids },
             }),
         },
       },
@@ -184,6 +209,44 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
                 </UFormField>
               </div>
             </div>
+          </div>
+        </AppSection>
+
+        <!-- ADDON SERVICE -> BASE SERVICE LINKING -->
+        <AppSection
+          v-if="state.isAddon && !isCreate"
+          title="Compatible Base Services">
+          <div class="space-y-2">
+            <UCheckbox
+              v-for="service in baseServices"
+              :key="service.id"
+              :label="service.name"
+              :model-value="state.addonLinkIds.includes(service.id)"
+              @update:model-value="toggleAddonLink(service.id)" />
+            <p
+              v-if="baseServices.length === 0"
+              class="text-sm text-muted">
+              No base services exist yet.
+            </p>
+          </div>
+        </AppSection>
+
+        <!-- BASE SERVICE -> ADDON SERVICE LINKING -->
+        <AppSection
+          v-if="!state.isAddon && !isCreate"
+          title="Available Addons">
+          <div class="space-y-2">
+            <UCheckbox
+              v-for="service in addonServices"
+              :key="service.id"
+              :label="service.name"
+              :model-value="state.addonLinkIds.includes(service.id)"
+              @update:model-value="toggleAddonLink(service.id)" />
+            <p
+              v-if="addonServices.length === 0"
+              class="text-sm text-muted">
+              No addon services exist yet.
+            </p>
           </div>
         </AppSection>
       </div>

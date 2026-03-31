@@ -7,6 +7,8 @@ export interface ServiceWithPricing {
   id: number;
   name: string;
   description: string | null;
+  isAddon: boolean;
+  category: string | null;
   pricing: {
     priceCents: number;
     durationMinutes: number;
