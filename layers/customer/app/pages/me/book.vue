@@ -203,65 +203,51 @@ function compatibleAddonsForPet(petId: string) {
   return availableServicesForPet(petId).filter((s) => s.isAddon && compatibleAddonIds.has(s.id));
 }
 
-function toggleBundle(petId: string, bundleId: number) {
-  const current = petBundles.value[petId];
-
-  // deselect if same bundle clicked again
-  if (current?.bundleId === bundleId) {
-    petBundles.value[petId] = null;
-
-    // remove bundle's services from selections
-    const bundle = (bundleData.value?.bundles ?? []).find((b) => b.id === bundleId);
-
-    if (bundle) {
-      const allServices = availableServicesForPet(petId);
-      const bundleBaseIds = bundle.serviceIds.filter((id) => {
-        const svc = allServices.find((s) => s.id === id);
-        return svc && !svc.isAddon;
-      });
-
-      const bundleAddonIds = bundle.serviceIds.filter((id) => {
-        const svc = allServices.find((s) => s.id === id);
-        return svc?.isAddon;
-      });
-
-      petBaseServices.value[petId] = (petBaseServices.value[petId] ?? []).filter(
-        (id) => !bundleBaseIds.includes(id),
-      );
-
-      petAddons.value[petId] = (petAddons.value[petId] ?? []).filter(
-        (id) => !bundleAddonIds.includes(id),
-      );
-    }
-
-    return;
-  }
-
-  // select bundle and add services
-  const bundle = (bundleData.value?.bundles ?? []).find((b) => b.id === bundleId);
-  if (!bundle) return;
-
+function partitionBundleServices(petId: string, bundle: { serviceIds: number[] }) {
   const allServices = availableServicesForPet(petId);
-  const bundleBaseIds = bundle.serviceIds.filter((id) => {
+  const baseIds = bundle.serviceIds.filter((id) => {
     const svc = allServices.find((s) => s.id === id);
     return svc && !svc.isAddon;
   });
 
-  const bundleAddonIds = bundle.serviceIds.filter((id) => {
+  const addonIds = bundle.serviceIds.filter((id) => {
     const svc = allServices.find((s) => s.id === id);
     return svc?.isAddon;
   });
 
-  // merge with existing selections
+  return { baseIds, addonIds };
+}
+
+function toggleBundle(petId: string, bundleId: number) {
+  const current = petBundles.value[petId];
+  const bundle = (bundleData.value?.bundles ?? []).find((b) => b.id === bundleId);
+  if (!bundle) return;
+
+  const { baseIds, addonIds } = partitionBundleServices(petId, bundle);
+
+  // deselect if same bundle clicked again
+  if (current?.bundleId === bundleId) {
+    petBundles.value[petId] = null;
+    petBaseServices.value[petId] = (petBaseServices.value[petId] ?? []).filter(
+      (id) => !baseIds.includes(id),
+    );
+    petAddons.value[petId] = (petAddons.value[petId] ?? []).filter((id) => !addonIds.includes(id));
+
+    return;
+  }
+
+  // select bundle and merge with existing selections
   // we dont want to remove manually selected services
   petBaseServices.value[petId] = [
-    ...new Set([...(petBaseServices.value[petId] ?? []), ...bundleBaseIds]),
+    ...new Set([...(petBaseServices.value[petId] ?? []), ...baseIds]),
   ];
 
-  petAddons.value[petId] = [...new Set([...(petAddons.value[petId] ?? []), ...bundleAddonIds])];
+  petAddons.value[petId] = [...new Set([...(petAddons.value[petId] ?? []), ...addonIds])];
 
   // compute discount
   const discountCents = computeBundleDiscount(petId, bundle);
+
+  // set bundle
   petBundles.value[petId] = { bundleId, discountCents };
 }
 
