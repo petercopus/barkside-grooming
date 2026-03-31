@@ -7,6 +7,7 @@ import {
   appointments,
   appointmentServices,
   bundles,
+  bundleServices,
   pets,
   servicePricing,
   services,
@@ -304,11 +305,52 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
       }
 
       // appointmentBundles
-      if (pb.bundleId && pb.discountAppliedCents) {
+      if (pb.bundleId) {
+        const [bundle] = await tx
+          .select()
+          .from(bundles)
+          .where(and(eq(bundles.id, pb.bundleId), eq(bundles.isActive, true)));
+
+        if (!bundle) {
+          throw createError({ statusCode: 400, message: `Bundle ${pb.bundleId} not found` });
+        }
+
+        // fetch bundle's required services
+        const bundleSvcRows = await tx
+          .select()
+          .from(bundleServices)
+          .where(eq(bundleServices.bundleId, bundle.id));
+        const bundleServiceIds = bundleSvcRows.map((r) => r.serviceId);
+
+        // verify all bundle services are in the booking
+        const allBookedIds = new Set([...pb.serviceIds, ...pb.addonIds]);
+        const allPresent = bundleServiceIds.every((id) => allBookedIds.has(id));
+
+        if (!allPresent) {
+          throw createError({
+            statusCode: 400,
+            message: 'Selected services fo not match bundle requirements',
+          });
+        }
+
+        // recompute discount from bundle definition
+        const bundleTotal = bundleServiceIds.reduce((sum, svcId) => {
+          const pricing = [...pb.basePricingRows, ...pb.addonPricingRows].find(
+            (pr) => pr.serviceId === svcId,
+          );
+
+          return sum + (pricing?.priceCents ?? 0);
+        }, 0);
+
+        const discountCents =
+          bundle.discountType === 'percent'
+            ? Math.round(bundleTotal * (bundle.discountValue / 100))
+            : bundle.discountValue;
+
         await tx.insert(appointmentBundles).values({
           appointmentPetId: appointmentPetId.id,
           bundleId: pb.bundleId,
-          discountAppliedCents: pb.discountAppliedCents,
+          discountAppliedCents: discountCents,
         });
       }
     }
