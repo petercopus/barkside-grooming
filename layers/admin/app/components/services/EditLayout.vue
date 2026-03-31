@@ -68,9 +68,7 @@ function buildPricingRows() {
 }
 
 function toggleAddonLink(id: number) {
-  const idx = state.addonLinkIds.indexOf(id);
-  if (idx === -1) state.addonLinkIds.push(id);
-  else state.addonLinkIds.splice(idx, 1);
+  toggleArrayItem(state.addonLinkIds, id);
 }
 
 /* ─────────────────────────────────── *

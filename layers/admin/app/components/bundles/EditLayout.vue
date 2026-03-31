@@ -48,9 +48,7 @@ const state = reactive({
 });
 
 function toggleService(id: number) {
-  const idx = state.serviceIds.indexOf(id);
-  if (idx === -1) state.serviceIds.push(id);
-  else state.serviceIds.splice(idx, 1);
+  toggleArrayItem(state.serviceIds, id);
 }
 
 /* ─────────────────────────────────── *

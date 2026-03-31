@@ -45,15 +45,11 @@ function isInherited(permId: number) {
 
 function togglePermission(id: number) {
   if (isInherited(id)) return;
-  const idx = state.permissionIds.indexOf(id);
-  if (idx === -1) state.permissionIds.push(id);
-  else state.permissionIds.splice(idx, 1);
+  toggleArrayItem(state.permissionIds, id);
 }
 
 function toggleDefaultService(id: number) {
-  const idx = state.defaultServiceIds.indexOf(id);
-  if (idx === -1) state.defaultServiceIds.push(id);
-  else state.defaultServiceIds.splice(idx, 1);
+  toggleArrayItem(state.defaultServiceIds, id);
 }
 
 /* ─────────────────────────────────── *
