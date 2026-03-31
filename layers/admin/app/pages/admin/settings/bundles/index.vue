@@ -50,7 +50,7 @@ const columns = [
           {{
             row.original.discountType === 'percent'
               ? `${row.original.discountValue}%`
-              : `$${((row.original.discountValue as number) / 100).toFixed(2)}`
+              : `$${formatCents(row.original.discountValue as number)}`
           }}
         </template>
 

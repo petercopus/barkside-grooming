@@ -93,9 +93,7 @@ async function cancelAppointment(id: string) {
                 :key="service.id"
                 class="flex gap-2">
                 <dt class="text-muted">Service:</dt>
-                <dd>
-                  {{ service.serviceName }} — ${{ (service.priceAtBookingCents / 100).toFixed(2) }}
-                </dd>
+                <dd>{{ service.serviceName }} — ${{ formatCents(service.priceAtBookingCents) }}</dd>
               </div>
             </dl>
           </div>

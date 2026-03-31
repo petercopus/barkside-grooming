@@ -374,7 +374,7 @@ function petTotal(petId: string) {
                     {{
                       bundle.discountType === 'percent'
                         ? `${bundle.discountValue}% off`
-                        : `$${(bundle.discountValue / 100).toFixed(2)} off`
+                        : `$${formatCents(bundle.discountValue)} off`
                     }}
                   </UBadge>
                 </div>
@@ -412,7 +412,7 @@ function petTotal(petId: string) {
               :key="item.name"
               class="flex justify-between">
               <span>{{ item.name }}</span>
-              <span>${{ (item.priceCents / 100).toFixed(2) }}</span>
+              <span>${{ formatCents(item.priceCents) }}</span>
             </div>
 
             <!-- addons -->
@@ -421,7 +421,7 @@ function petTotal(petId: string) {
               :key="item.name"
               class="flex justify-between text-muted">
               <span>{{ item.name }}</span>
-              <span>${{ (item.priceCents / 100).toFixed(2) }}</span>
+              <span>${{ formatCents(item.priceCents) }}</span>
             </div>
 
             <!-- discount -->
@@ -429,14 +429,14 @@ function petTotal(petId: string) {
               v-if="petTotal(petId).discountCents > 0"
               class="flex justify-between text-success">
               <span>Bundle discount</span>
-              <span>-${{ (petTotal(petId).discountCents / 100).toFixed(2) }}</span>
+              <span>-${{ formatCents(petTotal(petId).discountCents) }}</span>
             </div>
 
             <!-- grand total -->
             <hr class="my-2 border-default" />
             <div class="flex justify-between font-semibold">
               <span>Total</span>
-              <span>${{ (petTotal(petId).total / 100).toFixed(2) }}</span>
+              <span>${{ formatCents(petTotal(petId).total) }}</span>
             </div>
           </div>
         </AppCard>
@@ -520,7 +520,7 @@ function petTotal(petId: string) {
               :key="item.name"
               class="flex justify-between">
               <span>{{ item.name }}</span>
-              <span>${{ (item.priceCents / 100).toFixed(2) }}</span>
+              <span>${{ formatCents(item.priceCents) }}</span>
             </div>
           </div>
 
@@ -532,7 +532,7 @@ function petTotal(petId: string) {
               :key="item.name"
               class="flex justify-between">
               <span>{{ item.name }}</span>
-              <span>${{ (item.priceCents / 100).toFixed(2) }}</span>
+              <span>${{ formatCents(item.priceCents) }}</span>
             </div>
           </div>
 
@@ -541,7 +541,7 @@ function petTotal(petId: string) {
             v-if="petTotal(petId).discountCents > 0"
             class="flex justify-between text-success">
             <span>Bundle discount</span>
-            <span>-${{ (petTotal(petId).discountCents / 100).toFixed(2) }}</span>
+            <span>-${{ formatCents(petTotal(petId).discountCents) }}</span>
           </div>
 
           <hr class="border-default" />
@@ -556,7 +556,7 @@ function petTotal(petId: string) {
           <!-- total -->
           <div class="flex justify-between font-semibold text-base">
             <span>Total</span>
-            <span>${{ (petTotal(petId).total / 100).toFixed(2) }}</span>
+            <span>${{ formatCents(petTotal(petId).total) }}</span>
           </div>
         </AppCard>
       </div>
@@ -573,9 +573,7 @@ function petTotal(petId: string) {
       <div class="flex justify-between text-lg font-bold px-1">
         <span>Grand Total</span>
         <span>
-          ${{
-            (selectedPetIds.reduce((sum, petId) => sum + petTotal(petId).total, 0) / 100).toFixed(2)
-          }}
+          ${{ formatCents(selectedPetIds.reduce((sum, petId) => sum + petTotal(petId).total, 0)) }}
         </span>
       </div>
     </div>
