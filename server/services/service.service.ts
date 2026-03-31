@@ -92,6 +92,18 @@ export async function setBaseServiceAddonLinks(baseServiceId: number, addonServi
     }
   });
 }
+
+export async function getAddonMap() {
+  const rows = await db.select().from(serviceAddons);
+
+  const map: Record<number, number[]> = {};
+  for (const row of rows) {
+    if (!map[row.baseServiceId]) map[row.baseServiceId] = [];
+    map[row.baseServiceId]?.push(row.addonServiceId);
+  }
+
+  return map;
+}
 //#endregion
 
 //#region PRICING

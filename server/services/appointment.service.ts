@@ -1,9 +1,12 @@
 import { and, desc, eq, gt, inArray, lt, notInArray } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import {
+  appointmentAddons,
+  appointmentBundles,
   appointmentPets,
   appointments,
   appointmentServices,
+  bundles,
   pets,
   servicePricing,
   services,
@@ -39,6 +42,24 @@ async function enrichAppointments(appointmentRows: (typeof appointments.$inferSe
           .where(inArray(appointmentServices.appointmentPetId, petIds))
       : [];
 
+  const addonRows =
+    petIds.length > 0
+      ? await db
+          .select()
+          .from(appointmentAddons)
+          .innerJoin(services, eq(appointmentAddons.serviceId, services.id))
+          .where(inArray(appointmentAddons.appointmentPetId, petIds))
+      : [];
+
+  const bundleRows =
+    petIds.length > 0
+      ? await db
+          .select()
+          .from(appointmentBundles)
+          .innerJoin(bundles, eq(appointmentBundles.bundleId, bundles.id))
+          .where(inArray(appointmentBundles.appointmentPetId, petIds))
+      : [];
+
   const customerIds = [
     ...new Set(appointmentRows.map((ar) => ar.customerId).filter(Boolean)),
   ] as string[];
@@ -71,6 +92,18 @@ async function enrichAppointments(appointmentRows: (typeof appointments.$inferSe
             .map((sr) => ({
               ...sr.appointment_services,
               serviceName: sr.services.name,
+            })),
+          addons: addonRows
+            .filter((ar) => ar.appointment_addons.appointmentPetId === pr.appointment_pets.id)
+            .map((ar) => ({
+              ...ar.appointment_addons,
+              serviceName: ar.services.name,
+            })),
+          bundles: bundleRows
+            .filter((br) => br.appointment_bundles.appointmentPetId === pr.appointment_pets.id)
+            .map((br) => ({
+              ...br.appointment_bundles,
+              bundleName: br.bundles.name,
             })),
         })),
     };
@@ -109,7 +142,7 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
     }
 
     // 2. Batch fetch pricing rows for all requested services
-    const allServiceIds = [...new Set(input.pets.flatMap((p) => p.serviceIds))];
+    const allServiceIds = [...new Set(input.pets.flatMap((p) => [...p.serviceIds, ...p.addonIds]))];
 
     const pricingRows = await tx
       .select()
@@ -119,8 +152,8 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
     const petBookings = input.pets.map((p) => {
       const pet = customerPets.find((cp) => cp.id === p.petId)!;
 
-      // Find pricing for each selected service at this pet's size
-      const petPricingRows = p.serviceIds.map((svcId) => {
+      // Pricing for base services
+      const basePricingRows = p.serviceIds.map((svcId) => {
         const pricing = pricingRows.find(
           (pr) => pr.serviceId === svcId && pr.sizeCategoryId === pet.sizeCategoryId,
         );
@@ -135,8 +168,26 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
         return pricing;
       });
 
-      // Sum durations across all selected services
-      const totalDuration = petPricingRows.reduce((sum, pr) => sum + pr.durationMinutes, 0);
+      // Pricing for addons
+      const addonPricingRows = p.addonIds.map((svcId) => {
+        const pricing = pricingRows.find(
+          (pr) => pr.serviceId === svcId && pr.sizeCategoryId === pet.sizeCategoryId,
+        );
+
+        if (!pricing) {
+          throw createError({
+            statusCode: 400,
+            message: `No pricing found for addon ${svcId} at size ${pet.sizeCategoryId}`,
+          });
+        }
+
+        return pricing;
+      });
+
+      // Sum durations across all selected services and addons
+      const totalDuration =
+        basePricingRows.reduce((sum, pr) => sum + pr.durationMinutes, 0) +
+        addonPricingRows.reduce((sum, pr) => sum + pr.durationMinutes, 0);
 
       // calculate end time
       const startMinutes = timeToMinutes(p.startTime);
@@ -146,7 +197,8 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
       return {
         ...p,
         pet,
-        pricingRows: petPricingRows,
+        basePricingRows,
+        addonPricingRows,
         totalDuration,
         endTime,
       };
@@ -232,12 +284,31 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
 
       // appointmentServices — one row per service
       for (const svcId of pb.serviceIds) {
-        const pricing = pb.pricingRows.find((pr) => pr.serviceId === svcId)!;
+        const pricing = pb.basePricingRows.find((pr) => pr.serviceId === svcId)!;
         await tx.insert(appointmentServices).values({
           appointmentPetId: appointmentPetId.id,
           serviceId: svcId,
           priceAtBookingCents: pricing.priceCents,
           durationAtBookingMinutes: pricing.durationMinutes,
+        });
+      }
+
+      // appointmentAddons — one row per addon
+      for (const addonId of pb.addonIds) {
+        const pricing = pb.addonPricingRows.find((pr) => pr.serviceId === addonId)!;
+        await tx.insert(appointmentAddons).values({
+          appointmentPetId: appointmentPetId.id,
+          serviceId: addonId,
+          priceAtBookingCents: pricing.priceCents,
+        });
+      }
+
+      // appointmentBundles
+      if (pb.bundleId && pb.discountAppliedCents) {
+        await tx.insert(appointmentBundles).values({
+          appointmentPetId: appointmentPetId.id,
+          bundleId: pb.bundleId,
+          discountAppliedCents: pb.discountAppliedCents,
         });
       }
     }

@@ -6,6 +6,9 @@ const timeString = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Must be HH:MM or 
 const bookingPetSchema = z.object({
   petId: z.uuid(),
   serviceIds: z.array(z.number().int().positive()).min(1, 'At least one service is required'),
+  addonIds: z.array(z.number().int().positive()).optional().default([]),
+  bundleId: z.number().int().positive().optional(),
+  discountAppliedCents: z.number().int().min(0).optional(),
   groomerId: z.uuid(),
   scheduledDate: z.iso.date('Must be YYYY-MM-DD'),
   startTime: timeString,
