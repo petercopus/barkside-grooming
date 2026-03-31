@@ -16,6 +16,28 @@ import {
 import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
 import { CreateBookingInput } from '~~/shared/schemas/appointment';
 
+function resolvePricing(
+  serviceIds: number[],
+  pricingRows: (typeof servicePricing.$inferSelect)[],
+  sizeCategoryId: number | null,
+  label: string,
+) {
+  return serviceIds.map((svcId) => {
+    const pricing = pricingRows.find(
+      (pr) => pr.serviceId === svcId && pr.sizeCategoryId === sizeCategoryId,
+    );
+
+    if (!pricing) {
+      throw createError({
+        statusCode: 400,
+        message: `No pricing found for ${label} ${svcId} at size ${sizeCategoryId}`,
+      });
+    }
+
+    return pricing;
+  });
+}
+
 /**
  * Batch load pets, services, customer for a set of appointments
  *
@@ -154,36 +176,15 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
       const pet = customerPets.find((cp) => cp.id === p.petId)!;
 
       // Pricing for base services
-      const basePricingRows = p.serviceIds.map((svcId) => {
-        const pricing = pricingRows.find(
-          (pr) => pr.serviceId === svcId && pr.sizeCategoryId === pet.sizeCategoryId,
-        );
-
-        if (!pricing) {
-          throw createError({
-            statusCode: 400,
-            message: `No pricing found for service ${svcId} at size ${pet.sizeCategoryId}`,
-          });
-        }
-
-        return pricing;
-      });
+      const basePricingRows = resolvePricing(
+        p.serviceIds,
+        pricingRows,
+        pet.sizeCategoryId,
+        'service',
+      );
 
       // Pricing for addons
-      const addonPricingRows = p.addonIds.map((svcId) => {
-        const pricing = pricingRows.find(
-          (pr) => pr.serviceId === svcId && pr.sizeCategoryId === pet.sizeCategoryId,
-        );
-
-        if (!pricing) {
-          throw createError({
-            statusCode: 400,
-            message: `No pricing found for addon ${svcId} at size ${pet.sizeCategoryId}`,
-          });
-        }
-
-        return pricing;
-      });
+      const addonPricingRows = resolvePricing(p.addonIds, pricingRows, pet.sizeCategoryId, 'addon');
 
       // Sum durations across all selected services and addons
       const totalDuration =
