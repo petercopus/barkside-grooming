@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import type { Pet } from '~~/shared/types/pet';
-
 definePageMeta({
   layout: 'dashboard',
   middleware: 'permission',
   permission: 'booking:read:all',
 });
 
-const statusOptions = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show'];
 const statusFilter = ref<string>();
 const dateFilter = ref<string>();
 
@@ -63,17 +60,9 @@ function nextAction(currentStatus: string) {
   }
 }
 
-const statusColor: Record<
-  string,
-  'success' | 'error' | 'primary' | 'warning' | 'info' | 'neutral'
-> = {
-  pending: 'warning',
-  confirmed: 'primary',
-  in_progress: 'info',
-  completed: 'success',
-  cancelled: 'error',
-  no_show: 'error',
-};
+function onRowSelect(_e: Event, row: any) {
+  navigateTo(`/admin/appointments/${row.original.id}`);
+}
 </script>
 
 <template>
@@ -89,6 +78,7 @@ const statusColor: Record<
         :columns="columns"
         :data="rows"
         :loading="loading"
+        :on-select="onRowSelect"
         empty-icon="i-lucide-calendar"
         empty-title="No appointments found"
         empty-description="No appointments match the current filters.">
@@ -97,7 +87,7 @@ const statusColor: Record<
           <div class="flex gap-3">
             <USelect
               v-model="statusFilter"
-              :items="statusOptions"
+              :items="apptStatusOptions"
               placeholder="All statuses"
               class="w-48"
               size="xs" />
@@ -124,7 +114,7 @@ const statusColor: Record<
         <!-- Status -->
         <template #status-cell="{ row }: any">
           <UBadge
-            :color="statusColor[row.original.status] ?? 'neutral'"
+            :color="apptStatusColor[row.original.status] ?? 'neutral'"
             variant="subtle">
             {{ row.original.status }}
           </UBadge>
