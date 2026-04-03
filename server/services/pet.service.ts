@@ -1,6 +1,7 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '~~/server/db';
-import { pets, petSizeCategories } from '~~/server/db/schema';
+import { appointmentPets, appointments, pets, petSizeCategories, users } from '~~/server/db/schema';
+import { enrichAppointments } from '~~/server/services/appointment.service';
 import type { CreatePetInput, UpdatePetInput } from '~~/shared/schemas/pet';
 
 async function resolveSizeCategory(weightLbs: number | undefined): Promise<number | null> {
@@ -85,3 +86,72 @@ export async function deletePet(petId: string, ownerId: string) {
   // TODO: scheduled appointment canceling logic. Cannot set pet to inactive if there are open appointments
   await db.update(pets).set({ isActive: false, updatedAt: new Date() }).where(eq(pets.id, petId));
 }
+
+//#region ADMIN
+export async function listAllPets() {
+  return db
+    .select({
+      id: pets.id,
+      name: pets.name,
+      breed: pets.breed,
+      weightLbs: pets.weightLbs,
+      sizeCategoryId: pets.sizeCategoryId,
+      dateOfBirth: pets.dateOfBirth,
+      gender: pets.gender,
+      coatType: pets.coatType,
+      specialNotes: pets.specialNotes,
+      isActive: pets.isActive,
+      ownerId: pets.ownerId,
+      ownerFirstName: users.firstName,
+      ownerLastName: users.lastName,
+    })
+    .from(pets)
+    .leftJoin(users, eq(pets.ownerId, users.id));
+}
+
+export async function getAdminPet(petId: string) {
+  const [row] = await db
+    .select({
+      id: pets.id,
+      name: pets.name,
+      breed: pets.breed,
+      weightLbs: pets.weightLbs,
+      sizeCategoryId: pets.sizeCategoryId,
+      dateOfBirth: pets.dateOfBirth,
+      gender: pets.gender,
+      coatType: pets.coatType,
+      specialNotes: pets.specialNotes,
+      isActive: pets.isActive,
+      ownerId: pets.ownerId,
+      ownerFirstName: users.firstName,
+      ownerLastName: users.lastName,
+    })
+    .from(pets)
+    .leftJoin(users, eq(pets.ownerId, users.id))
+    .where(eq(pets.id, petId));
+
+  if (!row) {
+    throw createError({ statusCode: 404, message: 'Pet not found' });
+  }
+
+  // fetch appointment history for this pet
+  const petAppointmentRows = await db
+    .selectDistinct({ appointmentId: appointmentPets.appointmentId })
+    .from(appointmentPets)
+    .where(eq(appointmentPets.petId, petId));
+
+  const apptIds = petAppointmentRows.map((r) => r.appointmentId);
+
+  let petAppointments: Awaited<ReturnType<typeof enrichAppointments>> = [];
+  if (apptIds.length > 0) {
+    const apptRows = await db.select().from(appointments).where(inArray(appointments.id, apptIds));
+    petAppointments = await enrichAppointments(apptRows);
+  }
+
+  return {
+    ...row,
+    owner: { id: row.ownerId, firstName: row.ownerFirstName, lastName: row.ownerLastName },
+    appointments: petAppointments,
+  };
+}
+//#endregion

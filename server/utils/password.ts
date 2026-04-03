@@ -10,3 +10,8 @@ export async function hashPassword(password: string): Promise<string> {
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return bcrypt.compare(password, hash);
 }
+
+export function stripPassword<T extends { passwordHash: string | null }>(user: T) {
+  const { passwordHash, ...safe } = user;
+  return safe;
+}

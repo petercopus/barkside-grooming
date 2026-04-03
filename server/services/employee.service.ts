@@ -17,7 +17,7 @@ export async function listEmployees() {
     .select({ userId: userRoles.userId, roleId: userRoles.roleId })
     .from(userRoles)
     .innerJoin(roles, eq(roles.id, userRoles.roleId))
-    .where(ne(roles.name, 'customer'));
+    .where(ne(roles.name, 'Customer'));
 
   // dedup
   const userIds = [...new Set(employeeRoleRows.map((r) => r.userId))];

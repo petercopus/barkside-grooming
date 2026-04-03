@@ -15,6 +15,14 @@ const navItems = computed(() => {
     items.push({ label: 'Appointments', icon: 'i-lucide-book-open', to: '/admin/appointments' });
   }
 
+  if (hasPerm('customer:read')) {
+    items.push({ label: 'Customers', icon: 'i-lucide-contact', to: '/admin/customers' });
+  }
+
+  if (hasPerm('pet:read:all')) {
+    items.push({ label: 'Pets', icon: 'i-lucide-paw-print', to: '/admin/pets' });
+  }
+
   // if (hasPerm('schedule:read:own')) {
   //   items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/admin/me/schedule' });
   // }
