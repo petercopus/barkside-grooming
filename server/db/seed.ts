@@ -93,6 +93,8 @@ async function seed() {
     { key: 'review:moderate', description: 'Moderate reviews' },
     { key: 'size-category:manage', description: 'Manage pet size categories' },
     { key: 'role:manage', description: 'Manage roles and permissions' },
+    { key: 'customer:read', description: 'View customer accounts' },
+    { key: 'customer:manage', description: 'Manage customer accounts' },
   ];
 
   for (const perm of permissionData) {

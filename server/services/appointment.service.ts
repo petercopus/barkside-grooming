@@ -43,7 +43,7 @@ function resolvePricing(
  *
  * Avoid N+1 by fetching all related rows in two batches then group in JS
  */
-async function enrichAppointments(appointmentRows: (typeof appointments.$inferSelect)[]) {
+export async function enrichAppointments(appointmentRows: (typeof appointments.$inferSelect)[]) {
   if (appointmentRows.length === 0) return [];
 
   const appointmentIds = appointmentRows.map((ar) => ar.id);
