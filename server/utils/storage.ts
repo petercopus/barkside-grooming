@@ -31,7 +31,8 @@ export async function uploadFile(key: string, body: Buffer, contentType: string)
         ContentType: contentType,
       }),
     );
-  } catch (e: any) {
+  } catch (e) {
+    console.error('S3 upload failed:', e);
     throw createError({ statusCode: 500, message: 'Failed to upload file' });
   }
 }
@@ -48,7 +49,8 @@ export async function getPresignedUrl(key: string, expiresIn = 900): Promise<str
     );
 
     return url;
-  } catch (e: any) {
+  } catch (e) {
+    console.error('S3 presign failed:', e);
     throw createError({ statusCode: 500, message: 'Failed to get URL' });
   }
 }
@@ -61,7 +63,8 @@ export async function deleteFile(key: string): Promise<void> {
         Key: key,
       }),
     );
-  } catch (e: any) {
+  } catch (e) {
+    console.error('S3 delete failed:', e);
     throw createError({ statusCode: 500, message: 'Failed to delete file' });
   }
 }

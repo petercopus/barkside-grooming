@@ -8,6 +8,28 @@ export async function uploadDocument(
   input: UploadDocumentInput,
   file: { fileName: string; data: Buffer; mimeType: string },
 ) {
+  // validate document request before uploading to avoid orphaned resources
+  if (input.documentRequestId) {
+    const [updated] = await db
+      .update(documentRequests)
+      .set({ status: 'fulfilled' })
+      .where(
+        and(
+          eq(documentRequests.id, input.documentRequestId),
+          eq(documentRequests.targetUserId, userId),
+          eq(documentRequests.status, 'pending'),
+        ),
+      )
+      .returning();
+
+    if (!updated) {
+      throw createError({
+        statusCode: 400,
+        message: 'Document request not found or already fulfilled',
+      });
+    }
+  }
+
   const docId = crypto.randomUUID();
   const key = `documents/${userId}/${docId}/${file.fileName}`;
 
@@ -28,31 +50,6 @@ export async function uploadDocument(
       notes: input.notes,
     })
     .returning();
-
-  if (input.documentRequestId) {
-    const [request] = await db
-      .select()
-      .from(documentRequests)
-      .where(
-        and(
-          eq(documentRequests.id, input.documentRequestId),
-          eq(documentRequests.targetUserId, userId),
-          eq(documentRequests.status, 'pending'),
-        ),
-      );
-
-    if (!request) {
-      throw createError({
-        statusCode: 400,
-        message: 'Document request not found or already fulfilled',
-      });
-    }
-
-    await db
-      .update(documentRequests)
-      .set({ status: 'fulfilled' })
-      .where(eq(documentRequests.id, input.documentRequestId));
-  }
 
   return document;
 }
@@ -147,15 +144,14 @@ export async function updateDocumentStatus(docId: string, input: UpdateDocumentS
 
 export async function deleteDocument(docId: string) {
   const [doc] = await db
-    .select({ filePath: documents.filePath })
-    .from(documents)
-    .where(eq(documents.id, docId));
+    .delete(documents)
+    .where(eq(documents.id, docId))
+    .returning({ filePath: documents.filePath });
 
   if (!doc) {
     throw createError({ statusCode: 404, message: 'Failed to delete document' });
   }
 
   await deleteFile(doc.filePath);
-  await db.delete(documents).where(eq(documents.id, docId));
 }
 //#endregion
