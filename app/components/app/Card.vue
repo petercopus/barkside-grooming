@@ -3,6 +3,7 @@ withDefaults(
   defineProps<{
     title?: string;
     flush?: boolean;
+    to?: string;
   }>(),
   { flush: false },
 );
@@ -10,9 +11,11 @@ withDefaults(
 
 <template>
   <UCard
+    :class="to ? 'cursor-pointer hover:ring-1 hover:ring-primary rounded-lg transition' : undefined"
     :ui="{
       body: flush ? 'p-0 sm:p-0' : undefined,
-    }">
+    }"
+    @click="to ? navigateTo(to) : undefined">
     <template
       v-if="title || $slots.actions"
       #header>

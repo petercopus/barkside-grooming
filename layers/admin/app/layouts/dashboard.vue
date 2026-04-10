@@ -23,6 +23,18 @@ const navItems = computed(() => {
     items.push({ label: 'Pets', icon: 'i-lucide-paw-print', to: '/admin/pets' });
   }
 
+  if (hasPerm('document:read:all')) {
+    items.push({ label: 'Documents', icon: 'i-lucide-file-text', to: '/admin/documents' });
+  }
+
+  if (hasPerm('document:request')) {
+    items.push({
+      label: 'Document Requests',
+      icon: 'i-lucide-file-question',
+      to: '/admin/document-requests',
+    });
+  }
+
   // if (hasPerm('schedule:read:own')) {
   //   items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/admin/me/schedule' });
   // }
