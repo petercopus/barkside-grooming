@@ -37,7 +37,7 @@ export async function uploadFile(key: string, body: Buffer, contentType: string)
   }
 }
 
-export async function getPresignedUrl(key: string, expiresIn = 900): Promise<string | undefined> {
+export async function getPresignedUrl(key: string, expiresIn = 900): Promise<string> {
   try {
     const url = await getSignedUrl(
       s3,

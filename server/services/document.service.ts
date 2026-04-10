@@ -34,24 +34,28 @@ export async function uploadDocument(
   const key = `documents/${userId}/${docId}/${file.fileName}`;
 
   await uploadFile(key, file.data, file.mimeType);
+  try {
+    const [document] = await db
+      .insert(documents)
+      .values({
+        uploadedByUserId: userId,
+        filePath: key,
+        fileName: file.fileName,
+        mimeType: file.mimeType,
+        status: 'pending',
+        petId: input.petId,
+        appointmentId: input.appointmentId,
+        documentRequestId: input.documentRequestId,
+        type: input.type,
+        notes: input.notes,
+      })
+      .returning();
 
-  const [document] = await db
-    .insert(documents)
-    .values({
-      uploadedByUserId: userId,
-      filePath: key,
-      fileName: file.fileName,
-      mimeType: file.mimeType,
-      status: 'pending',
-      petId: input.petId,
-      appointmentId: input.appointmentId,
-      documentRequestId: input.documentRequestId,
-      type: input.type,
-      notes: input.notes,
-    })
-    .returning();
-
-  return document;
+    return document;
+  } catch (err) {
+    await deleteFile(key).catch(() => {});
+    throw err;
+  }
 }
 
 export async function listDocuments(userId: string) {
