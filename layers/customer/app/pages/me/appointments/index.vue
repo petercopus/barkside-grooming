@@ -28,7 +28,7 @@ async function cancelAppointment(id: string) {
       description="View and manage your appointments">
       <template #actions>
         <UButton
-          to="/me/book"
+          to="/book"
           icon="i-lucide-plus">
           Book Appointment
         </UButton>
@@ -44,7 +44,7 @@ async function cancelAppointment(id: string) {
         action-label="Book Appointment"
         action-icon="i-lucide-plus"
         variant="section"
-        @action="navigateTo('/me/book')" />
+        @action="navigateTo('/book')" />
 
       <div
         v-else
