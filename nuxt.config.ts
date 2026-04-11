@@ -3,6 +3,15 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   modules: ['@nuxt/ui'],
+
+  runtimeConfig: {
+    smtpHost: process.env.SMTP_HOST ?? 'localhost',
+    smtpPort: parseInt(process.env.SMTP_PORT ?? '1025'),
+    smtpUser: process.env.SMTP_USER ?? '',
+    smtpPass: process.env.SMTP_PASS ?? '',
+    smtpFrom: process.env.SMTP_FROM ?? 'noreply@barkside.local',
+  },
+
   css: ['~/assets/css/main.css'],
   ui: {
     colorMode: false,
