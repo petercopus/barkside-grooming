@@ -8,13 +8,16 @@ import {
   appointmentServices,
   bundles,
   bundleServices,
+  guestDetails,
   pets,
+  petSizeCategories,
   servicePricing,
   services,
   users,
 } from '~~/server/db/schema';
+import { resolveSizeCategory } from '~~/server/services/pet.service';
 import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
-import { CreateBookingInput } from '~~/shared/schemas/appointment';
+import { CreateBookingInput, CreateGuestBookingInput } from '~~/shared/schemas/appointment';
 
 function resolvePricing(
   serviceIds: number[],
@@ -51,7 +54,7 @@ export async function enrichAppointments(appointmentRows: (typeof appointments.$
   const petRows = await db
     .select()
     .from(appointmentPets)
-    .innerJoin(pets, eq(appointmentPets.petId, pets.id))
+    .leftJoin(pets, eq(appointmentPets.petId, pets.id))
     .where(inArray(appointmentPets.appointmentId, appointmentIds));
 
   const petIds = petRows.map((pr) => pr.appointment_pets.id);
@@ -99,17 +102,34 @@ export async function enrichAppointments(appointmentRows: (typeof appointments.$
           .where(inArray(users.id, customerIds))
       : [];
 
+  // load guest details for guest bookings
+  const guestApptIds = appointmentRows.filter((ar) => !ar.customerId).map((ar) => ar.id);
+
+  const guestDetailRows =
+    guestApptIds.length > 0
+      ? await db
+          .select()
+          .from(guestDetails)
+          .where(inArray(guestDetails.appointmentId, guestApptIds))
+      : [];
+
   return appointmentRows.map((appt) => {
     const customer = customerRows.find((cr) => cr.id === appt.customerId);
+    const guest = guestDetailRows.find((gd) => gd.appointmentId === appt.id);
 
     return {
       ...appt,
-      customerName: customer ? `${customer.firstName} ${customer.lastName}` : 'Guest',
+      customerName: customer
+        ? `${customer.firstName} ${customer.lastName}`
+        : guest
+          ? `${guest.firstName} ${guest.lastName}`
+          : 'Guest',
+      guestDetails: guest ?? null,
       pets: petRows
         .filter((pr) => pr.appointment_pets.appointmentId === appt.id)
         .map((pr) => ({
           ...pr.appointment_pets,
-          petName: pr.pets.name,
+          petName: pr.pets?.name ?? pr.appointment_pets.guestPetName ?? 'Guest Pet',
           services: serviceRows
             .filter((sr) => sr.appointment_services.appointmentPetId === pr.appointment_pets.id)
             .map((sr) => ({
@@ -354,6 +374,182 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
           discountAppliedCents: discountCents,
         });
       }
+    }
+
+    return appointmentId.id;
+  });
+}
+
+/**
+ * Book a guest appointment (single pet, no account)
+ */
+export async function createGuestBooking(input: CreateGuestBookingInput) {
+  return db.transaction(async (tx) => {
+    const pet = input.pet;
+
+    // 1. Resolve size category from weight
+    const sizeCategoryId = await resolveSizeCategory(pet.weightLbs);
+
+    // look up the size category name for storage on appointmentPets
+    let sizeCategoryName: string | null = null;
+    if (sizeCategoryId) {
+      const [cat] = await tx
+        .select({ name: petSizeCategories.name })
+        .from(petSizeCategories)
+        .where(eq(petSizeCategories.id, sizeCategoryId));
+      sizeCategoryName = cat?.name ?? null;
+    }
+
+    // 2. Resolve pricing
+    const allServiceIds = [...new Set([...pet.serviceIds, ...pet.addonIds])];
+
+    const pricingRows = await tx
+      .select()
+      .from(servicePricing)
+      .where(inArray(servicePricing.serviceId, allServiceIds));
+
+    const basePricingRows = resolvePricing(pet.serviceIds, pricingRows, sizeCategoryId, 'service');
+    const addonPricingRows = resolvePricing(pet.addonIds, pricingRows, sizeCategoryId, 'addon');
+
+    // 3. Calculate duration & end time
+    const totalDuration =
+      basePricingRows.reduce((sum, pr) => sum + pr.durationMinutes, 0) +
+      addonPricingRows.reduce((sum, pr) => sum + pr.durationMinutes, 0);
+
+    const startMinutes = timeToMinutes(pet.startTime);
+    const endMinutes = startMinutes + totalDuration;
+    const endTime = minutesToTime(endMinutes);
+
+    // 4. Check groomer conflicts
+    const conflicts = await tx
+      .select({ id: appointmentPets.id })
+      .from(appointmentPets)
+      .where(
+        and(
+          eq(appointmentPets.assignedGroomerId, pet.groomerId),
+          eq(appointmentPets.scheduledDate, pet.scheduledDate),
+          notInArray(appointmentPets.status, ['cancelled', 'no_show']),
+          lt(appointmentPets.startTime, endTime),
+          gt(appointmentPets.endTime, pet.startTime),
+        ),
+      )
+      .limit(1);
+
+    if (conflicts.length > 0) {
+      throw createError({
+        statusCode: 409,
+        message: `Time slot ${pet.startTime}-${endTime} is no longer available`,
+      });
+    }
+
+    // 5. Insert appointment (no customer)
+    const [appointmentId] = await tx
+      .insert(appointments)
+      .values({ notes: input.notes })
+      .returning({ id: appointments.id });
+
+    if (!appointmentId) {
+      throw createError({ statusCode: 400, message: 'Failed to create appointment' });
+    }
+
+    // 6. Insert guest details
+    await tx.insert(guestDetails).values({
+      appointmentId: appointmentId.id,
+      firstName: input.guestDetails.firstName,
+      lastName: input.guestDetails.lastName,
+      email: input.guestDetails.email,
+      phone: input.guestDetails.phone,
+      emergencyContactName: input.guestDetails.emergencyContactName,
+      emergencyContactPhone: input.guestDetails.emergencyContactPhone,
+    });
+
+    // 7. Insert appointmentPets with guest pet fields
+    const [appointmentPetId] = await tx
+      .insert(appointmentPets)
+      .values({
+        appointmentId: appointmentId.id,
+        petId: null,
+        guestPetName: pet.name,
+        guestPetBreed: pet.breed ?? null,
+        guestPetWeight: pet.weightLbs ?? null,
+        guestPetSizeCategory: sizeCategoryName,
+        assignedGroomerId: pet.groomerId,
+        scheduledDate: pet.scheduledDate,
+        startTime: pet.startTime,
+        endTime,
+        estimatedDurationMinutes: totalDuration,
+      })
+      .returning({ id: appointmentPets.id });
+
+    if (!appointmentPetId) {
+      throw createError({ statusCode: 400, message: 'Failed to create appointmentPets' });
+    }
+
+    // 8. Insert services
+    for (const svcId of pet.serviceIds) {
+      const pricing = basePricingRows.find((pr) => pr.serviceId === svcId)!;
+      await tx.insert(appointmentServices).values({
+        appointmentPetId: appointmentPetId.id,
+        serviceId: svcId,
+        priceAtBookingCents: pricing.priceCents,
+        durationAtBookingMinutes: pricing.durationMinutes,
+      });
+    }
+
+    // Insert addons
+    for (const addonId of pet.addonIds) {
+      const pricing = addonPricingRows.find((pr) => pr.serviceId === addonId)!;
+      await tx.insert(appointmentAddons).values({
+        appointmentPetId: appointmentPetId.id,
+        serviceId: addonId,
+        priceAtBookingCents: pricing.priceCents,
+      });
+    }
+
+    // Insert bundle (if selected)
+    if (pet.bundleId) {
+      const [bundle] = await tx
+        .select()
+        .from(bundles)
+        .where(and(eq(bundles.id, pet.bundleId), eq(bundles.isActive, true)));
+
+      if (!bundle) {
+        throw createError({ statusCode: 400, message: `Bundle ${pet.bundleId} not found` });
+      }
+
+      const bundleSvcRows = await tx
+        .select()
+        .from(bundleServices)
+        .where(eq(bundleServices.bundleId, bundle.id));
+      const bundleServiceIds = bundleSvcRows.map((r) => r.serviceId);
+
+      const allBookedIds = new Set([...pet.serviceIds, ...pet.addonIds]);
+      const allPresent = bundleServiceIds.every((id) => allBookedIds.has(id));
+
+      if (!allPresent) {
+        throw createError({
+          statusCode: 400,
+          message: 'Selected services do not match bundle requirements',
+        });
+      }
+
+      const bundleTotal = bundleServiceIds.reduce((sum, svcId) => {
+        const pricing = [...basePricingRows, ...addonPricingRows].find(
+          (pr) => pr.serviceId === svcId,
+        );
+        return sum + (pricing?.priceCents ?? 0);
+      }, 0);
+
+      const discountCents =
+        bundle.discountType === 'percent'
+          ? Math.round(bundleTotal * (bundle.discountValue / 100))
+          : bundle.discountValue;
+
+      await tx.insert(appointmentBundles).values({
+        appointmentPetId: appointmentPetId.id,
+        bundleId: pet.bundleId,
+        discountAppliedCents: discountCents,
+      });
     }
 
     return appointmentId.id;

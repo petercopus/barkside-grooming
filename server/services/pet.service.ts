@@ -4,7 +4,7 @@ import { appointmentPets, appointments, pets, petSizeCategories, users } from '~
 import { enrichAppointments } from '~~/server/services/appointment.service';
 import type { CreatePetInput, UpdatePetInput } from '~~/shared/schemas/pet';
 
-async function resolveSizeCategory(weightLbs: number | undefined): Promise<number | null> {
+export async function resolveSizeCategory(weightLbs: number | undefined): Promise<number | null> {
   if (!weightLbs) return null;
 
   // fetch and sort by minWeight

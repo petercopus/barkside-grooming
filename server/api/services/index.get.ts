@@ -1,8 +1,6 @@
 import { getServicePricing, listServices } from '~~/server/services/service.service';
 
-export default defineEventHandler(async (event) => {
-  requireAuth(event);
-
+export default defineEventHandler(async () => {
   // fetch active services
   const serviceList = await listServices(false);
 
