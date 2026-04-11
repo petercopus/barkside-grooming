@@ -95,6 +95,9 @@ const mobileNavItems = computed(() => {
       </div>
 
       <template #right>
+        <!-- Notifications -->
+        <AppNotificationBell v-if="isLoggedIn" />
+
         <!-- Auth'd user menu -->
         <UDropdownMenu
           v-if="isLoggedIn"
@@ -140,5 +143,8 @@ const mobileNavItems = computed(() => {
     <main class="w-full max-w-6xl mx-auto flex-1 p-6">
       <slot />
     </main>
+
+    <!-- Notification drawer -->
+    <AppNotificationDrawer />
   </div>
 </template>

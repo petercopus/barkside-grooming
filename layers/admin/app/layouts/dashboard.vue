@@ -119,7 +119,10 @@ const userItems = computed(() => [
     <!-- Sidebar -->
     <UDashboardSidebar>
       <template #header>
-        <AppLogo />
+        <div class="flex items-center justify-between w-full">
+          <AppLogo />
+          <AppNotificationBell />
+        </div>
       </template>
 
       <!-- Nav -->
@@ -157,5 +160,8 @@ const userItems = computed(() => [
     <main class="w-full max-w-6xl mx-auto flex-1 p-6">
       <slot />
     </main>
+
+    <!-- Notification drawer -->
+    <AppNotificationDrawer />
   </div>
 </template>
