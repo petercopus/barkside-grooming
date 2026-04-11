@@ -40,6 +40,15 @@ export default defineNuxtConfig({
     },
   },
 
+  nitro: {
+    experimental: {
+      tasks: true,
+    },
+    scheduledTasks: {
+      '0 * * * *': ['send-reminders'],
+    },
+  },
+
   vite: {
     optimizeDeps: {
       include: ['@vue/devtools-core', '@vue/devtools-kit', '@internationalized/date', 'zod'],

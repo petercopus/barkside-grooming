@@ -1,5 +1,5 @@
 {
-  "id": "a0aadf4c-0481-4aef-8a57-24f03ea21138",
+  "id": "e4c14b31-85ae-44e6-af65-ad9ab4af5bc0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -362,6 +362,12 @@
         "notes": {
           "name": "notes",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reminder_sent_at": {
+          "name": "reminder_sent_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
