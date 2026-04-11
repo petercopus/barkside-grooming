@@ -33,6 +33,11 @@ const userItems = computed(() => [
       to: '/me/appointments',
     },
     {
+      label: 'Documents',
+      icon: 'i-lucide-file-text',
+      to: '/me/documents',
+    },
+    {
       label: 'Settings',
       icon: 'i-lucide-settings',
       to: '/me/settings',
@@ -62,6 +67,7 @@ const mobileNavItems = computed(() => {
     ...navItems,
     { label: 'My Pets', icon: 'i-lucide-paw-print', to: '/me/pets' },
     { label: 'Appointments', icon: 'i-lucide-calendar', to: '/me/appointments' },
+    { label: 'Documents', icon: 'i-lucide-file-text', to: '/me/documents' },
     { label: 'Settings', icon: 'i-lucide-settings', to: '/me/settings' },
     { label: 'Logout', icon: 'i-lucide-log-out', onSelect: () => logoutAndClose() },
   ];

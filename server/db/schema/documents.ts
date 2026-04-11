@@ -10,6 +10,9 @@ export const documents = pgTable('documents', {
   }),
   petId: uuid('pet_id').references(() => pets.id, { onDelete: 'set null' }),
   appointmentId: uuid('appointment_id').references(() => appointments.id, { onDelete: 'set null' }),
+  documentRequestId: uuid('document_request_id').references(() => documentRequests.id, {
+    onDelete: 'set null',
+  }),
   type: varchar('type', { length: 50 }).notNull(), // vaccination_record | service_agreement | other
   filePath: varchar('file_path', { length: 500 }).notNull(),
   fileName: varchar('file_name', { length: 255 }).notNull(),

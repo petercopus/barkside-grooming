@@ -1,5 +1,5 @@
 {
-  "id": "d7f0d05c-ef1e-4ce0-aca2-d15023cfd76e",
+  "id": "a0aadf4c-0481-4aef-8a57-24f03ea21138",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1054,6 +1054,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "document_request_id": {
+          "name": "document_request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "type": {
           "name": "type",
           "type": "varchar(50)",
@@ -1133,6 +1139,19 @@
           "tableTo": "appointments",
           "columnsFrom": [
             "appointment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "documents_document_request_id_document_requests_id_fk": {
+          "name": "documents_document_request_id_document_requests_id_fk",
+          "tableFrom": "documents",
+          "tableTo": "document_requests",
+          "columnsFrom": [
+            "document_request_id"
           ],
           "columnsTo": [
             "id"
