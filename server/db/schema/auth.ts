@@ -18,6 +18,7 @@ export const users = pgTable('users', {
   lastName: varchar('last_name', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 50 }),
   avatarUrl: varchar('avatar_url', { length: 500 }),
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

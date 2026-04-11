@@ -41,6 +41,7 @@ CREATE TABLE "appointments" (
 	"customer_id" uuid,
 	"status" varchar(20) DEFAULT 'pending' NOT NULL,
 	"notes" text,
+	"payment_method_id" varchar(255),
 	"reminder_sent_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -110,6 +111,7 @@ CREATE TABLE "users" (
 	"last_name" varchar(255) NOT NULL,
 	"phone" varchar(50),
 	"avatar_url" varchar(500),
+	"stripe_customer_id" varchar(255),
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -173,14 +175,36 @@ CREATE TABLE "cancellation_policies" (
 	"is_active" boolean DEFAULT true NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "customer_payment_methods" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"stripe_payment_method_id" varchar(255) NOT NULL,
+	"brand" varchar(50) NOT NULL,
+	"last4" varchar(4) NOT NULL,
+	"exp_month" integer NOT NULL,
+	"exp_year" integer NOT NULL,
+	"is_default" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "invoice_line_items" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"invoice_id" uuid NOT NULL,
+	"description" varchar(255) NOT NULL,
+	"amount_cents" integer NOT NULL,
+	"type" varchar(20) DEFAULT 'service' NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "invoices" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"appointment_id" uuid,
 	"subtotal_cents" integer NOT NULL,
 	"discount_cents" integer DEFAULT 0 NOT NULL,
 	"tax_cents" integer DEFAULT 0 NOT NULL,
+	"tip_cents" integer DEFAULT 0 NOT NULL,
 	"total_cents" integer NOT NULL,
 	"status" varchar(20) DEFAULT 'draft' NOT NULL,
+	"paid_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -191,6 +215,9 @@ CREATE TABLE "payments" (
 	"status" varchar(20) DEFAULT 'pending' NOT NULL,
 	"provider" varchar(50),
 	"transaction_id" varchar(255),
+	"tip_cents" integer DEFAULT 0 NOT NULL,
+	"payment_method_id" varchar(255),
+	"stripe_customer_id" varchar(255),
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -319,6 +346,8 @@ ALTER TABLE "documents" ADD CONSTRAINT "documents_appointment_id_appointments_id
 ALTER TABLE "documents" ADD CONSTRAINT "documents_document_request_id_document_requests_id_fk" FOREIGN KEY ("document_request_id") REFERENCES "public"."document_requests"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_preferences" ADD CONSTRAINT "notification_preferences_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "customer_payment_methods" ADD CONSTRAINT "customer_payment_methods_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "invoice_line_items" ADD CONSTRAINT "invoice_line_items_invoice_id_invoices_id_fk" FOREIGN KEY ("invoice_id") REFERENCES "public"."invoices"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invoices" ADD CONSTRAINT "invoices_appointment_id_appointments_id_fk" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payments" ADD CONSTRAINT "payments_appointment_id_appointments_id_fk" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pets" ADD CONSTRAINT "pets_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
