@@ -1,113 +1,53 @@
 <script setup lang="ts">
-import { NOTIFICATION_CATEGORIES } from '~~/shared/schemas/notification';
-import type { NotificationCategory } from '~~/shared/schemas/notification';
+import type { TabsItem } from '@nuxt/ui';
 
 definePageMeta({
   layout: 'customer',
   middleware: 'auth',
 });
 
-const { hasPerm } = usePermissions();
-const toast = useToast();
+const route = useRoute();
+const router = useRouter();
 
-const categoryLabels: Record<NotificationCategory, string> = {
-  appointment_confirmed: 'Booking Confirmed',
-  appointment_reminder: 'Appointment Reminders',
-  appointment_cancelled: 'Booking Cancelled',
-  appointment_status_changed: 'Status Updates',
-  admin_new_booking: 'New Booking (Admin)',
-};
+const items: (TabsItem & { path: string })[] = [
+  {
+    label: 'Notifications',
+    icon: 'i-lucide-bell',
+    value: 'notifications',
+    path: '/me/settings/notifications',
+  },
+  {
+    label: 'Payment Methods',
+    icon: 'i-lucide-credit-card',
+    value: 'payment-methods',
+    path: '/me/settings/payment-methods',
+  },
+];
 
-interface PreferenceRow {
-  category: NotificationCategory;
-  emailEnabled: boolean;
-  smsEnabled: boolean;
-  inappEnabled: boolean;
-}
-
-// Fetch existing preferences
-const { data } = await useFetch<{ preferences: PreferenceRow[] }>('/api/notifications/preferences');
-
-// Build local state with defaults for each category
-const visibleCategories = computed(() =>
-  NOTIFICATION_CATEGORIES.filter(
-    (cat) => cat !== 'admin_new_booking' || hasPerm('booking:read:all'),
-  ),
-);
-
-const preferences = ref<PreferenceRow[]>(
-  NOTIFICATION_CATEGORIES.map((category) => {
-    const existing = data.value?.preferences.find((p) => p.category === category);
-    return {
-      category,
-      emailEnabled: existing?.emailEnabled ?? true,
-      smsEnabled: existing?.smsEnabled ?? false,
-      inappEnabled: existing?.inappEnabled ?? true,
-    };
-  }),
-);
-
-function getPreference(category: NotificationCategory): PreferenceRow {
-  return preferences.value.find((p) => p.category === category)!;
-}
-
-async function save(pref: PreferenceRow) {
-  try {
-    await $fetch('/api/notifications/preferences', {
-      method: 'PUT',
-      body: {
-        category: pref.category,
-        emailEnabled: pref.emailEnabled,
-        smsEnabled: pref.smsEnabled,
-        inappEnabled: pref.inappEnabled,
-      },
-    });
-  } catch {
-    toast.add({ title: 'Failed to save preference', color: 'error' });
-  }
-}
+const activeTab = computed({
+  get() {
+    const match = items.find((item) => route.path.startsWith(item.path));
+    return match?.value ?? items[0]?.value;
+  },
+  set(value: string) {
+    const tab = items.find((item) => item.value === value);
+    if (tab) router.push(tab.path);
+  },
+});
 </script>
 
 <template>
   <div>
     <AppPageHeader
       title="Settings"
-      description="Manage your notification preferences" />
+      description="Manage your preferences and payment methods" />
 
-    <div class="py-4">
-      <AppSection title="Notification Preferences">
-        <div class="divide-y divide-default">
-          <div
-            v-for="category in visibleCategories"
-            :key="category"
-            class="flex items-center justify-between py-4 gap-4">
-            <p class="text-sm font-medium">{{ categoryLabels[category] }}</p>
+    <UTabs
+      v-model="activeTab"
+      :items="items"
+      :content="false"
+      class="mb-6" />
 
-            <div class="flex items-center gap-6">
-              <label class="flex items-center gap-2 text-sm">
-                <USwitch
-                  v-model="getPreference(category).inappEnabled"
-                  @update:model-value="save(getPreference(category))" />
-                In-App
-              </label>
-
-              <label class="flex items-center gap-2 text-sm">
-                <USwitch
-                  v-model="getPreference(category).emailEnabled"
-                  @update:model-value="save(getPreference(category))" />
-                Email
-              </label>
-
-              <label class="flex items-center gap-2 text-sm">
-                <USwitch
-                  v-model="getPreference(category).smsEnabled"
-                  @update:model-value="save(getPreference(category))" />
-                SMS
-              </label>
-            </div>
-          </div>
-        </div>
-      </AppSection>
-    </div>
+    <NuxtPage />
   </div>
 </template>

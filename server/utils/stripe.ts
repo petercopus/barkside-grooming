@@ -59,12 +59,12 @@ export async function createOffSessionPaymentIntent(
 export async function retrievePaymentMethod(
   paymentMethodId: string,
 ): Promise<Stripe.PaymentMethod> {
-  const paymentMethod = getStripe().paymentMethods.retrieve(paymentMethodId);
+  const paymentMethod = await getStripe().paymentMethods.retrieve(paymentMethodId);
   return paymentMethod;
 }
 
 export async function detachPaymentMethod(paymentMethodId: string): Promise<void> {
-  await getStripe().paymentMethods.retrieve(paymentMethodId);
+  await getStripe().paymentMethods.detach(paymentMethodId);
 }
 
 export async function createRefund(

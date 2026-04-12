@@ -16,7 +16,7 @@ export async function ensureStripeCustomer(userId: string): Promise<string> {
   // customer doesnt have stripeCustomerId yet
   const newId = await createStripeCustomer(user.email, user.firstName + ' ' + user.lastName);
 
-  await db.update(users).set({ stripeCustomerId: newId });
+  await db.update(users).set({ stripeCustomerId: newId }).where(eq(users.id, userId));
 
   return newId;
 }
