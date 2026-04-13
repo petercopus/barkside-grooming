@@ -19,6 +19,7 @@ export const appointments = pgTable('appointments', {
   status: varchar('status', { length: 20 }).notNull().default('pending'), // pending | confirmed | in_progress | completed | cancelled | no_show
   notes: text('notes'),
   paymentMethodId: varchar('payment_method_id', { length: 255 }),
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
   reminderSentAt: timestamp('reminder_sent_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
