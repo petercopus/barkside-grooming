@@ -1,6 +1,6 @@
 {
-  "id": "5627550f-a169-4697-afb9-a1018dcef45f",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "0c490828-0149-48d1-bb2e-8a0ac76eebf3",
+  "prevId": "5627550f-a169-4697-afb9-a1018dcef45f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -367,6 +367,12 @@
         },
         "payment_method_id": {
           "name": "payment_method_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stripe_customer_id": {
+          "name": "stripe_customer_id",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false

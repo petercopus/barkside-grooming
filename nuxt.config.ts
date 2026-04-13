@@ -10,6 +10,10 @@ export default defineNuxtConfig({
     smtpUser: process.env.SMTP_USER ?? '',
     smtpPass: process.env.SMTP_PASS ?? '',
     smtpFrom: process.env.SMTP_FROM ?? 'noreply@barkside.local',
+    stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? '',
+    public: {
+      stripePublicKey: process.env.STRIPE_PUBLIC_KEY ?? '',
+    },
   },
 
   css: ['~/assets/css/main.css'],
@@ -51,7 +55,13 @@ export default defineNuxtConfig({
 
   vite: {
     optimizeDeps: {
-      include: ['@vue/devtools-core', '@vue/devtools-kit', '@internationalized/date', 'zod'],
+      include: [
+        '@vue/devtools-core',
+        '@vue/devtools-kit',
+        '@internationalized/date',
+        'zod',
+        '@stripe/stripe-js',
+      ],
     },
   },
 });

@@ -67,13 +67,11 @@ const canNextStep = computed(() => {
       }
       break;
     case 3:
-      if (isLoggedIn.value) return true;
-      // guest must fill contact details
-      additionalCheck =
-        guestContact.value.firstName.trim().length > 0 &&
-        guestContact.value.lastName.trim().length > 0 &&
-        guestContact.value.email.trim().length > 0 &&
-        guestContact.value.phone.trim().length > 0;
+      if (isLoggedIn.value) {
+        additionalCheck = !!selectedPaymentMethodId.value;
+      } else {
+        additionalCheck = guestContactReady.value && !!guestPaymentMethodId.value;
+      }
       break;
     default:
       return false;
@@ -113,6 +111,119 @@ const petSlots = ref<
 >({});
 const petDates = ref<Record<string, CalendarDate | undefined>>({});
 const petAvailability = ref<Record<string, any[]>>({});
+
+/* ─────────────────────────────────── *
+ * Payment method
+ * ─────────────────────────────────── */
+const selectedPaymentMethodId = ref<string | null>(null);
+const showNewCardForm = ref(false);
+const newCardClientSecret = ref('');
+const loadingCardSetup = ref(false);
+const saveNewCard = ref(true);
+
+const { data: pmData, refresh: refreshPMs } = isLoggedIn.value
+  ? await useFetch<{ paymentMethods: any[] }>('/api/payment-methods', {
+      key: `payment-methods-${Date.now()}`,
+    })
+  : { data: ref(null), refresh: () => Promise.resolve() };
+const savedCards = computed(() => pmData.value?.paymentMethods ?? []);
+
+watch(
+  savedCards,
+  (cards) => {
+    if (!selectedPaymentMethodId.value && cards.length > 0) {
+      const defaultCard = cards.find((c: any) => c.isDefault) ?? cards[0];
+      selectedPaymentMethodId.value = defaultCard.stripePaymentMethodId;
+    }
+  },
+  { immediate: true },
+);
+
+async function startNewCard() {
+  loadingCardSetup.value = true;
+
+  try {
+    const res = await $fetch<{ clientSecret: string }>('/api/payment-methods/setup-intent', {
+      method: 'POST',
+    });
+
+    newCardClientSecret.value = res.clientSecret;
+    showNewCardForm.value = true;
+  } catch {
+    toast.add({ title: 'Failed to launch card setup', color: 'error' });
+  } finally {
+    loadingCardSetup.value = false;
+  }
+}
+
+async function onNewCardConfirmed(pmId: string) {
+  selectedPaymentMethodId.value = pmId;
+  showNewCardForm.value = false;
+
+  if (saveNewCard.value) {
+    try {
+      await $fetch('/api/payment-methods', {
+        method: 'POST',
+        body: { stripePaymentMethodId: pmId },
+      });
+
+      await refreshPMs();
+    } catch {}
+  }
+}
+
+/* ─────────────────────────────────── *
+ * Guest payment
+ * ─────────────────────────────────── */
+const guestPaymentMethodId = ref<string | null>(null);
+const guestStripeCustomerId = ref<string | null>(null);
+const guestCardClientSecret = ref('');
+const showGuestCardForm = ref(false);
+const loadingGuestCardSetup = ref(false);
+
+const guestContactReady = computed(
+  () =>
+    guestContact.value.firstName.trim().length > 0 &&
+    guestContact.value.lastName.trim().length > 0 &&
+    guestContact.value.email.trim().length > 0 &&
+    guestContact.value.phone.trim().length > 0,
+);
+
+async function startGuestCard() {
+  if (!guestContactReady.value) {
+    toast.add({ title: 'Please fill in your contact details first', color: 'warning' });
+    return;
+  }
+
+  loadingGuestCardSetup.value = true;
+
+  try {
+    const res = await $fetch<{ clientSecret: string; stripeCustomerId: string }>(
+      '/api/payment-methods/guest-setup-intent',
+      {
+        method: 'POST',
+        body: {
+          email: guestContact.value.email,
+          firstName: guestContact.value.firstName,
+          lastName: guestContact.value.lastName,
+        },
+      },
+    );
+
+    guestCardClientSecret.value = res.clientSecret;
+    guestStripeCustomerId.value = res.stripeCustomerId;
+    showGuestCardForm.value = true;
+  } catch {
+    toast.add({ title: 'Failed to start card setup', color: 'error' });
+  } finally {
+    loadingGuestCardSetup.value = false;
+  }
+}
+
+function onGuestCardConfirmed(pmId: string) {
+  guestPaymentMethodId.value = pmId;
+  showGuestCardForm.value = false;
+}
 
 /* ─────────────────────────────────── *
  * Guest flow: inline pet + contact
@@ -466,6 +577,7 @@ async function submitBooking() {
           ...petSlots.value[petId],
         })),
         notes: notes.value || undefined,
+        paymentMethodId: selectedPaymentMethodId.value || undefined,
       };
 
       await $fetch('/api/appointments', { method: 'POST', body });
@@ -492,14 +604,17 @@ async function submitBooking() {
           emergencyContactPhone: guestContact.value.emergencyContactPhone || undefined,
         },
         notes: notes.value || undefined,
+        paymentMethodId: guestPaymentMethodId.value || undefined,
+        stripeCustomerId: guestStripeCustomerId.value || undefined,
       };
 
-      const { appointmentId } = await $fetch('/api/appointments/guest', {
+      const { appointment } = await $fetch('/api/appointments/guest', {
         method: 'POST',
         body,
       });
 
-      navigateTo(`/book/confirmation?id=${appointmentId}`);
+      if (!appointment) throw new Error('Booking failed');
+      navigateTo(`/book/confirmation?id=${appointment.id}`);
     }
   } catch (err: any) {
     toast.add({
@@ -954,6 +1069,64 @@ function getPetName(petId: string) {
             }}
           </span>
         </div>
+
+        <!-- Payment method -->
+        <AppCard
+          title="Payment"
+          class="mt-6">
+          <!-- Saved cards -->
+          <div
+            v-if="savedCards.length > 0"
+            class="space-y-2 mb-4">
+            <label
+              v-for="card in savedCards"
+              :key="card.id"
+              class="flex items-center gap-3 p-3 rounded-lg border border-default cursor-pointer hover:bg-muted/50 transition"
+              :class="{
+                'ring-2 ring-primary': selectedPaymentMethodId === card.stripePaymentMethodId,
+              }">
+              <input
+                type="radio"
+                name="payment-method"
+                :value="card.stripePaymentMethodId"
+                v-model="selectedPaymentMethodId"
+                class="accent-primary" />
+              <span class="text-sm font-medium capitalize">{{ card.brand }}</span>
+              <span class="text-sm text-muted">•••• {{ card.last4 }}</span>
+              <span class="text-sm text-muted">{{ card.expMonth }}/{{ card.expYear }}</span>
+              <UBadge
+                v-if="card.isDefault"
+                label="Default"
+                color="primary"
+                variant="subtle"
+                size="sm" />
+            </label>
+          </div>
+
+          <!-- New card option -->
+          <div v-if="!showNewCardForm">
+            <UButton
+              :label="savedCards.length > 0 ? 'Use a different card' : 'Add a card'"
+              icon="i-lucide-plus"
+              variant="outline"
+              :loading="loadingCardSetup"
+              @click="startNewCard" />
+          </div>
+
+          <div
+            v-else
+            class="mt-4">
+            <PaymentCardForm
+              :client-secret="newCardClientSecret"
+              @confirmed="onNewCardConfirmed"
+              @error="(msg: string) => toast.add({ title: msg, color: 'error' })" />
+
+            <USwitch
+              v-model="saveNewCard"
+              label="Save this card?"
+              class="mt-4" />
+          </div>
+        </AppCard>
       </template>
 
       <!-- Guest: contact details + review -->
@@ -1066,6 +1239,44 @@ function getPetName(petId: string) {
           <p class="text-sm font-medium mb-1">Notes</p>
           <p class="text-sm text-muted">{{ notes }}</p>
         </div>
+
+        <!-- Guest payment method -->
+        <AppCard
+          title="Payment Method"
+          class="mt-6">
+          <div
+            v-if="guestPaymentMethodId"
+            class="flex items-center gap-2 text-sm text-success">
+            <UIcon name="i-lucide-check-circle" />
+            <span>Card added successfully</span>
+          </div>
+
+          <div v-else-if="!showGuestCardForm">
+            <p class="text-sm text-muted mb-3">
+              A card is required to complete your booking. You will not be charged until your
+              appointment is complete.
+            </p>
+            <UButton
+              label="Add a card"
+              icon="i-lucide-credit-card"
+              variant="outline"
+              :loading="loadingGuestCardSetup"
+              :disabled="!guestContactReady"
+              @click="startGuestCard" />
+            <p
+              v-if="!guestContactReady"
+              class="text-xs text-muted mt-2">
+              Fill in your contact details above first.
+            </p>
+          </div>
+
+          <div v-else>
+            <PaymentCardForm
+              :client-secret="guestCardClientSecret"
+              @confirmed="onGuestCardConfirmed"
+              @error="(msg: string) => toast.add({ title: msg, color: 'error' })" />
+          </div>
+        </AppCard>
       </template>
     </div>
 
