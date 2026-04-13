@@ -18,6 +18,8 @@ const bookingPetSchema = z.object({
 export const createBookingSchema = z.object({
   pets: z.array(bookingPetSchema).min(1, 'Atleast one pet is required'),
   notes: z.string().max(2000).optional(),
+  paymentMethodId: z.string().optional(),
+  stripeCustomerId: z.string().optional(),
 });
 
 // appointment statuses
@@ -53,6 +55,8 @@ export const createGuestBookingSchema = z.object({
   }),
   guestDetails: guestDetailsSchema,
   notes: z.string().max(2000).optional(),
+  paymentMethodId: z.string().optional(),
+  stripeCustomerId: z.string().optional(),
 });
 
 // types
