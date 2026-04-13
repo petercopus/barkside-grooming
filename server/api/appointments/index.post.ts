@@ -1,11 +1,17 @@
 import { createBooking } from '~~/server/services/appointment.service';
 import { getAdminUserIds, sendNotification } from '~~/server/services/notification.service';
+import { ensureStripeCustomer } from '~~/server/services/payment.service';
 import { createBookingSchema } from '~~/shared/schemas/appointment';
 
 export default defineEventHandler(async (event) => {
   const user = requireAuth(event);
   const body = await readBody(event);
   const input = createBookingSchema.parse(body);
+
+  if (input.paymentMethodId) {
+    input.stripeCustomerId = await ensureStripeCustomer(user.id);
+  }
+
   const appointment = await createBooking(user.id, input);
 
   sendNotification({

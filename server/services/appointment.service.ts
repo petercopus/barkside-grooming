@@ -17,7 +17,7 @@ import {
 } from '~~/server/db/schema';
 import { resolveSizeCategory } from '~~/server/services/pet.service';
 import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
-import { CreateBookingInput, CreateGuestBookingInput } from '~~/shared/schemas/appointment';
+import type { CreateBookingInput, CreateGuestBookingInput } from '~~/shared/schemas/appointment';
 
 function resolvePricing(
   serviceIds: number[],
@@ -163,7 +163,7 @@ export async function enrichAppointments(appointmentRows: (typeof appointments.$
  * Returns new appointmentId
  */
 export async function createBooking(customerId: string, input: CreateBookingInput) {
-  return db.transaction(async (tx) => {
+  const id = await db.transaction(async (tx) => {
     // 1. Validate pet ownership
     const customerPets = await tx
       .select()
@@ -278,6 +278,8 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
       .values({
         customerId,
         notes: input.notes,
+        paymentMethodId: input.paymentMethodId,
+        stripeCustomerId: input.stripeCustomerId,
       })
       .returning({ id: appointments.id });
 
@@ -378,13 +380,18 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
 
     return appointmentId.id;
   });
+
+  const [apptRow] = await db.select().from(appointments).where(eq(appointments.id, id));
+  if (!apptRow) throw new Error('Appointment not found after creation');
+  const [enriched] = await enrichAppointments([apptRow]);
+  return enriched!;
 }
 
 /**
  * Book a guest appointment (single pet, no account)
  */
 export async function createGuestBooking(input: CreateGuestBookingInput) {
-  return db.transaction(async (tx) => {
+  const id = await db.transaction(async (tx) => {
     const pet = input.pet;
 
     // 1. Resolve size category from weight
@@ -445,7 +452,11 @@ export async function createGuestBooking(input: CreateGuestBookingInput) {
     // 5. Insert appointment (no customer)
     const [appointmentId] = await tx
       .insert(appointments)
-      .values({ notes: input.notes })
+      .values({
+        notes: input.notes,
+        paymentMethodId: input.paymentMethodId,
+        stripeCustomerId: input.stripeCustomerId,
+      })
       .returning({ id: appointments.id });
 
     if (!appointmentId) {
@@ -554,6 +565,11 @@ export async function createGuestBooking(input: CreateGuestBookingInput) {
 
     return appointmentId.id;
   });
+
+  const [apptRow] = await db.select().from(appointments).where(eq(appointments.id, id));
+  if (!apptRow) throw new Error('Appointment not found after creation');
+  const [enriched] = await enrichAppointments([apptRow]);
+  return enriched!;
 }
 
 /**

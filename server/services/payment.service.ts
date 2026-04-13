@@ -1,6 +1,13 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '~~/server/db';
-import { customerPaymentMethods, users } from '~~/server/db/schema';
+import {
+  appointments,
+  customerPaymentMethods,
+  invoices,
+  payments,
+  users,
+} from '~~/server/db/schema';
+import { getInvoice } from '~~/server/services/invoice.service';
 
 export async function ensureStripeCustomer(userId: string): Promise<string> {
   const [user] = await db.select().from(users).where(eq(users.id, userId));
@@ -114,4 +121,114 @@ export async function setDefaultPaymentMethod(userId: string, paymentMethodId: s
       .set({ isDefault: true })
       .where(eq(customerPaymentMethods.id, paymentMethodId));
   });
+}
+
+/**
+ * Charge an appointments card
+ */
+export async function chargeAppointment(invoiceId: string, tipCents: number) {
+  const invoice = await getInvoice(invoiceId);
+
+  if (invoice.status !== 'finalized') {
+    throw createError({ statusCode: 400, message: 'Invoice must be finalized before charging' });
+  }
+
+  const [appointment] = await db
+    .select()
+    .from(appointments)
+    .where(eq(appointments.id, invoice.appointmentId!));
+
+  if (!appointment) {
+    throw createError({ statusCode: 404, message: 'Appointment not found' });
+  }
+
+  if (!appointment.paymentMethodId || !appointment.stripeCustomerId) {
+    throw createError({
+      statusCode: 400,
+      message: 'No payment method on file for this appointment',
+    });
+  }
+
+  const totalCharge = invoice.totalCents + tipCents;
+
+  // charge
+  const paymentIntent = await createOffSessionPaymentIntent(
+    appointment.stripeCustomerId,
+    appointment.paymentMethodId,
+    totalCharge,
+    {
+      invoiceId: invoice.id,
+      appointmentId: appointment.id,
+      tip: String(tipCents),
+    },
+  );
+
+  // update invoice
+  await db
+    .update(invoices)
+    .set({
+      tipCents,
+      totalCents: totalCharge,
+      status: 'paid',
+      paidAt: new Date(),
+    })
+    .where(eq(invoices.id, invoiceId));
+
+  // insert payment record
+  const [payment] = await db
+    .insert(payments)
+    .values({
+      appointmentId: appointment.id,
+      amountCents: totalCharge,
+      tipCents,
+      status: 'captured',
+      provider: 'stripe',
+      transactionId: paymentIntent.id,
+      paymentMethodId: appointment.paymentMethodId,
+      stripeCustomerId: appointment.stripeCustomerId,
+    })
+    .returning();
+
+  return payment;
+}
+
+/**
+ * Manual payment for appointments
+ */
+export async function recordManualPayment(invoiceId: string, tipCents: number) {
+  const invoice = await getInvoice(invoiceId);
+
+  if (invoice.status !== 'finalized') {
+    throw createError({
+      statusCode: 400,
+      message: 'Invoice must be finalized before recording payment',
+    });
+  }
+
+  const totalCharge = invoice.totalCents + tipCents;
+
+  // update invoice
+  await db
+    .update(invoices)
+    .set({
+      tipCents,
+      totalCents: totalCharge,
+      status: 'paid',
+      paidAt: new Date(),
+    })
+    .where(eq(invoices.id, invoiceId));
+
+  // insert payment record
+  const [payment] = await db
+    .insert(payments)
+    .values({
+      appointmentId: invoice.appointmentId,
+      amountCents: totalCharge,
+      tipCents,
+      status: 'captured',
+      provider: 'manual',
+    })
+    .returning();
+
+  return payment;
 }
