@@ -18,7 +18,7 @@ const state = reactive({
   phone: props.initialValues.phone ?? '',
 });
 
-const { submit, isDirty, error, loading } = usePageSave({
+const pageSave = usePageSave({
   sections: {
     details: {
       track: () => ({
@@ -36,13 +36,9 @@ const { submit, isDirty, error, loading } = usePageSave({
   },
   successMessage: 'Customer updated',
 });
+const { submit, isDirty, error, loading } = pageSave;
 
-const { discard } = useDiscardable(state, {
-  firstName: props.initialValues.firstName,
-  lastName: props.initialValues.lastName,
-  email: props.initialValues.email,
-  phone: props.initialValues.phone ?? '',
-});
+const { discardChanges } = useDiscardable(state, pageSave);
 </script>
 
 <template>
@@ -97,7 +93,7 @@ const { discard } = useDiscardable(state, {
         label="Discard"
         color="neutral"
         variant="ghost"
-        @click="discard" />
+        @click="discardChanges" />
       <UButton
         type="submit"
         label="Save"
