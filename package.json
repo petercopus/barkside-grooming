@@ -7,6 +7,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx server/db/seed.ts",
+    "db:seed-test": "tsx server/db/seed-test.ts",
     "db:studio": "drizzle-kit studio",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
@@ -22,6 +23,7 @@
     "@nuxt/ui": "^4.5.1",
     "@stripe/stripe-js": "^9.1.0",
     "bcrypt": "^6.0.0",
+    "chart.js": "^4.5.1",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "nodemailer": "^8.0.5",
@@ -30,6 +32,7 @@
     "stripe": "^22.0.1",
     "tailwindcss": "^4.2.1",
     "vue": "^3.5.30",
+    "vue-chartjs": "^5.3.3",
     "vue-router": "^5.0.3",
     "zod": "^4.3.6"
   },
