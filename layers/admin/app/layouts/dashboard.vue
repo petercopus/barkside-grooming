@@ -35,6 +35,10 @@ const navItems = computed(() => {
     });
   }
 
+  if (hasPerm('reports:view')) {
+    items.push({ label: 'Reports', icon: 'i-lucide-bar-chart-3', to: '/admin/reports' });
+  }
+
   // if (hasPerm('schedule:read:own')) {
   //   items.push({ label: 'My schedule', icon: 'i-lucide-clock', to: '/admin/me/schedule' });
   // }
