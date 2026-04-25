@@ -1,31 +1,45 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'default' });
+import { testimonials } from '~/data/testimonials';
 
-const { isLoggedIn } = useAuth();
+definePageMeta({ layout: 'site' });
 
-// if we hit this page with valid session cookie, redirect
-if (isLoggedIn.value) await navigateTo('/home');
+useHead({ title: 'Barkside Grooming — Where every pup gets the star treatment' });
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center min-h-screen px-4 text-center">
-    <h1 class="text-4xl font-bold">Barkside Grooming</h1>
-    <p class="mt-3 text-lg text-muted max-w-md">
-      Lorem ipsum dolor sit amet consectetur adipisicing.
-    </p>
+  <div>
+    <BlocksHero
+      title="Barkside Grooming Co."
+      headline="Your pup deserves <em>the star treatment.</em>"
+      content="Professional grooming with love, care, and tail wags guaranteed. Small-batch service for dogs who deserve better than a production line." />
 
-    <div class="flex gap-3 mt-8">
-      <UButton
-        to="/register"
-        size="lg">
-        Get Started
-      </UButton>
-      <UButton
-        to="/login"
-        variant="outline"
-        size="lg">
-        Sign In
-      </UButton>
+    <div class="pt-20 sm:pt-28 pb-10 sm:pb-16">
+      <BlocksHeading
+        level="section"
+        heading="Tail-wagging services"
+        subheading="From bath & brush to full breed-specific styling, we've got your pup covered."
+        alignment="left" />
+    </div>
+
+    <div class="pt-6 sm:pt-10 pb-20 sm:pb-28">
+      <BlocksServicesHighlight
+        :show-pricing="true"
+        :show-duration="true"
+        :max-items="4"
+        cta-text="View all services"
+        cta-link="/services" />
+    </div>
+
+    <BlocksTestimonials
+      headline="What pet parents say"
+      tagline="Wagging Endorsements"
+      :testimonials="testimonials" />
+
+    <div class="pt-16 sm:pt-24 pb-16 sm:pb-24">
+      <BlocksCta
+        title="Ready?"
+        headline="Ready to pamper your pup?"
+        description="Book an appointment today and see the Barkside difference." />
     </div>
   </div>
 </template>
