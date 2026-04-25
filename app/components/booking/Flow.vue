@@ -69,13 +69,14 @@ const notes = ref('');
 /* ─────────────────────────────────── *
  * Active branch
  * ─────────────────────────────────── */
+type BranchPayload = {
+  endpoint: string;
+  body: Record<string, unknown>;
+  onSuccess: (res: any) => string;
+};
 type BranchApi = {
   canAdvance: (step: number) => boolean;
-  buildPayload: () => {
-    endpoint: string;
-    body: Record<string, unknown>;
-    onSuccess: (res: any) => string;
-  };
+  buildPayload: () => Promise<BranchPayload | null>;
 };
 const branch = useTemplateRef<BranchApi | null>('branch');
 
@@ -98,11 +99,16 @@ function prevStep() {
 const submitting = ref(false);
 
 async function submitBooking() {
-  const payload = branch.value?.buildPayload();
-  if (!payload) return;
+  if (!branch.value) return;
 
   submitting.value = true;
   try {
+    const payload = await branch.value.buildPayload();
+
+    // Branch returns null when payment-method confirmation failed
+    // the card form has already surfaced the error inline, so abort silently here
+    if (!payload) return;
+
     const body = { ...payload.body, notes: notes.value || undefined };
     const res = await $fetch(payload.endpoint, { method: 'POST', body });
     await navigateTo(payload.onSuccess(res));

@@ -35,11 +35,11 @@ const guestAvailability = ref<any[]>([]);
 /* ─────────────────────────────────── *
  * Guest payment
  * ─────────────────────────────────── */
-const guestPaymentMethodId = ref<string | null>(null);
 const guestStripeCustomerId = ref<string | null>(null);
 const guestCardClientSecret = ref('');
-const showGuestCardForm = ref(false);
+const guestCardComplete = ref(false);
 const loadingGuestCardSetup = ref(false);
+const cardFormRef = ref<{ confirm: () => Promise<string> } | null>(null);
 
 const guestContactReady = computed(
   () =>
@@ -49,11 +49,8 @@ const guestContactReady = computed(
     guestContact.value.phone.trim().length > 0,
 );
 
-async function startGuestCard() {
-  if (!guestContactReady.value) {
-    toast.add({ title: 'Please fill in your contact details first', color: 'warning' });
-    return;
-  }
+async function fetchGuestSetupIntent() {
+  if (loadingGuestCardSetup.value || guestCardClientSecret.value) return;
   loadingGuestCardSetup.value = true;
   try {
     const res = await $fetch<{ clientSecret: string; stripeCustomerId: string }>(
@@ -69,7 +66,6 @@ async function startGuestCard() {
     );
     guestCardClientSecret.value = res.clientSecret;
     guestStripeCustomerId.value = res.stripeCustomerId;
-    showGuestCardForm.value = true;
   } catch {
     toast.add({ title: 'Failed to start card setup', color: 'error' });
   } finally {
@@ -77,10 +73,9 @@ async function startGuestCard() {
   }
 }
 
-function onGuestCardConfirmed(pmId: string) {
-  guestPaymentMethodId.value = pmId;
-  showGuestCardForm.value = false;
-}
+watch(guestContactReady, (ready) => {
+  if (ready) void fetchGuestSetupIntent();
+});
 
 /* ─────────────────────────────────── *
  * Resolved size category
@@ -292,13 +287,22 @@ function canAdvance(step: number): boolean {
     case 2:
       return !!guestSlot.value;
     case 3:
-      return guestContactReady.value && !!guestPaymentMethodId.value;
+      return guestContactReady.value && guestCardComplete.value;
     default:
       return false;
   }
 }
 
-function buildPayload() {
+async function buildPayload() {
+  if (!cardFormRef.value) return null;
+
+  let paymentMethodId: string;
+  try {
+    paymentMethodId = await cardFormRef.value.confirm();
+  } catch {
+    return null;
+  }
+
   return {
     endpoint: '/api/appointments/guest' as const,
     body: {
@@ -320,7 +324,7 @@ function buildPayload() {
         emergencyContactName: guestContact.value.emergencyContactName || undefined,
         emergencyContactPhone: guestContact.value.emergencyContactPhone || undefined,
       },
-      paymentMethodId: guestPaymentMethodId.value || undefined,
+      paymentMethodId,
       stripeCustomerId: guestStripeCustomerId.value || undefined,
     },
     onSuccess: (res: any) => {
@@ -617,38 +621,28 @@ defineExpose({ canAdvance, buildPayload });
       <AppCard
         title="Payment Method"
         class="mt-6">
-        <div
-          v-if="guestPaymentMethodId"
-          class="flex items-center gap-2 text-sm text-success">
-          <UIcon name="i-lucide-check-circle" />
-          <span>Card added successfully</span>
-        </div>
+        <p class="text-sm text-muted mb-3">
+          A card is required to complete your booking. You will not be charged until your
+          appointment is complete.
+        </p>
 
-        <div v-else-if="!showGuestCardForm">
-          <p class="text-sm text-muted mb-3">
-            A card is required to complete your booking. You will not be charged until your
-            appointment is complete.
-          </p>
-          <UButton
-            label="Add a card"
-            icon="i-lucide-credit-card"
-            variant="outline"
-            :loading="loadingGuestCardSetup"
-            :disabled="!guestContactReady"
-            @click="startGuestCard" />
-          <p
-            v-if="!guestContactReady"
-            class="text-xs text-muted mt-2">
-            Fill in your contact details above first.
-          </p>
-        </div>
+        <PaymentCardForm
+          v-if="guestCardClientSecret"
+          ref="cardFormRef"
+          :client-secret="guestCardClientSecret"
+          @update:complete="guestCardComplete = $event" />
 
-        <div v-else>
-          <PaymentCardForm
-            :client-secret="guestCardClientSecret"
-            @confirmed="onGuestCardConfirmed"
-            @error="(msg: string) => toast.add({ title: msg, color: 'error' })" />
-        </div>
+        <p
+          v-else-if="loadingGuestCardSetup"
+          class="text-sm text-muted">
+          Setting up secure payment…
+        </p>
+
+        <p
+          v-else
+          class="text-sm text-muted">
+          Fill in your contact details above to continue.
+        </p>
       </AppCard>
     </div>
   </div>

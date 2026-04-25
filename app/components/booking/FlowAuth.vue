@@ -33,13 +33,14 @@ const petAvailability = ref<Record<string, any[]>>({});
 const selectedPaymentMethodId = ref<string | null>(null);
 const showNewCardForm = ref(false);
 const newCardClientSecret = ref('');
+const newCardComplete = ref(false);
 const loadingCardSetup = ref(false);
 const saveNewCard = ref(true);
+const cardFormRef = ref<{ confirm: () => Promise<string> } | null>(null);
 
-const { data: pmData, refresh: refreshPMs } = await useFetch<{ paymentMethods: any[] }>(
-  '/api/payment-methods',
-  { key: `payment-methods-${Date.now()}` },
-);
+const { data: pmData } = await useFetch<{ paymentMethods: any[] }>('/api/payment-methods', {
+  key: `payment-methods-${Date.now()}`,
+});
 const savedCards = computed(() => pmData.value?.paymentMethods ?? []);
 
 watch(
@@ -54,31 +55,20 @@ watch(
 );
 
 async function startNewCard() {
+  showNewCardForm.value = true;
+  if (newCardClientSecret.value) return;
+
   loadingCardSetup.value = true;
   try {
     const res = await $fetch<{ clientSecret: string }>('/api/payment-methods/setup-intent', {
       method: 'POST',
     });
     newCardClientSecret.value = res.clientSecret;
-    showNewCardForm.value = true;
   } catch {
+    showNewCardForm.value = false;
     toast.add({ title: 'Failed to launch card setup', color: 'error' });
   } finally {
     loadingCardSetup.value = false;
-  }
-}
-
-async function onNewCardConfirmed(pmId: string) {
-  selectedPaymentMethodId.value = pmId;
-  showNewCardForm.value = false;
-  if (saveNewCard.value) {
-    try {
-      await $fetch('/api/payment-methods', {
-        method: 'POST',
-        body: { stripePaymentMethodId: pmId },
-      });
-      await refreshPMs();
-    } catch {}
   }
 }
 
@@ -324,13 +314,34 @@ function canAdvance(step: number): boolean {
     case 2:
       return selectedPetIds.value.every((id) => !!petSlots.value[id]);
     case 3:
-      return !!selectedPaymentMethodId.value;
+      return showNewCardForm.value ? newCardComplete.value : !!selectedPaymentMethodId.value;
     default:
       return false;
   }
 }
 
-function buildPayload() {
+async function buildPayload() {
+  let paymentMethodId = selectedPaymentMethodId.value || undefined;
+
+  if (showNewCardForm.value) {
+    if (!cardFormRef.value) return null;
+    try {
+      paymentMethodId = await cardFormRef.value.confirm();
+    } catch {
+      return null;
+    }
+    selectedPaymentMethodId.value = paymentMethodId;
+
+    if (saveNewCard.value) {
+      try {
+        await $fetch('/api/payment-methods', {
+          method: 'POST',
+          body: { stripePaymentMethodId: paymentMethodId },
+        });
+      } catch {}
+    }
+  }
+
   return {
     endpoint: '/api/appointments' as const,
     body: {
@@ -342,7 +353,7 @@ function buildPayload() {
         discountAppliedCents: petBundles.value[petId]?.discountCents,
         ...petSlots.value[petId],
       })),
-      paymentMethodId: selectedPaymentMethodId.value || undefined,
+      paymentMethodId,
     },
     onSuccess: () => '/me/appointments',
   };
@@ -606,7 +617,6 @@ defineExpose({ canAdvance, buildPayload });
             :label="savedCards.length > 0 ? 'Use a different card' : 'Add a card'"
             icon="i-lucide-plus"
             variant="outline"
-            :loading="loadingCardSetup"
             @click="startNewCard" />
         </div>
 
@@ -614,9 +624,16 @@ defineExpose({ canAdvance, buildPayload });
           v-else
           class="mt-4">
           <PaymentCardForm
+            v-if="newCardClientSecret"
+            ref="cardFormRef"
             :client-secret="newCardClientSecret"
-            @confirmed="onNewCardConfirmed"
-            @error="(msg: string) => toast.add({ title: msg, color: 'error' })" />
+            @update:complete="newCardComplete = $event" />
+
+          <p
+            v-else-if="loadingCardSetup"
+            class="text-sm text-muted">
+            Setting up secure payment…
+          </p>
 
           <USwitch
             v-model="saveNewCard"
