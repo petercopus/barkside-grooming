@@ -21,7 +21,7 @@ function uploadUrl(req: { id: string; documentType: string; petId?: string | nul
 </script>
 
 <template>
-  <div>
+  <div class="cms-container py-6 sm:py-10">
     <AppPageHeader
       title="My Documents"
       description="View and upload documents">

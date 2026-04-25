@@ -22,7 +22,7 @@ async function cancelAppointment(id: string) {
 </script>
 
 <template>
-  <div>
+  <div class="cms-container py-6 sm:py-10">
     <AppPageHeader
       title="My Appointments"
       description="View and manage your appointments">

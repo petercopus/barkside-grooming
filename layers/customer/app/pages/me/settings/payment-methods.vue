@@ -1,4 +1,9 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'site',
+  middleware: 'auth',
+});
+
 const toast = useToast();
 const confirm = useConfirmDialog();
 

@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { NOTIFICATION_CATEGORIES } from '~~/shared/schemas/notification';
 import type { NotificationCategory } from '~~/shared/schemas/notification';
+import { NOTIFICATION_CATEGORIES } from '~~/shared/schemas/notification';
+
+definePageMeta({
+  layout: 'site',
+  middleware: 'auth',
+});
 
 const { hasPerm } = usePermissions();
 const toast = useToast();

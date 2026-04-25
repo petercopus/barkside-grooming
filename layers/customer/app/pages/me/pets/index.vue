@@ -22,7 +22,7 @@ async function deletePet(id: string) {
 </script>
 
 <template>
-  <div>
+  <div class="cms-container py-6 sm:py-10">
     <AppPageHeader
       title="My Pets"
       description="Manage your pets">

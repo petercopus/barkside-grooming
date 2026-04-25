@@ -37,7 +37,7 @@ const activeTab = computed({
 </script>
 
 <template>
-  <div>
+  <div class="cms-container py-6 sm:py-10">
     <AppPageHeader
       title="Settings"
       description="Manage your preferences and payment methods" />

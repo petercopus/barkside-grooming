@@ -57,7 +57,7 @@ function onSubmit() {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="cms-container py-6 sm:py-10 space-y-6">
     <AppPageHeader
       title="Upload Document"
       back-to="/me/documents" />

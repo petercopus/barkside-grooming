@@ -17,7 +17,7 @@ const pet = data.value.pet;
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="cms-container py-6 sm:py-10 space-y-6">
     <AppPageHeader
       :title="`Edit ${pet.name}`"
       back-to="/me/pets" />
