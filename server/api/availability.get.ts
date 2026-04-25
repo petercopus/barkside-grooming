@@ -10,6 +10,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'date must be in YYYY-MM-DD format' });
   }
 
+  if (date < todayDateString()) {
+    throw createError({ statusCode: 400, message: 'date cannot be in the past' });
+  }
+
   const duration = Number(query.duration);
   if (!duration || duration <= 0) {
     throw createError({ statusCode: 400, message: 'duration (minutes) is required' });

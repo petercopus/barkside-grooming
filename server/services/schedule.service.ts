@@ -8,7 +8,6 @@ import {
   scheduleOverrides,
   users,
 } from '~~/server/db/schema';
-import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
 
 import type {
   CreateOverrideInput,
@@ -167,7 +166,7 @@ export async function getAvailableSlots(
       and(
         inArray(appointmentPets.assignedGroomerId, groomerIds),
         eq(appointmentPets.scheduledDate, date),
-        notInArray(appointmentPets.status, ['cancelled', 'no_show']),
+        notInArray(appointmentPets.status, ['cancelled', 'no_show', 'completed']),
       ),
     );
 
@@ -182,6 +181,11 @@ export async function getAvailableSlots(
     .where(inArray(users.id, groomerIds));
 
   const results: GroomerSlot[] = [];
+
+  // if the date is today, filter out slots that have already started
+  const isToday = date === todayDateString();
+  const now = new Date();
+  const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : null;
 
   for (const groomerId of groomerIds) {
     // check override first, it takes precedence
@@ -216,13 +220,18 @@ export async function getAvailableSlots(
       // Generate slots of the requested duration from each free block
       for (const free of freeSlots) {
         const slots = generateSlots(free, durationMinutes);
-        available.push(...slots);
+        const futureSlots =
+          nowMinutes !== null
+            ? slots.filter((s) => timeToMinutes(s.startTime) >= nowMinutes)
+            : slots;
+        available.push(...futureSlots);
       }
     }
 
     if (available.length > 0) {
       const groomer = groomerRows.find((g) => g.id === groomerId);
-      results.push({ groomerId, groomerName: `${groomer?.firstName ?? ''}`, slots: available });
+      const groomerName = groomer ? `${groomer.firstName} ${groomer.lastName[0]}.` : 'Groomer';
+      results.push({ groomerId, groomerName, slots: available });
     }
   }
 
