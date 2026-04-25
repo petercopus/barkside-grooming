@@ -3,6 +3,8 @@ import type { CalendarDate } from '@internationalized/date';
 
 defineProps<{
   disabled?: boolean;
+  minValue?: CalendarDate;
+  maxValue?: CalendarDate;
 }>();
 
 const modelValue = defineModel<CalendarDate | undefined>();
@@ -13,7 +15,9 @@ const inputDate = useTemplateRef('inputDate');
   <UInputDate
     ref="inputDate"
     v-model="modelValue"
-    :disabled="disabled">
+    :disabled="disabled"
+    :min-value="minValue"
+    :max-value="maxValue">
     <template #trailing>
       <UPopover :reference="inputDate?.inputsRef[3]?.$el">
         <UButton
@@ -28,6 +32,8 @@ const inputDate = useTemplateRef('inputDate');
         <template #content>
           <UCalendar
             v-model="modelValue"
+            :min-value="minValue"
+            :max-value="maxValue"
             class="p-2" />
         </template>
       </UPopover>

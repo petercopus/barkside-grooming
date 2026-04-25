@@ -2,7 +2,7 @@
 import { MAX_FILE_SIZE } from '~~/shared/schemas/document';
 
 definePageMeta({
-  layout: 'customer',
+  layout: 'site',
   middleware: 'auth',
 });
 

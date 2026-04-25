@@ -2,7 +2,7 @@
 import type { TabsItem } from '@nuxt/ui';
 
 definePageMeta({
-  layout: 'customer',
+  layout: 'site',
   middleware: 'auth',
 });
 
