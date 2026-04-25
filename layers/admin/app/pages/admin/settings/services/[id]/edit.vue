@@ -1,4 +1,10 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'permission',
+  permission: 'service:manage',
+});
+
 const route = useRoute();
 const serviceId = Number(route.params.id);
 

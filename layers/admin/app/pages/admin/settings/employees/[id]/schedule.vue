@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import type { CreateOverrideInput } from '~~/shared/schemas/schedule';
 
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'permission',
+  permission: 'employee:manage',
+});
+
 const route = useRoute();
 const id = route.params.id as string;
 

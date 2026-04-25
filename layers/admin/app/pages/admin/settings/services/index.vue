@@ -1,4 +1,10 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'permission',
+  permission: 'service:manage',
+});
+
 const { data, status } = await useFetch('/api/admin/services');
 
 const loading = computed(() => status.value === 'pending');

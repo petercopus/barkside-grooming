@@ -1,4 +1,10 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'permission',
+  permission: 'size-category:manage',
+});
+
 const { data, status } = await useFetch('/api/admin/size-categories');
 
 const loading = computed(() => status.value === 'pending');

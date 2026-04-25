@@ -1,4 +1,10 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'permission',
+  permission: 'role:manage',
+});
+
 const route = useRoute();
 const toast = useToast();
 const confirm = useConfirmDialog();
