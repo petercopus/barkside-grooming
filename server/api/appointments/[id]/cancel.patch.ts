@@ -2,7 +2,7 @@ import { cancelBooking } from '~~/server/services/appointment.service';
 import { sendNotification } from '~~/server/services/notification.service';
 
 export default defineEventHandler(async (event) => {
-  const user = requireAuth(event);
+  const user = requirePermission(event, 'booking:cancel');
   const id = getRouterParam(event, 'id')!;
   const appointment = await cancelBooking(id, user.id);
 

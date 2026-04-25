@@ -4,7 +4,7 @@ import { ensureStripeCustomer } from '~~/server/services/payment.service';
 import { createBookingSchema } from '~~/shared/schemas/appointment';
 
 export default defineEventHandler(async (event) => {
-  const user = requireAuth(event);
+  const user = requirePermission(event, 'booking:create');
   const body = await readBody(event);
   const input = createBookingSchema.parse(body);
 

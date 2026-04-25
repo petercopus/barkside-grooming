@@ -1,7 +1,7 @@
 import { listBundles } from '~~/server/services/bundle.service';
 
 export default defineEventHandler(async (event) => {
-  requireAuth(event);
+  requirePermission(event, 'service:manage');
   const bundles = await listBundles(true);
   return { bundles };
 });
