@@ -31,7 +31,7 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap',
+          href: 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Caveat:wght@400..700&display=swap',
         },
       ],
     },
@@ -42,6 +42,7 @@ export default defineNuxtConfig({
     clientBundle: {
       scan: true,
     },
+    customCollections: [{ prefix: 'barkside', dir: './app/assets/svg' }],
   },
 
   nitro: {
