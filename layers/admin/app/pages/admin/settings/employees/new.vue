@@ -1,4 +1,10 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'permission',
+  permission: 'employee:manage',
+});
+</script>
 
 <template>
   <div class="space-y-6">

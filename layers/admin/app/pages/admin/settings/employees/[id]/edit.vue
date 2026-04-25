@@ -1,4 +1,10 @@
 <script setup lang="ts">
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'permission',
+  permission: 'employee:manage',
+});
+
 const route = useRoute();
 const id = route.params.id as string;
 
