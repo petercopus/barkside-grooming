@@ -16,6 +16,36 @@ export default defineAppConfig({
       },
     },
     button: {
+      variants: {
+        variant: {
+          editorial: '',
+        },
+      },
+      compoundVariants: [
+        {
+          variant: 'editorial',
+          class:
+            'group inline-flex items-center gap-3 rounded-full px-7 py-3.5 text-base font-medium transition-all duration-200 hover:-translate-y-0.5',
+        },
+        {
+          variant: 'editorial',
+          color: 'secondary',
+          class:
+            'bg-coral-500 text-bone-50 shadow-[0_10px_30px_-8px_rgba(205,103,72,0.5)] hover:bg-coral-400',
+        },
+        {
+          variant: 'editorial',
+          color: 'primary',
+          class:
+            'bg-barkside-900 text-bone-50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.35)] hover:bg-barkside-800',
+        },
+        {
+          variant: 'editorial',
+          color: 'neutral',
+          class:
+            'border border-barkside-900/20 bg-bone-50 text-barkside-900 hover:border-coral-500 hover:bg-coral-50',
+        },
+      ],
       defaultVariants: {
         size: 'md',
       },
@@ -38,6 +68,13 @@ export default defineAppConfig({
     input: {
       slots: {
         root: 'w-full',
+      },
+      variants: {
+        size: {
+          lg: {
+            base: 'px-3 py-3 text-base/5 gap-2',
+          },
+        },
       },
       defaultVariants: {
         size: 'lg',
