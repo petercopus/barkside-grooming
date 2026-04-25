@@ -18,9 +18,13 @@ const paymentMethods = computed(() => pmData.value?.paymentMethods ?? []);
 const showAddCard = ref(false);
 const setupClientSecret = ref('');
 const loadingSetup = ref(false);
+const cardComplete = ref(false);
+const savingCard = ref(false);
+const cardFormRef = ref<{ confirm: () => Promise<string> } | null>(null);
 
 async function openAddCard() {
   loadingSetup.value = true;
+  cardComplete.value = false;
 
   try {
     const res = await $fetch<{ clientSecret: string }>('/api/payment-methods/setup-intent', {
@@ -36,7 +40,20 @@ async function openAddCard() {
   }
 }
 
-async function onCardConfirmed(stripePaymentMethodId: string) {
+async function saveCard() {
+  if (!cardFormRef.value) return;
+
+  savingCard.value = true;
+
+  let stripePaymentMethodId: string;
+  try {
+    stripePaymentMethodId = await cardFormRef.value.confirm();
+  } catch {
+    // Card error already surfaced inline by the form.
+    savingCard.value = false;
+    return;
+  }
+
   try {
     await $fetch('/api/payment-methods', {
       method: 'POST',
@@ -45,11 +62,14 @@ async function onCardConfirmed(stripePaymentMethodId: string) {
 
     showAddCard.value = false;
     setupClientSecret.value = '';
+    cardComplete.value = false;
 
     await refreshPMs();
     toast.add({ title: 'Card added', color: 'success' });
   } catch {
     toast.add({ title: 'Failed to save card', color: 'error' });
+  } finally {
+    savingCard.value = false;
   }
 }
 
@@ -143,11 +163,19 @@ async function makeDefault(id: string) {
       v-model:open="showAddCard"
       title="Add Payment Method">
       <template #body>
-        <PaymentCardForm
-          v-if="setupClientSecret"
-          :client-secret="setupClientSecret"
-          @confirmed="onCardConfirmed"
-          @error="(msg: string) => toast.add({ title: msg, color: 'error' })" />
+        <div v-if="setupClientSecret">
+          <PaymentCardForm
+            ref="cardFormRef"
+            :client-secret="setupClientSecret"
+            @update:complete="cardComplete = $event" />
+
+          <UButton
+            label="Save Card"
+            class="mt-4"
+            :loading="savingCard"
+            :disabled="!cardComplete"
+            @click="saveCard" />
+        </div>
       </template>
     </UModal>
   </div>
