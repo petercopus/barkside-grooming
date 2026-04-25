@@ -10,8 +10,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'date must be in YYYY-MM-DD format' });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  if (date < today) {
+  if (date < todayDateString()) {
     throw createError({ statusCode: 400, message: 'date cannot be in the past' });
   }
 

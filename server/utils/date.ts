@@ -1,3 +1,14 @@
+/**
+ * Today's date in the servers local timezone, formatted as YYYY-MM-DD
+ */
+export function todayDateString(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 /** Convert "HH:MM" or "HH:MM:SS" to total minutes from midnight */
 export function timeToMinutes(time: string): number {
   const [h, m] = time.split(':') as [string, string];

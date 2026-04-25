@@ -8,7 +8,6 @@ import {
   scheduleOverrides,
   users,
 } from '~~/server/db/schema';
-import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
 
 import type {
   CreateOverrideInput,
@@ -184,9 +183,9 @@ export async function getAvailableSlots(
   const results: GroomerSlot[] = [];
 
   // if the date is today, filter out slots that have already started
+  const isToday = date === todayDateString();
   const now = new Date();
-  const isToday = date === now.toISOString().slice(0, 10);
-  const nowMinutes = isToday ? now.getUTCHours() * 60 + now.getUTCMinutes() : null;
+  const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : null;
 
   for (const groomerId of groomerIds) {
     // check override first, it takes precedence
