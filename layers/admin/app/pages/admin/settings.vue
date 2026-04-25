@@ -12,7 +12,7 @@ const { hasPerm } = usePermissions();
 const items = computed(() => {
   const tabs: (TabsItem & { path: string })[] = [];
 
-  if (hasPerm('service:read'))
+  if (hasPerm('service:manage'))
     tabs.push({
       label: 'Services',
       icon: 'i-lucide-scissors',

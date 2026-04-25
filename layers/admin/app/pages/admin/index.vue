@@ -2,7 +2,7 @@
 definePageMeta({
   layout: 'dashboard',
   middleware: 'permission',
-  permission: 'service:read',
+  permission: 'admin:access',
   redirect: '/admin/home',
 });
 </script>

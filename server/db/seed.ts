@@ -66,12 +66,15 @@ async function seed() {
 
   //#region PERMISSIONS
   // ─── 2. Permissions ────────────────────────────────────
+  // booking:read:own and pet:manage:own are kept for documentation. They are
+  // not enforced by requirePermission — owner-isolation is done in the service
+  // layer via a user.id filter. Listing them here makes the Customer role's
+  // intended scope explicit in the matrix below.
   const permissionData = [
+    { key: 'admin:access', description: 'Access the admin dashboard' },
     { key: 'booking:create', description: 'Create new bookings' },
     { key: 'booking:read:own', description: 'View own bookings' },
     { key: 'booking:read:all', description: 'View all bookings' },
-    { key: 'booking:update:own', description: 'Update own bookings' },
-    { key: 'booking:update:all', description: 'Update any booking' },
     { key: 'booking:cancel', description: 'Cancel bookings' },
     { key: 'pet:manage:own', description: 'Manage own pets' },
     { key: 'pet:read:all', description: 'View all pets' },
@@ -79,18 +82,10 @@ async function seed() {
     { key: 'document:approve', description: 'Approve uploaded documents' },
     { key: 'document:delete', description: 'Delete uploaded documents' },
     { key: 'document:read:all', description: 'View all documents' },
-    { key: 'schedule:read:own', description: 'View own schedule' },
-    { key: 'schedule:read:all', description: 'View all schedules' },
-    { key: 'schedule:manage', description: 'Manage employee schedules' },
-    { key: 'service:read', description: 'View services catalog' },
     { key: 'service:manage', description: 'Manage services and pricing' },
     { key: 'employee:read', description: 'View employee accounts' },
     { key: 'employee:manage', description: 'Manage employee accounts' },
     { key: 'reports:view', description: 'View business reports' },
-    { key: 'settings:manage', description: 'Manage business settings' },
-    { key: 'promo:manage', description: 'Manage promotions and bundles' },
-    { key: 'review:create', description: 'Create reviews' },
-    { key: 'review:moderate', description: 'Moderate reviews' },
     { key: 'size-category:manage', description: 'Manage pet size categories' },
     { key: 'role:manage', description: 'Manage roles and permissions' },
     { key: 'customer:read', description: 'View customer accounts' },
@@ -110,25 +105,18 @@ async function seed() {
   //#region ROLE PERMISSIONS
   // ─── 3. Role-Permission Matrix ─────────────────────────
   // Maps each role to the permission keys it should have.
-  // Matches the table from the project plan exactly.
+  // Groomer / Bather / Front Desk are seeded empty here; final lists
+  // are populated in Batch 5 of docs/inprogress-fixes.md.
   const matrix: Record<string, string[]> = {
-    'Customer': [
-      'booking:create',
-      'booking:read:own',
-      'booking:update:own',
-      'booking:cancel',
-      'pet:manage:own',
-      'service:read',
-    ],
+    'Customer': ['booking:create', 'booking:read:own', 'booking:cancel', 'pet:manage:own'],
     'Employee': [
+      'admin:access',
       'booking:read:all',
       'pet:read:all',
       'document:request',
       'document:approve',
       'document:delete',
       'document:read:all',
-      'schedule:read:all',
-      'service:read',
       'employee:read',
     ],
     'Groomer': [],

@@ -2,7 +2,7 @@
 definePageMeta({
   layout: 'dashboard',
   middleware: 'permission',
-  permission: 'service:read',
+  permission: 'admin:access',
 });
 
 const { user, permissions } = useAuth();
