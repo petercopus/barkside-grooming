@@ -13,6 +13,10 @@ export default defineNitroPlugin((nitroApp) => {
       error.statusMessage = 'Invalid input';
       error.data = { issues: cause.issues };
       error.unhandled = false;
+      /* Detach the cause so the dev error renderer (youch) doesn't try to
+       * source-map the original ZodError stack — that path triggers a wasm
+       * panic in source-map and floods the dev console. */
+      error.cause = undefined;
       return;
     }
 
@@ -21,6 +25,7 @@ export default defineNitroPlugin((nitroApp) => {
       error.statusMessage = cause.message;
       error.data = { code: cause.code, param: cause.param };
       error.unhandled = false;
+      error.cause = undefined;
       return;
     }
   });
