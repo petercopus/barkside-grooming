@@ -23,9 +23,25 @@ function getStripe(): Stripe {
   return stripe;
 }
 
-export async function createStripeCustomer(email: string, name: string): Promise<string> {
-  const customer = await getStripe().customers.create({ email, name });
+export async function createStripeCustomer(
+  fields: { email?: string; name?: string } = {},
+): Promise<string> {
+  const params: Stripe.CustomerCreateParams = {};
+  if (fields.email) params.email = fields.email;
+  if (fields.name) params.name = fields.name;
+  const customer = await getStripe().customers.create(params);
   return customer.id;
+}
+
+export async function updateStripeCustomer(
+  stripeCustomerId: string,
+  fields: { email?: string; name?: string },
+): Promise<void> {
+  const params: Stripe.CustomerUpdateParams = {};
+  if (fields.email) params.email = fields.email;
+  if (fields.name) params.name = fields.name;
+  if (Object.keys(params).length === 0) return;
+  await getStripe().customers.update(stripeCustomerId, params);
 }
 
 export async function createSetupIntent(stripeCustomerId: string): Promise<string | null> {

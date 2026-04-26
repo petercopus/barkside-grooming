@@ -566,6 +566,18 @@ export async function createGuestBooking(input: CreateGuestBookingInput) {
     return appointmentId.id;
   });
 
+  // Enrich the Stripe customer with real contact details now that booking is committed
+  if (input.stripeCustomerId) {
+    try {
+      await updateStripeCustomer(input.stripeCustomerId, {
+        email: input.guestDetails.email,
+        name: `${input.guestDetails.firstName} ${input.guestDetails.lastName}`,
+      });
+    } catch (err) {
+      console.error('[stripe] Failed to enrich guest customer:', err);
+    }
+  }
+
   const [apptRow] = await db.select().from(appointments).where(eq(appointments.id, id));
   if (!apptRow) throw new Error('Appointment not found after creation');
   const [enriched] = await enrichAppointments([apptRow]);
