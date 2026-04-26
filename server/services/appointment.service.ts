@@ -18,6 +18,7 @@ import {
   services,
   users,
 } from '~~/server/db/schema';
+import { calcBundleDiscount } from '~~/server/services/bundle.service';
 import { resolveSizeCategory } from '~~/server/services/pet.service';
 import { sendVaccinationHoldEmail } from '~~/server/services/vaccination-email.service';
 import {
@@ -375,10 +376,11 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
           return sum + (pricing?.priceCents ?? 0);
         }, 0);
 
-        const discountCents =
-          bundle.discountType === 'percent'
-            ? Math.round(bundleTotal * (bundle.discountValue / 100))
-            : bundle.discountValue;
+        const discountCents = calcBundleDiscount(
+          bundle.discountType,
+          bundle.discountValue,
+          bundleTotal,
+        );
 
         await tx.insert(appointmentBundles).values({
           appointmentPetId: appointmentPetId.id,
@@ -663,10 +665,11 @@ export async function createGuestBooking(input: CreateGuestBookingInput) {
         return sum + (pricing?.priceCents ?? 0);
       }, 0);
 
-      const discountCents =
-        bundle.discountType === 'percent'
-          ? Math.round(bundleTotal * (bundle.discountValue / 100))
-          : bundle.discountValue;
+      const discountCents = calcBundleDiscount(
+        bundle.discountType,
+        bundle.discountValue,
+        bundleTotal,
+      );
 
       await tx.insert(appointmentBundles).values({
         appointmentPetId: appointmentPetId.id,

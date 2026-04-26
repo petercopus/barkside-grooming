@@ -244,7 +244,7 @@ export async function getAvailableSlots(
  * Given a work block and a list of booked appointments,
  * return the free time ranges within the block.
  */
-function subtractAppointments(block: TimeSlot, appts: TimeSlot[]): TimeSlot[] {
+export function subtractAppointments(block: TimeSlot, appts: TimeSlot[]): TimeSlot[] {
   let freeStart = timeToMinutes(block.startTime);
   const blockEnd = timeToMinutes(block.endTime);
 
@@ -280,7 +280,11 @@ function subtractAppointments(block: TimeSlot, appts: TimeSlot[]): TimeSlot[] {
  * Generate bookable time slots of the given duration within a free block.
  * Slots start every 30 minutes (configurable).
  */
-function generateSlots(block: TimeSlot, durationMinutes: number, stepMinutes = 30): TimeSlot[] {
+export function generateSlots(
+  block: TimeSlot,
+  durationMinutes: number,
+  stepMinutes = 30,
+): TimeSlot[] {
   const blockStart = timeToMinutes(block.startTime);
   const blockEnd = timeToMinutes(block.endTime);
   const slots: TimeSlot[] = [];

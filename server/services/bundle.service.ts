@@ -3,6 +3,20 @@ import { db } from '~~/server/db';
 import { bundles, bundleServices } from '~~/server/db/schema';
 import type { CreateBundleInput, UpdateBundleInput } from '~~/shared/schemas/bundle';
 
+/**
+ * Bundle discount applied to a subtotal (in cents)
+ * Percent values round to the nearest cent. Fixed values are returned verbatim.
+ */
+export function calcBundleDiscount(
+  discountType: 'percent' | 'fixed' | string,
+  discountValue: number,
+  subtotalCents: number,
+): number {
+  return discountType === 'percent'
+    ? Math.round(subtotalCents * (discountValue / 100))
+    : discountValue;
+}
+
 export async function listBundles(includeInactive = false) {
   // 1. Fetch bundles
   const bundleRows = includeInactive

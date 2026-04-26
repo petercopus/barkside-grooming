@@ -5,6 +5,21 @@ import { enrichAppointments } from '~~/server/services/appointment.service';
 import type { InvoiceLineItemInput } from '~~/shared/schemas/payment';
 
 /**
+ * Subtotal (positive amounts), discount (absolute of negatives), total (subtotal − discount) for a set of line items.
+ */
+export function calcInvoiceTotals(lineItems: { amountCents: number }[]) {
+  const subtotalCents = lineItems
+    .filter((i) => i.amountCents > 0)
+    .reduce((sum, i) => sum + i.amountCents, 0);
+
+  const discountCents = lineItems
+    .filter((i) => i.amountCents < 0)
+    .reduce((sum, i) => sum + Math.abs(i.amountCents), 0);
+
+  return { subtotalCents, discountCents, totalCents: subtotalCents - discountCents };
+}
+
+/**
  * Generate a draft invoice from an appointment's booked services/addons/bundles.
  */
 export async function generateInvoice(appointmentId: string) {
@@ -54,15 +69,7 @@ export async function generateInvoice(appointmentId: string) {
     }
   }
 
-  const subtotalCents = items
-    .filter((i) => i.amountCents > 0)
-    .reduce((sum, i) => sum + i.amountCents, 0);
-
-  const discountCents = items
-    .filter((i) => i.amountCents < 0)
-    .reduce((sum, i) => sum + Math.abs(i.amountCents), 0);
-
-  const totalCents = subtotalCents - discountCents;
+  const { subtotalCents, discountCents, totalCents } = calcInvoiceTotals(items);
 
   return db.transaction(async (tx) => {
     const [invoice] = await tx
@@ -143,15 +150,7 @@ export async function updateInvoiceLineItems(invoiceId: string, lineItems: Invoi
     throw createError({ statusCode: 400, message: 'Only draft invoices can be edited' });
   }
 
-  const subtotalCents = lineItems
-    .filter((i) => i.amountCents > 0)
-    .reduce((sum, i) => sum + i.amountCents, 0);
-
-  const discountCents = lineItems
-    .filter((i) => i.amountCents < 0)
-    .reduce((sum, i) => sum + Math.abs(i.amountCents), 0);
-
-  const totalCents = subtotalCents - discountCents;
+  const { subtotalCents, discountCents, totalCents } = calcInvoiceTotals(lineItems);
 
   return db.transaction(async (tx) => {
     await tx.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, invoiceId));
