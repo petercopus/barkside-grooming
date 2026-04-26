@@ -1,5 +1,6 @@
 export const apptStatusOptions = [
   'pending',
+  'pending_documents',
   'confirmed',
   'in_progress',
   'completed',
@@ -12,6 +13,7 @@ export const apptStatusColor: Record<
   'success' | 'error' | 'primary' | 'warning' | 'info' | 'neutral'
 > = {
   pending: 'warning',
+  pending_documents: 'warning',
   confirmed: 'primary',
   in_progress: 'info',
   completed: 'success',

@@ -42,7 +42,10 @@ CREATE TABLE "appointments" (
 	"status" varchar(20) DEFAULT 'pending' NOT NULL,
 	"notes" text,
 	"payment_method_id" varchar(255),
+	"stripe_customer_id" varchar(255),
 	"reminder_sent_at" timestamp with time zone,
+	"documents_hold_expires_at" timestamp with time zone,
+	"documents_reminder_sent_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -121,12 +124,17 @@ CREATE TABLE "users" (
 CREATE TABLE "document_requests" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"requested_by_user_id" uuid,
-	"target_user_id" uuid NOT NULL,
+	"target_user_id" uuid,
 	"pet_id" uuid,
+	"appointment_id" uuid,
+	"appointment_pet_id" uuid,
 	"document_type" varchar(50) NOT NULL,
 	"message" text,
 	"status" varchar(20) DEFAULT 'pending' NOT NULL,
 	"due_date" date,
+	"token_hash" varchar(64),
+	"expires_at" timestamp with time zone,
+	"used_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -340,6 +348,8 @@ ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_role_id_roles_id_fk" FOREIGN
 ALTER TABLE "document_requests" ADD CONSTRAINT "document_requests_requested_by_user_id_users_id_fk" FOREIGN KEY ("requested_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_requests" ADD CONSTRAINT "document_requests_target_user_id_users_id_fk" FOREIGN KEY ("target_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_requests" ADD CONSTRAINT "document_requests_pet_id_pets_id_fk" FOREIGN KEY ("pet_id") REFERENCES "public"."pets"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "document_requests" ADD CONSTRAINT "document_requests_appointment_id_appointments_id_fk" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "document_requests" ADD CONSTRAINT "document_requests_appointment_pet_id_appointment_pets_id_fk" FOREIGN KEY ("appointment_pet_id") REFERENCES "public"."appointment_pets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "documents" ADD CONSTRAINT "documents_uploaded_by_user_id_users_id_fk" FOREIGN KEY ("uploaded_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "documents" ADD CONSTRAINT "documents_pet_id_pets_id_fk" FOREIGN KEY ("pet_id") REFERENCES "public"."pets"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "documents" ADD CONSTRAINT "documents_appointment_id_appointments_id_fk" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -363,4 +373,5 @@ ALTER TABLE "bundle_services" ADD CONSTRAINT "bundle_services_service_id_service
 ALTER TABLE "service_addons" ADD CONSTRAINT "service_addons_base_service_id_services_id_fk" FOREIGN KEY ("base_service_id") REFERENCES "public"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "service_addons" ADD CONSTRAINT "service_addons_addon_service_id_services_id_fk" FOREIGN KEY ("addon_service_id") REFERENCES "public"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "service_pricing" ADD CONSTRAINT "service_pricing_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "service_pricing" ADD CONSTRAINT "service_pricing_size_category_id_pet_size_categories_id_fk" FOREIGN KEY ("size_category_id") REFERENCES "public"."pet_size_categories"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "service_pricing" ADD CONSTRAINT "service_pricing_size_category_id_pet_size_categories_id_fk" FOREIGN KEY ("size_category_id") REFERENCES "public"."pet_size_categories"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "document_requests_token_hash_uniq" ON "document_requests" USING btree ("token_hash");

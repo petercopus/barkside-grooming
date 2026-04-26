@@ -10,6 +10,7 @@ export default defineNuxtConfig({
     smtpUser: process.env.SMTP_USER ?? '',
     smtpPass: process.env.SMTP_PASS ?? '',
     smtpFrom: process.env.SMTP_FROM ?? 'noreply@barkside.local',
+    siteUrl: process.env.SITE_URL ?? 'http://localhost:3000',
     stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? '',
     public: {
       stripePublicKey: process.env.STRIPE_PUBLIC_KEY ?? '',
@@ -50,7 +51,8 @@ export default defineNuxtConfig({
       tasks: true,
     },
     scheduledTasks: {
-      '0 * * * *': ['send-reminders'],
+      '0 * * * *': ['send-reminders', 'vaccination-hold-reminders'],
+      '*/15 * * * *': ['release-vaccination-holds'],
     },
   },
 

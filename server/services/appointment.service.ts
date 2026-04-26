@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, inArray, lt, notInArray } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { db } from '~~/server/db';
 import {
   appointmentAddons,
@@ -8,6 +9,8 @@ import {
   appointmentServices,
   bundles,
   bundleServices,
+  documentRequests,
+  documents,
   guestDetails,
   pets,
   petSizeCategories,
@@ -16,6 +19,13 @@ import {
   users,
 } from '~~/server/db/schema';
 import { resolveSizeCategory } from '~~/server/services/pet.service';
+import { sendVaccinationHoldEmail } from '~~/server/services/vaccination-email.service';
+import {
+  calcHoldExpiry,
+  hashUploadToken,
+  type IssuedUploadToken,
+  SATISFYING_VAX_STATUSES,
+} from '~~/server/services/vaccination-hold.service';
 import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
 import type { CreateBookingInput, CreateGuestBookingInput } from '~~/shared/schemas/appointment';
 
@@ -163,7 +173,7 @@ export async function enrichAppointments(appointmentRows: (typeof appointments.$
  * Returns new appointmentId
  */
 export async function createBooking(customerId: string, input: CreateBookingInput) {
-  const id = await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     // 1. Validate pet ownership
     const customerPets = await tx
       .select()
@@ -378,10 +388,112 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
       }
     }
 
-    return appointmentId.id;
+    const earliestApptStart = petBookings.reduce<Date>(
+      (earliest, pb) => {
+        const candidate = new Date(`${pb.scheduledDate}T${pb.startTime}`);
+        return candidate < earliest ? candidate : earliest;
+      },
+      new Date(`${petBookings[0]!.scheduledDate}T${petBookings[0]!.startTime}`),
+    );
+
+    /* ─── Vaccination hold assessment ─── */
+    const apptPetRows = await tx
+      .select({
+        id: appointmentPets.id,
+        petId: appointmentPets.petId,
+        guestPetName: appointmentPets.guestPetName,
+      })
+      .from(appointmentPets)
+      .where(eq(appointmentPets.appointmentId, appointmentId.id));
+
+    const registeredPetIds = apptPetRows
+      .map((r) => r.petId)
+      .filter((id): id is string => id !== null);
+
+    const existingDocRows = registeredPetIds.length
+      ? await tx
+          .select({ petId: documents.petId })
+          .from(documents)
+          .where(
+            and(
+              inArray(documents.petId, registeredPetIds),
+              eq(documents.type, 'vaccination_record'),
+              inArray(documents.status, [...SATISFYING_VAX_STATUSES]),
+            ),
+          )
+      : [];
+    const petsWithDocs = new Set(existingDocRows.map((r) => r.petId).filter(Boolean) as string[]);
+
+    const missingApptPets = apptPetRows.filter(
+      (ap) => ap.petId === null || !petsWithDocs.has(ap.petId),
+    );
+
+    if (missingApptPets.length === 0) {
+      await tx
+        .update(appointments)
+        .set({ status: 'confirmed', updatedAt: new Date() })
+        .where(eq(appointments.id, appointmentId.id));
+      await tx
+        .update(appointmentPets)
+        .set({ status: 'confirmed' })
+        .where(eq(appointmentPets.appointmentId, appointmentId.id));
+      return { id: appointmentId.id, holdTokens: [] as IssuedUploadToken[] };
+    }
+
+    const expiresAt = calcHoldExpiry({ isGuest: false, earliestApptStart });
+    await tx
+      .update(appointments)
+      .set({
+        status: 'pending_documents',
+        documentsHoldExpiresAt: expiresAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, appointmentId.id));
+
+    await tx
+      .update(appointmentPets)
+      .set({ status: 'pending_documents' })
+      .where(eq(appointmentPets.appointmentId, appointmentId.id));
+
+    const petNameById = new Map<string, string>();
+    if (registeredPetIds.length > 0) {
+      const petRows = await tx
+        .select({ id: pets.id, name: pets.name })
+        .from(pets)
+        .where(inArray(pets.id, registeredPetIds));
+      for (const p of petRows) petNameById.set(p.id, p.name);
+    }
+
+    const holdTokens: IssuedUploadToken[] = [];
+    for (const ap of missingApptPets) {
+      const token = randomUUID();
+      const displayName = ap.petId
+        ? (petNameById.get(ap.petId) ?? 'Pet')
+        : (ap.guestPetName ?? 'Pet');
+      await tx.insert(documentRequests).values({
+        requestedByUserId: null,
+        targetUserId: customerId,
+        petId: ap.petId,
+        appointmentId: appointmentId.id,
+        appointmentPetId: ap.id,
+        documentType: 'vaccination_record',
+        status: 'pending',
+        tokenHash: hashUploadToken(token),
+        expiresAt,
+      });
+      holdTokens.push({ appointmentPetId: ap.id, displayName, token });
+    }
+
+    return { id: appointmentId.id, holdTokens };
   });
 
-  const [apptRow] = await db.select().from(appointments).where(eq(appointments.id, id));
+  if (result.holdTokens.length > 0) {
+    sendVaccinationHoldEmail(result.id, result.holdTokens).catch((err) =>
+      console.error('[booking] vaccination hold email failed:', err),
+    );
+  }
+
+  const [apptRow] = await db.select().from(appointments).where(eq(appointments.id, result.id));
   if (!apptRow) throw new Error('Appointment not found after creation');
   const [enriched] = await enrichAppointments([apptRow]);
   return enriched!;
@@ -391,7 +503,7 @@ export async function createBooking(customerId: string, input: CreateBookingInpu
  * Book a guest appointment (single pet, no account)
  */
 export async function createGuestBooking(input: CreateGuestBookingInput) {
-  const id = await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const pet = input.pet;
 
     // 1. Resolve size category from weight
@@ -563,7 +675,42 @@ export async function createGuestBooking(input: CreateGuestBookingInput) {
       });
     }
 
-    return appointmentId.id;
+    /* ─── Vaccination hold (guest pets always require upload) ─── */
+    const expiresAt = calcHoldExpiry({
+      isGuest: true,
+      earliestApptStart: new Date(`${pet.scheduledDate}T${pet.startTime}`),
+    });
+
+    await tx
+      .update(appointments)
+      .set({
+        status: 'pending_documents',
+        documentsHoldExpiresAt: expiresAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, appointmentId.id));
+    await tx
+      .update(appointmentPets)
+      .set({ status: 'pending_documents' })
+      .where(eq(appointmentPets.appointmentId, appointmentId.id));
+
+    const token = randomUUID();
+    await tx.insert(documentRequests).values({
+      requestedByUserId: null,
+      targetUserId: null,
+      petId: null,
+      appointmentId: appointmentId.id,
+      appointmentPetId: appointmentPetId.id,
+      documentType: 'vaccination_record',
+      status: 'pending',
+      tokenHash: hashUploadToken(token),
+      expiresAt,
+    });
+
+    const holdTokens: IssuedUploadToken[] = [
+      { appointmentPetId: appointmentPetId.id, displayName: pet.name, token },
+    ];
+    return { id: appointmentId.id, holdTokens };
   });
 
   // Enrich the Stripe customer with real contact details now that booking is committed
@@ -578,7 +725,13 @@ export async function createGuestBooking(input: CreateGuestBookingInput) {
     }
   }
 
-  const [apptRow] = await db.select().from(appointments).where(eq(appointments.id, id));
+  if (result.holdTokens.length > 0) {
+    sendVaccinationHoldEmail(result.id, result.holdTokens).catch((err) =>
+      console.error('[booking] vaccination hold email failed:', err),
+    );
+  }
+
+  const [apptRow] = await db.select().from(appointments).where(eq(appointments.id, result.id));
   if (!apptRow) throw new Error('Appointment not found after creation');
   const [enriched] = await enrichAppointments([apptRow]);
   return enriched!;
@@ -621,7 +774,7 @@ export async function cancelBooking(bookingId: string, customerId: string) {
   const booking = await getBooking(bookingId, customerId);
 
   // only pending/confirmed appointments can be cancelled
-  if (!['pending', 'confirmed'].includes(booking!.status)) {
+  if (!['pending', 'pending_documents', 'confirmed'].includes(booking!.status)) {
     throw createError({ statusCode: 400, message: 'Appointment cannot be cancelled' });
   }
 

@@ -16,11 +16,13 @@ import { bundles, services } from './services';
 export const appointments = pgTable('appointments', {
   id: uuid('id').primaryKey().defaultRandom(),
   customerId: uuid('customer_id').references(() => users.id, { onDelete: 'set null' }),
-  status: varchar('status', { length: 20 }).notNull().default('pending'), // pending | confirmed | in_progress | completed | cancelled | no_show
+  status: varchar('status', { length: 20 }).notNull().default('pending'), // pending | pending_documents | confirmed | in_progress | completed | cancelled | no_show
   notes: text('notes'),
   paymentMethodId: varchar('payment_method_id', { length: 255 }),
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
   reminderSentAt: timestamp('reminder_sent_at', { withTimezone: true }),
+  documentsHoldExpiresAt: timestamp('documents_hold_expires_at', { withTimezone: true }),
+  documentsReminderSentAt: timestamp('documents_reminder_sent_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

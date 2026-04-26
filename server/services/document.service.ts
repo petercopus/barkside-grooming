@@ -1,6 +1,7 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import { documentRequests, documents, pets, users } from '~~/server/db/schema';
+import { clearHoldIfSatisfied } from '~~/server/services/vaccination-hold.service';
 import type { UpdateDocumentStatusInput, UploadDocumentInput } from '~~/shared/schemas/document';
 
 export async function uploadDocument(
@@ -50,6 +51,10 @@ export async function uploadDocument(
         notes: input.notes,
       })
       .returning();
+
+    if (input.appointmentId && input.type === 'vaccination_record') {
+      await clearHoldIfSatisfied(input.appointmentId);
+    }
 
     return document;
   } catch (err) {

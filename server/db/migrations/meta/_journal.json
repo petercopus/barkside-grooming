@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1775942741788,
-      "tag": "0000_chilly_pandemic",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1775965340139,
-      "tag": "0001_polite_daimon_hellstrom",
+      "when": 1777175356422,
+      "tag": "0000_yielding_wendigo",
       "breakpoints": true
     }
   ]

@@ -131,7 +131,7 @@ function onRowSelect(_e: Event, row: any) {
               size="sm"
               @click="updateStatus(row.original.id, nextAction(row.original.status)!.status)" />
             <UButton
-              v-if="['pending', 'confirmed'].includes(row.original.status)"
+              v-if="['pending', 'pending_documents', 'confirmed'].includes(row.original.status)"
               label="Cancel"
               color="error"
               variant="ghost"
