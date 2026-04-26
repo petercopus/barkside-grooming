@@ -11,6 +11,8 @@ const props = defineProps<{
   notes: string;
 }>();
 
+defineExpose({ canAdvance, buildPayload });
+
 const toast = useToast();
 
 /* ─────────────────────────────────── *
@@ -329,8 +331,6 @@ async function buildPayload() {
     },
   };
 }
-
-defineExpose({ canAdvance, buildPayload });
 </script>
 
 <template>
