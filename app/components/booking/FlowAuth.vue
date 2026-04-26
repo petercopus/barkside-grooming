@@ -19,14 +19,8 @@ const toast = useToast();
 /* ─────────────────────────────────── *
  * Pet selection + per pet state
  * ─────────────────────────────────── */
-const selectedPetIds = ref<string[]>([]);
-const petBaseServices = ref<Record<string, number[]>>({});
-const petAddons = ref<Record<string, number[]>>({});
-const petBundles = ref<Record<string, { bundleId: number; discountCents: number } | null>>({});
-const petSlots = ref<
-  Record<string, { scheduledDate: string; groomerId: string; startTime: string }>
->({});
-const petDates = ref<Record<string, CalendarDate | undefined>>({});
+const { selectedPetIds, petBaseServices, petAddons, petBundles, petSlots, petDates } =
+  useBookingState();
 const petAvailability = ref<Record<string, any[]>>({});
 
 /* ─────────────────────────────────── *
@@ -262,6 +256,7 @@ const petTotals = computed(() => {
 const { schedule, isCompleteCalendarDate } = useBookingAvailability();
 
 function onPetDateChange(petId: string) {
+  delete petSlots.value[petId];
   schedule(`pet:${petId}`, () => fetchAvailabilityPet(petId));
 }
 
@@ -290,7 +285,6 @@ async function fetchAvailabilityPet(petId: string) {
   });
 
   petAvailability.value[petId] = slots;
-  delete petSlots.value[petId];
 }
 
 function selectSlotPet(petId: string, groomerId: string, startTime: string, scheduledDate: string) {
@@ -303,6 +297,18 @@ function selectSlotPet(petId: string, groomerId: string, startTime: string, sche
 function getPetName(petId: string) {
   return props.petData?.pets.find((p: any) => p.id === petId)?.name ?? '';
 }
+
+/* ─────────────────────────────────── *
+ * Restore availability after reload
+ * ─────────────────────────────────── */
+onMounted(async () => {
+  await nextTick(); // wait one tick for parent's hydration
+  for (const petId of selectedPetIds.value) {
+    if (petDates.value[petId] && (petBaseServices.value[petId] ?? []).length > 0) {
+      fetchAvailabilityPet(petId);
+    }
+  }
+});
 
 /* ─────────────────────────────────── *
  * Shell contract

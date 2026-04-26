@@ -5,6 +5,9 @@ useHead({ title: 'Booking Confirmed — Barkside Grooming' });
 
 const route = useRoute();
 const appointmentId = computed(() => route.query.id as string | undefined);
+
+const bookingState = useBookingState();
+onMounted(() => bookingState.clear());
 </script>
 
 <template>

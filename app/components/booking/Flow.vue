@@ -22,9 +22,10 @@ const toast = useToast();
 const minBookingDate = today(getLocalTimeZone());
 
 /* ─────────────────────────────────── *
- * Stepper
+ * Persisted wizard state
  * ─────────────────────────────────── */
-const step = ref(0);
+const bookingState = useBookingState();
+const { step, notes } = bookingState;
 
 const stepperItems = computed<StepperItem[]>(() => {
   const defaults: StepperItem[] = [
@@ -60,11 +61,6 @@ const [
   useFetch('/api/size-categories'),
   isLoggedIn.value ? useFetch('/api/pets') : Promise.resolve({ data: ref(null) }),
 ]);
-
-/* ─────────────────────────────────── *
- * Shared notes
- * ─────────────────────────────────── */
-const notes = ref('');
 
 /* ─────────────────────────────────── *
  * Active branch
@@ -111,6 +107,7 @@ async function submitBooking() {
 
     const body = { ...payload.body, notes: notes.value || undefined };
     const res = await $fetch(payload.endpoint, { method: 'POST', body });
+    bookingState.clear();
     await navigateTo(payload.onSuccess(res));
   } catch (err: any) {
     toast.add({
