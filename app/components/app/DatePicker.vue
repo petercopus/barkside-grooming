@@ -9,6 +9,11 @@ defineProps<{
 
 const modelValue = defineModel<CalendarDate | undefined>();
 const inputDate = useTemplateRef('inputDate');
+const open = ref(false);
+
+watch(modelValue, () => {
+  open.value = false;
+});
 </script>
 
 <template>
@@ -19,7 +24,9 @@ const inputDate = useTemplateRef('inputDate');
     :min-value="minValue"
     :max-value="maxValue">
     <template #trailing>
-      <UPopover :reference="inputDate?.inputsRef[3]?.$el">
+      <UPopover
+        v-model:open="open"
+        :reference="inputDate?.inputsRef[3]?.$el">
         <UButton
           color="neutral"
           variant="link"
