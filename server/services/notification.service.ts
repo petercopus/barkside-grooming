@@ -1,6 +1,8 @@
-import { and, count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import {
+  appointmentPets,
+  appointments,
   notificationPreferences,
   notifications,
   roles,
@@ -180,6 +182,65 @@ export async function upsertPreferences(userId: string, input: UpdatePreferences
         inappEnabled: input.inappEnabled,
       },
     });
+}
+
+/* ─────────────────────────────────── *
+ * Scheduled-task body
+ * ─────────────────────────────────── */
+
+/**
+ * Send 24-hour reminder notifications for appointments scheduled tomorrow.
+ * Returns the number of reminders sent.
+ */
+export async function sendAppointmentReminders(now: Date = new Date()): Promise<number> {
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0]!;
+
+  const petRows = await db
+    .select({ appointmentId: appointmentPets.appointmentId })
+    .from(appointmentPets)
+    .where(eq(appointmentPets.scheduledDate, tomorrowStr))
+    .groupBy(appointmentPets.appointmentId);
+
+  if (petRows.length === 0) return 0;
+
+  const appointmentIds = petRows.map((r) => r.appointmentId);
+
+  const eligible = await db
+    .select()
+    .from(appointments)
+    .where(
+      and(
+        inArray(appointments.id, appointmentIds),
+        inArray(appointments.status, ['pending', 'pending_documents', 'confirmed']),
+        isNull(appointments.reminderSentAt),
+        sql`${appointments.customerId} IS NOT NULL`,
+      ),
+    );
+
+  let sentCount = 0;
+  for (const appt of eligible) {
+    try {
+      await sendNotification({
+        userId: appt.customerId!,
+        category: 'appointment_reminder',
+        title: 'Appointment Reminder',
+        body: 'You have an appointment scheduled for tomorrow.',
+      });
+
+      await db
+        .update(appointments)
+        .set({ reminderSentAt: new Date() })
+        .where(eq(appointments.id, appt.id));
+
+      sentCount++;
+    } catch (err) {
+      console.error(`Reminder failed for appointment ${appt.id}:`, err);
+    }
+  }
+
+  return sentCount;
 }
 
 /* ─────────────────────────────────── *
