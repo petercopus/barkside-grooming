@@ -66,7 +66,7 @@ async function cancelAppointment(id: string) {
               :label="appt.status" />
 
             <UButton
-              v-if="['pending', 'confirmed'].includes(appt.status)"
+              v-if="['pending', 'pending_documents', 'confirmed'].includes(appt.status)"
               variant="ghost"
               size="sm"
               color="error"

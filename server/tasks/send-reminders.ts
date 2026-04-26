@@ -34,7 +34,7 @@ export default defineTask({
       .where(
         and(
           inArray(appointments.id, appointmentIds),
-          inArray(appointments.status, ['pending', 'confirmed']),
+          inArray(appointments.status, ['pending', 'pending_documents', 'confirmed']),
           isNull(appointments.reminderSentAt),
           sql`${appointments.customerId} IS NOT NULL`,
         ),

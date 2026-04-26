@@ -1,0 +1,1 @@
+ALTER TABLE "appointments" ADD COLUMN "documents_hold_expires_at" timestamp with time zone;
