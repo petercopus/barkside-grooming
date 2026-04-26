@@ -1,0 +1,1 @@
+ALTER TABLE "appointments" ADD COLUMN "documents_reminder_sent_at" timestamp with time zone;
