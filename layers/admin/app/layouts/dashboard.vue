@@ -9,7 +9,7 @@ const { hasPerm } = usePermissions();
 const navItems = computed(() => {
   const items = [];
 
-  items.push({ label: 'Home', icon: 'i-lucide-house', to: '/admin/home' });
+  items.push({ label: 'Home', icon: 'i-lucide-house', to: '/admin' });
 
   if (hasPerm('booking:read:all')) {
     items.push({ label: 'Appointments', icon: 'i-lucide-book-open', to: '/admin/appointments' });
