@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import type { Stripe, StripeElements, StripePaymentElement } from '@stripe/stripe-js';
+import type {
+  Stripe,
+  StripeElements,
+  StripePaymentElement,
+  StripePaymentElementOptions,
+} from '@stripe/stripe-js';
 
 const props = defineProps<{
   clientSecret: string;
@@ -61,7 +66,12 @@ onMounted(async () => {
     appearance,
   });
 
-  paymentElement = elements.create('payment');
+  const paymentOptions: StripePaymentElementOptions = {
+    layout: { type: 'accordion', defaultCollapsed: false },
+    paymentMethodOrder: ['card'],
+    wallets: { applePay: 'never', googlePay: 'never' },
+  };
+  paymentElement = elements.create('payment', paymentOptions);
   paymentElement.mount(paymentRef.value);
 
   paymentElement.on('change', (event) => {

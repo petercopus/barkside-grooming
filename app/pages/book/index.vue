@@ -14,7 +14,7 @@ useHead({ title: 'Book an Appointment — Barkside Grooming' });
         alignment="center" />
     </div>
 
-    <section class="relative cms-container max-w-5xl sm:px-6 pb-16 sm:pb-24">
+    <section class="relative cms-container max-w-6xl sm:px-6 pb-16 sm:pb-24">
       <div
         class="relative rounded-card-lg border border-bone-300/80 bg-bone-50 p-8 shadow-[0_20px_60px_-30px_rgba(15,30,43,0.25)] sm:p-10 delay-4 reveal-subtle">
         <BookingFlow

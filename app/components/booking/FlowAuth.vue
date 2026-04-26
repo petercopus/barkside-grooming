@@ -511,136 +511,101 @@ defineExpose({ canAdvance, buildPayload });
     </div>
 
     <!-- Step 3: Finalize -->
-    <div v-if="step === 3">
-      <div
-        v-for="petId in selectedPetIds"
-        :key="petId"
-        class="mb-8">
-        <h4 class="font-semibold mb-3">{{ getPetName(petId) }}</h4>
-
-        <AppCard>
-          <div>
-            <p class="font-medium mb-1">Services</p>
-            <div
-              v-for="item in petTotals.get(petId)?.baseItems"
-              :key="item.name"
-              class="flex justify-between">
-              <span>{{ item.name }}</span>
-              <span>${{ formatCents(item.priceCents) }}</span>
-            </div>
+    <div
+      v-if="step === 3"
+      class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Inputs: bottom on mobile, left on desktop -->
+      <div class="lg:col-span-2 order-2 lg:order-1">
+        <AppCard title="Payment">
+          <div
+            v-if="savedCards.length > 0"
+            class="space-y-2 mb-4">
+            <label
+              v-for="card in savedCards"
+              :key="card.id"
+              class="flex items-center gap-3 p-3 rounded-lg border border-default cursor-pointer hover:bg-muted/50 transition"
+              :class="{
+                'ring-2 ring-primary': selectedPaymentMethodId === card.stripePaymentMethodId,
+              }">
+              <input
+                type="radio"
+                name="payment-method"
+                :value="card.stripePaymentMethodId"
+                v-model="selectedPaymentMethodId"
+                class="accent-primary" />
+              <span class="text-sm font-medium capitalize">{{ card.brand }}</span>
+              <span class="text-sm text-muted">&bull;&bull;&bull;&bull; {{ card.last4 }}</span>
+              <span class="text-sm text-muted">{{ card.expMonth }}/{{ card.expYear }}</span>
+              <UBadge
+                v-if="card.isDefault"
+                label="Default"
+                color="primary"
+                variant="subtle"
+                size="sm" />
+            </label>
           </div>
 
-          <div v-if="petTotals.get(petId)?.addonItems.length">
-            <p class="font-medium mb-1">Add-ons</p>
-            <div
-              v-for="item in petTotals.get(petId)!.addonItems"
-              :key="item.name"
-              class="flex justify-between">
-              <span>{{ item.name }}</span>
-              <span>${{ formatCents(item.priceCents) }}</span>
-            </div>
+          <div v-if="!showNewCardForm">
+            <UButton
+              :label="savedCards.length > 0 ? 'Use a different card' : 'Add a card'"
+              icon="i-lucide-plus"
+              variant="outline"
+              @click="startNewCard" />
           </div>
 
           <div
-            v-if="(petTotals.get(petId)?.discountCents ?? 0) > 0"
-            class="flex justify-between text-success">
-            <span>Bundle discount</span>
-            <span>-${{ formatCents(petTotals.get(petId)!.discountCents) }}</span>
-          </div>
+            v-else
+            class="mt-4">
+            <PaymentCardForm
+              v-if="newCardClientSecret"
+              ref="cardFormRef"
+              :client-secret="newCardClientSecret"
+              @update:complete="newCardComplete = $event" />
 
-          <hr class="border-default" />
+            <p
+              v-else-if="loadingCardSetup"
+              class="text-sm text-muted">
+              Setting up secure payment…
+            </p>
 
-          <div
-            v-if="petSlots[petId]"
-            class="flex justify-between">
-            <span>{{ petSlots[petId].scheduledDate }} at {{ petSlots[petId].startTime }}</span>
-          </div>
-
-          <div class="flex justify-between font-semibold text-base">
-            <span>Total</span>
-            <span>${{ formatCents(petTotals.get(petId)?.total ?? 0) }}</span>
+            <USwitch
+              v-model="saveNewCard"
+              label="Save this card?"
+              class="mt-4" />
           </div>
         </AppCard>
       </div>
 
-      <div
-        v-if="notes"
-        class="mb-6">
-        <p class="text-sm font-medium mb-1">Notes</p>
-        <p class="text-sm text-muted">{{ notes }}</p>
-      </div>
+      <!-- Summary: top on mobile, right on desktop -->
+      <aside class="lg:col-span-1 order-1 lg:order-2">
+        <div class="lg:sticky lg:top-6 space-y-4 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
+          <BookingPetSummaryCard
+            v-for="petId in selectedPetIds"
+            :key="petId"
+            :pet-name="getPetName(petId)"
+            :total="petTotals.get(petId)!"
+            :slot="petSlots[petId]" />
 
-      <div class="flex justify-between text-lg font-bold px-1">
-        <span>Grand Total</span>
-        <span>
-          ${{
-            formatCents(
-              selectedPetIds.reduce((sum, petId) => sum + (petTotals.get(petId)?.total ?? 0), 0),
-            )
-          }}
-        </span>
-      </div>
+          <div class="flex justify-between text-lg font-bold px-1">
+            <span>Grand Total</span>
+            <span>
+              ${{
+                formatCents(
+                  selectedPetIds.reduce(
+                    (sum, petId) => sum + (petTotals.get(petId)?.total ?? 0),
+                    0,
+                  ),
+                )
+              }}
+            </span>
+          </div>
 
-      <AppCard
-        title="Payment"
-        class="mt-6">
-        <div
-          v-if="savedCards.length > 0"
-          class="space-y-2 mb-4">
-          <label
-            v-for="card in savedCards"
-            :key="card.id"
-            class="flex items-center gap-3 p-3 rounded-lg border border-default cursor-pointer hover:bg-muted/50 transition"
-            :class="{
-              'ring-2 ring-primary': selectedPaymentMethodId === card.stripePaymentMethodId,
-            }">
-            <input
-              type="radio"
-              name="payment-method"
-              :value="card.stripePaymentMethodId"
-              v-model="selectedPaymentMethodId"
-              class="accent-primary" />
-            <span class="text-sm font-medium capitalize">{{ card.brand }}</span>
-            <span class="text-sm text-muted">&bull;&bull;&bull;&bull; {{ card.last4 }}</span>
-            <span class="text-sm text-muted">{{ card.expMonth }}/{{ card.expYear }}</span>
-            <UBadge
-              v-if="card.isDefault"
-              label="Default"
-              color="primary"
-              variant="subtle"
-              size="sm" />
-          </label>
+          <div v-if="notes">
+            <p class="text-sm font-medium mb-1">Notes</p>
+            <p class="text-sm text-muted">{{ notes }}</p>
+          </div>
         </div>
-
-        <div v-if="!showNewCardForm">
-          <UButton
-            :label="savedCards.length > 0 ? 'Use a different card' : 'Add a card'"
-            icon="i-lucide-plus"
-            variant="outline"
-            @click="startNewCard" />
-        </div>
-
-        <div
-          v-else
-          class="mt-4">
-          <PaymentCardForm
-            v-if="newCardClientSecret"
-            ref="cardFormRef"
-            :client-secret="newCardClientSecret"
-            @update:complete="newCardComplete = $event" />
-
-          <p
-            v-else-if="loadingCardSetup"
-            class="text-sm text-muted">
-            Setting up secure payment…
-          </p>
-
-          <USwitch
-            v-model="saveNewCard"
-            label="Save this card?"
-            class="mt-4" />
-        </div>
-      </AppCard>
+      </aside>
     </div>
   </div>
 </template>

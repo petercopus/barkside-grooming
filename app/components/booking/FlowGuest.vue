@@ -55,14 +55,7 @@ async function fetchGuestSetupIntent() {
   try {
     const res = await $fetch<{ clientSecret: string; stripeCustomerId: string }>(
       '/api/payment-methods/guest-setup-intent',
-      {
-        method: 'POST',
-        body: {
-          email: guestContact.value.email,
-          firstName: guestContact.value.firstName,
-          lastName: guestContact.value.lastName,
-        },
-      },
+      { method: 'POST' },
     );
     guestCardClientSecret.value = res.clientSecret;
     guestStripeCustomerId.value = res.stripeCustomerId;
@@ -73,9 +66,12 @@ async function fetchGuestSetupIntent() {
   }
 }
 
-watch(guestContactReady, (ready) => {
-  if (ready) void fetchGuestSetupIntent();
-});
+watch(
+  () => props.step,
+  (s) => {
+    if (s === 3) void fetchGuestSetupIntent();
+  },
+);
 
 /* ─────────────────────────────────── *
  * Resolved size category
@@ -510,140 +506,98 @@ defineExpose({ canAdvance, buildPayload });
     </div>
 
     <!-- Step 3: Finalize -->
-    <div v-if="step === 3">
-      <AppCard
-        title="Your Contact Details"
-        class="mb-8">
-        <div class="space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div
+      v-if="step === 3"
+      class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Inputs: bottom on mobile, left on desktop -->
+      <div class="lg:col-span-2 order-2 lg:order-1 space-y-6">
+        <AppCard title="Your Contact Details">
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <UFormField
+                label="First Name"
+                required>
+                <UInput
+                  v-model="guestContact.firstName"
+                  placeholder="First name" />
+              </UFormField>
+              <UFormField
+                label="Last Name"
+                required>
+                <UInput
+                  v-model="guestContact.lastName"
+                  placeholder="Last name" />
+              </UFormField>
+            </div>
+
             <UFormField
-              label="First Name"
+              label="Email"
               required>
               <UInput
-                v-model="guestContact.firstName"
-                placeholder="First name" />
+                v-model="guestContact.email"
+                type="email"
+                placeholder="you@example.com" />
             </UFormField>
+
             <UFormField
-              label="Last Name"
+              label="Phone"
               required>
               <UInput
-                v-model="guestContact.lastName"
-                placeholder="Last name" />
-            </UFormField>
-          </div>
-
-          <UFormField
-            label="Email"
-            required>
-            <UInput
-              v-model="guestContact.email"
-              type="email"
-              placeholder="you@example.com" />
-          </UFormField>
-
-          <UFormField
-            label="Phone"
-            required>
-            <UInput
-              v-model="guestContact.phone"
-              type="tel"
-              placeholder="(555) 123-4567" />
-          </UFormField>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <UFormField label="Emergency Contact Name">
-              <UInput
-                v-model="guestContact.emergencyContactName"
-                placeholder="Optional" />
-            </UFormField>
-            <UFormField label="Emergency Contact Phone">
-              <UInput
-                v-model="guestContact.emergencyContactPhone"
+                v-model="guestContact.phone"
                 type="tel"
-                placeholder="Optional" />
+                placeholder="(555) 123-4567" />
             </UFormField>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <UFormField label="Emergency Contact Name">
+                <UInput
+                  v-model="guestContact.emergencyContactName"
+                  placeholder="Optional" />
+              </UFormField>
+              <UFormField label="Emergency Contact Phone">
+                <UInput
+                  v-model="guestContact.emergencyContactPhone"
+                  type="tel"
+                  placeholder="Optional" />
+              </UFormField>
+            </div>
           </div>
-        </div>
-      </AppCard>
+        </AppCard>
 
-      <h4 class="font-semibold mb-3">{{ guestPet.name }}</h4>
-      <AppCard>
-        <div>
-          <p class="font-medium mb-1">Services</p>
-          <div
-            v-for="item in guestTotalResult.baseItems"
-            :key="item.name"
-            class="flex justify-between">
-            <span>{{ item.name }}</span>
-            <span>${{ formatCents(item.priceCents) }}</span>
-          </div>
-        </div>
+        <AppCard title="Payment Method">
+          <p class="text-sm text-muted mb-3">
+            A card is required to complete your booking. You will not be charged until your
+            appointment is complete.
+          </p>
 
-        <div v-if="guestTotalResult.addonItems.length">
-          <p class="font-medium mb-1">Add-ons</p>
-          <div
-            v-for="item in guestTotalResult.addonItems"
-            :key="item.name"
-            class="flex justify-between">
-            <span>{{ item.name }}</span>
-            <span>${{ formatCents(item.priceCents) }}</span>
-          </div>
-        </div>
+          <PaymentCardForm
+            v-if="guestCardClientSecret"
+            ref="cardFormRef"
+            :client-secret="guestCardClientSecret"
+            @update:complete="guestCardComplete = $event" />
 
-        <div
-          v-if="guestTotalResult.discountCents > 0"
-          class="flex justify-between text-success">
-          <span>Bundle discount</span>
-          <span>-${{ formatCents(guestTotalResult.discountCents) }}</span>
-        </div>
-
-        <hr class="border-default" />
-
-        <div
-          v-if="guestSlot"
-          class="flex justify-between">
-          <span>{{ guestSlot.scheduledDate }} at {{ guestSlot.startTime }}</span>
-        </div>
-
-        <div class="flex justify-between font-semibold text-base">
-          <span>Total</span>
-          <span>${{ formatCents(guestTotalResult.total) }}</span>
-        </div>
-      </AppCard>
-
-      <div
-        v-if="notes"
-        class="mt-4">
-        <p class="text-sm font-medium mb-1">Notes</p>
-        <p class="text-sm text-muted">{{ notes }}</p>
+          <p
+            v-else
+            class="text-sm text-muted">
+            Setting up secure payment…
+          </p>
+        </AppCard>
       </div>
 
-      <AppCard
-        title="Payment Method"
-        class="mt-6">
-        <p class="text-sm text-muted mb-3">
-          A card is required to complete your booking. You will not be charged until your
-          appointment is complete.
-        </p>
+      <!-- Summary: top on mobile, right on desktop -->
+      <aside class="lg:col-span-1 order-1 lg:order-2">
+        <div class="lg:sticky lg:top-6 space-y-4">
+          <BookingPetSummaryCard
+            :pet-name="guestPet.name"
+            :total="guestTotalResult"
+            :slot="guestSlot" />
 
-        <PaymentCardForm
-          v-if="guestCardClientSecret"
-          ref="cardFormRef"
-          :client-secret="guestCardClientSecret"
-          @update:complete="guestCardComplete = $event" />
-
-        <p
-          v-else-if="loadingGuestCardSetup"
-          class="text-sm text-muted">
-          Setting up secure payment…
-        </p>
-
-        <p
-          v-else
-          class="text-sm text-muted">
-          Fill in your contact details above to continue.
-        </p>
-      </AppCard>
+          <div v-if="notes">
+            <p class="text-sm font-medium mb-1">Notes</p>
+            <p class="text-sm text-muted">{{ notes }}</p>
+          </div>
+        </div>
+      </aside>
     </div>
   </div>
 </template>
