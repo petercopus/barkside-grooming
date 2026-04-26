@@ -1,5 +1,5 @@
 {
-  "id": "5627550f-a169-4697-afb9-a1018dcef45f",
+  "id": "d4c31c1a-2fd6-4c4a-b79a-b41486be2ac7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -371,8 +371,26 @@
           "primaryKey": false,
           "notNull": false
         },
+        "stripe_customer_id": {
+          "name": "stripe_customer_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "reminder_sent_at": {
           "name": "reminder_sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "documents_hold_expires_at": {
+          "name": "documents_hold_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "documents_reminder_sent_at": {
+          "name": "documents_reminder_sent_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
@@ -954,10 +972,22 @@
           "name": "target_user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "pet_id": {
           "name": "pet_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "appointment_id": {
+          "name": "appointment_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "appointment_pet_id": {
+          "name": "appointment_pet_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -987,6 +1017,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -995,7 +1043,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "document_requests_token_hash_uniq": {
+          "name": "document_requests_token_hash_uniq",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "document_requests_requested_by_user_id_users_id_fk": {
           "name": "document_requests_requested_by_user_id_users_id_fk",
@@ -1034,6 +1098,32 @@
             "id"
           ],
           "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "document_requests_appointment_id_appointments_id_fk": {
+          "name": "document_requests_appointment_id_appointments_id_fk",
+          "tableFrom": "document_requests",
+          "tableTo": "appointments",
+          "columnsFrom": [
+            "appointment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "document_requests_appointment_pet_id_appointment_pets_id_fk": {
+          "name": "document_requests_appointment_pet_id_appointment_pets_id_fk",
+          "tableFrom": "document_requests",
+          "tableTo": "appointment_pets",
+          "columnsFrom": [
+            "appointment_pet_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
