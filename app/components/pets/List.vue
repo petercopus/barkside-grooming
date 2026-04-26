@@ -11,12 +11,14 @@ const props = withDefaults(
   },
 );
 
-const selected = defineModel<string[]>('selected', { default: [] });
+const selected = defineModel<string[]>('selected', { default: () => [] });
 
 function toggle(petId: string) {
-  const idx = selected.value.indexOf(petId);
-  if (idx >= 0) selected.value.splice(idx, 1);
-  else selected.value.push(petId);
+  if (selected.value.includes(petId)) {
+    selected.value = selected.value.filter((id) => id !== petId);
+  } else {
+    selected.value = [...selected.value, petId];
+  }
 }
 </script>
 
