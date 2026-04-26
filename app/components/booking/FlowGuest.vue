@@ -18,20 +18,15 @@ const toast = useToast();
 /* ─────────────────────────────────── *
  * Guest pet + contact + selections
  * ─────────────────────────────────── */
-const guestPet = ref({ name: '', breed: '', weightLbs: undefined as number | undefined });
-const guestContact = ref({
-  firstName: '',
-  lastName: '',
-  email: '',
-  phone: '',
-  emergencyContactName: '',
-  emergencyContactPhone: '',
-});
-const guestBaseServices = ref<number[]>([]);
-const guestAddons = ref<number[]>([]);
-const guestBundle = ref<{ bundleId: number; discountCents: number } | null>(null);
-const guestSlot = ref<{ scheduledDate: string; groomerId: string; startTime: string } | null>(null);
-const guestDate = ref<CalendarDate | undefined>();
+const {
+  guestPet,
+  guestContact,
+  guestBaseServices,
+  guestAddons,
+  guestBundle,
+  guestSlot,
+  guestDate,
+} = useBookingState();
 const guestAvailability = ref<any[]>([]);
 
 /* ─────────────────────────────────── *
@@ -237,6 +232,7 @@ const guestTotalResult = computed(() =>
 const { schedule, isCompleteCalendarDate } = useBookingAvailability();
 
 function onGuestDateChange() {
+  guestSlot.value = null;
   schedule('guest', () => fetchAvailabilityGuest());
 }
 
@@ -262,12 +258,21 @@ async function fetchAvailabilityGuest() {
   });
 
   guestAvailability.value = slots;
-  guestSlot.value = null;
 }
 
 function selectSlotGuest(groomerId: string, startTime: string, scheduledDate: string) {
   guestSlot.value = { scheduledDate, groomerId, startTime };
 }
+
+/* ─────────────────────────────────── *
+ * Restore availability after reload
+ * ─────────────────────────────────── */
+onMounted(async () => {
+  await nextTick(); // wait one tick for parent's hydration
+  if (guestDate.value && guestBaseServices.value.length > 0) {
+    fetchAvailabilityGuest();
+  }
+});
 
 /* ─────────────────────────────────── *
  * Shell contract
