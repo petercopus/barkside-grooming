@@ -16,7 +16,7 @@ function getSessionCookie(res: Response): string | null {
   const setCookie = res.headers.get('set-cookie');
   if (!setCookie) return null;
   const match = setCookie.match(/session=([^;]+)/);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 /** POST JSON and return { res, data } */
@@ -77,7 +77,7 @@ describe('Payment Flows', () => {
   function getNextMonday(): string {
     const d = new Date();
     d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); // next Monday
-    return d.toISOString().split('T')[0]; // YYYY-MM-DD
+    return d.toISOString().split('T')[0]!; // YYYY-MM-DD
   }
 
   beforeAll(async () => {

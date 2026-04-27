@@ -1,0 +1,16 @@
+{
+  "extends": "./.nuxt/tsconfig.server.json",
+  "compilerOptions": {
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "tests/**/*.ts",
+    "vitest.config.ts",
+    ".nuxt/types/nitro.d.ts",
+    ".nuxt/types/nitro-nuxt.d.ts",
+    ".nuxt/types/nitro-imports.d.ts",
+    ".nuxt/types/nitro-config.d.ts",
+    ".nuxt/types/runtime-config.d.ts",
+    "shared/**/*.d.ts"
+  ]
+}

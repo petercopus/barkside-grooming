@@ -8,7 +8,7 @@ describe('Auth API', () => {
     const setCookie = res.headers.get('set-cookie');
     if (!setCookie) return null;
     const match = setCookie.match(/session=([^;]+)/);
-    return match ? match[1] : null;
+    return match?.[1] ?? null;
   }
 
   it('POST /api/auth/register: creates user and sets cookie', async () => {
