@@ -3,3 +3,7 @@ definePageMeta({
   redirect: '/admin/settings/services',
 });
 </script>
+
+<template>
+  <div />
+</template>

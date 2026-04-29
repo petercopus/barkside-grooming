@@ -26,21 +26,6 @@ function photoFor(member: TeamMember, i: number) {
 
 <template>
   <section class="relative cms-container sm:px-6">
-    <div class="mb-16 grid gap-8 md:grid-cols-12 md:items-end">
-      <div class="md:col-span-7">
-        <p class="kicker reveal-subtle">{{ title || 'The humans' }}</p>
-        <h2
-          class="font-display-soft mt-4 text-5xl leading-[1.04] text-barkside-900 sm:text-6xl delay-1 reveal"
-          v-html="headline || 'Meet the pack'" />
-      </div>
-      <div class="md:col-span-5">
-        <div
-          v-if="content"
-          class="prose max-w-md text-lg leading-relaxed text-barkside-700 delay-2 reveal-subtle md:ml-auto md:text-right"
-          v-html="content" />
-      </div>
-    </div>
-
     <div
       class="grid justify-items-center gap-x-6 gap-y-14 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-10">
       <div
@@ -67,7 +52,9 @@ function photoFor(member: TeamMember, i: number) {
             <p class="font-display-sub text-2xl text-barkside-900">
               {{ member.name }}
             </p>
+
             <p class="font-hand mt-0.5 text-lg text-coral-600">{{ member.job_title }}</p>
+
             <p
               v-if="member.bio"
               class="mt-3 text-sm leading-relaxed text-barkside-700">

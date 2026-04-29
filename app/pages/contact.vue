@@ -15,7 +15,7 @@ useHead({ title: 'Contact — Barkside Grooming' });
     </div>
 
     <div class="pt-6 sm:pt-10 pb-16 sm:pb-24">
-      <BlocksContactInfo />
+      <BlocksContactInfo :show-form="true" />
     </div>
   </div>
 </template>

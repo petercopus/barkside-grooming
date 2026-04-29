@@ -25,6 +25,13 @@ useHead({ title: 'About — Barkside Grooming' });
     </div>
 
     <div class="pt-24 sm:pt-32 pb-24 sm:pb-32">
+      <BlocksTextContent
+        tagline="The Team"
+        headline="Meet the groomers"
+        content=""
+        alignment="left"
+        class="mb-16" />
+
       <BlocksTeam
         title="The team"
         headline="Meet the groomers"

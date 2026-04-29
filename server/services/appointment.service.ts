@@ -27,7 +27,6 @@ import {
   type IssuedUploadToken,
   SATISFYING_VAX_STATUSES,
 } from '~~/server/services/vaccination-hold.service';
-import { minutesToTime, timeToMinutes } from '~~/server/utils/date';
 import type { CreateBookingInput, CreateGuestBookingInput } from '~~/shared/schemas/appointment';
 
 function resolvePricing(
@@ -52,15 +51,25 @@ function resolvePricing(
   });
 }
 
-/**
- * Batch load pets, services, customer for a set of appointments
- *
- * Avoid N+1 by fetching all related rows in two batches then group in JS
- */
+function groupBy<T, K>(rows: T[], keyFn: (row: T) => K): Map<K, T[]> {
+  const map = new Map<K, T[]>();
+  for (const row of rows) {
+    const key = keyFn(row);
+    const bucket = map.get(key);
+    if (bucket) bucket.push(row);
+    else map.set(key, [row]);
+  }
+  return map;
+}
+
 export async function enrichAppointments(appointmentRows: (typeof appointments.$inferSelect)[]) {
   if (appointmentRows.length === 0) return [];
 
   const appointmentIds = appointmentRows.map((ar) => ar.id);
+  const customerIds = [
+    ...new Set(appointmentRows.map((ar) => ar.customerId).filter(Boolean)),
+  ] as string[];
+  const guestApptIds = appointmentRows.filter((ar) => !ar.customerId).map((ar) => ar.id);
 
   const petRows = await db
     .select()
@@ -69,97 +78,99 @@ export async function enrichAppointments(appointmentRows: (typeof appointments.$
     .where(inArray(appointmentPets.appointmentId, appointmentIds));
 
   const petIds = petRows.map((pr) => pr.appointment_pets.id);
-
-  const serviceRows =
-    petIds.length > 0
-      ? await db
-          .select()
-          .from(appointmentServices)
-          .innerJoin(services, eq(appointmentServices.serviceId, services.id))
-          .where(inArray(appointmentServices.appointmentPetId, petIds))
-      : [];
-
-  const addonRows =
-    petIds.length > 0
-      ? await db
-          .select()
-          .from(appointmentAddons)
-          .innerJoin(services, eq(appointmentAddons.serviceId, services.id))
-          .where(inArray(appointmentAddons.appointmentPetId, petIds))
-      : [];
-
-  const bundleRows =
-    petIds.length > 0
-      ? await db
-          .select()
-          .from(appointmentBundles)
-          .innerJoin(bundles, eq(appointmentBundles.bundleId, bundles.id))
-          .where(inArray(appointmentBundles.appointmentPetId, petIds))
-      : [];
-
-  const customerIds = [
-    ...new Set(appointmentRows.map((ar) => ar.customerId).filter(Boolean)),
+  const groomerIds = [
+    ...new Set(petRows.map((pr) => pr.appointment_pets.assignedGroomerId).filter(Boolean)),
   ] as string[];
 
-  const customerRows =
-    customerIds.length > 0
-      ? await db
-          .select({
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-          })
-          .from(users)
-          .where(inArray(users.id, customerIds))
-      : [];
+  const [serviceRows, addonRows, bundleRows, customerRows, guestDetailRows, groomerRows] =
+    await Promise.all([
+      petIds.length
+        ? db
+            .select()
+            .from(appointmentServices)
+            .innerJoin(services, eq(appointmentServices.serviceId, services.id))
+            .where(inArray(appointmentServices.appointmentPetId, petIds))
+        : Promise.resolve([]),
+      petIds.length
+        ? db
+            .select()
+            .from(appointmentAddons)
+            .innerJoin(services, eq(appointmentAddons.serviceId, services.id))
+            .where(inArray(appointmentAddons.appointmentPetId, petIds))
+        : Promise.resolve([]),
+      petIds.length
+        ? db
+            .select()
+            .from(appointmentBundles)
+            .innerJoin(bundles, eq(appointmentBundles.bundleId, bundles.id))
+            .where(inArray(appointmentBundles.appointmentPetId, petIds))
+        : Promise.resolve([]),
+      customerIds.length
+        ? db
+            .select({
+              id: users.id,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              phone: users.phone,
+            })
+            .from(users)
+            .where(inArray(users.id, customerIds))
+        : Promise.resolve([]),
+      guestApptIds.length
+        ? db.select().from(guestDetails).where(inArray(guestDetails.appointmentId, guestApptIds))
+        : Promise.resolve([]),
+      groomerIds.length
+        ? db
+            .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+            .from(users)
+            .where(inArray(users.id, groomerIds))
+        : Promise.resolve([]),
+    ]);
 
-  // load guest details for guest bookings
-  const guestApptIds = appointmentRows.filter((ar) => !ar.customerId).map((ar) => ar.id);
-
-  const guestDetailRows =
-    guestApptIds.length > 0
-      ? await db
-          .select()
-          .from(guestDetails)
-          .where(inArray(guestDetails.appointmentId, guestApptIds))
-      : [];
+  const customerById = new Map(customerRows.map((c) => [c.id, c]));
+  const guestByApptId = new Map(guestDetailRows.map((g) => [g.appointmentId, g]));
+  const groomerById = new Map(groomerRows.map((g) => [g.id, g]));
+  const petsByApptId = groupBy(petRows, (pr) => pr.appointment_pets.appointmentId);
+  const servicesByPetId = groupBy(serviceRows, (sr) => sr.appointment_services.appointmentPetId);
+  const addonsByPetId = groupBy(addonRows, (ar) => ar.appointment_addons.appointmentPetId);
+  const bundlesByPetId = groupBy(bundleRows, (br) => br.appointment_bundles.appointmentPetId);
 
   return appointmentRows.map((appt) => {
-    const customer = customerRows.find((cr) => cr.id === appt.customerId);
-    const guest = guestDetailRows.find((gd) => gd.appointmentId === appt.id);
+    const customer = appt.customerId ? customerById.get(appt.customerId) : undefined;
+    const guest = guestByApptId.get(appt.id);
 
     return {
       ...appt,
       customerName: customer
-        ? `${customer.firstName} ${customer.lastName}`
+        ? formatFullName(customer.firstName, customer.lastName, 'Guest')
         : guest
-          ? `${guest.firstName} ${guest.lastName}`
+          ? formatFullName(guest.firstName, guest.lastName, 'Guest')
           : 'Guest',
+      phone: customer?.phone ?? guest?.phone ?? null,
       guestDetails: guest ?? null,
-      pets: petRows
-        .filter((pr) => pr.appointment_pets.appointmentId === appt.id)
-        .map((pr) => ({
-          ...pr.appointment_pets,
-          petName: pr.pets?.name ?? pr.appointment_pets.guestPetName ?? 'Guest Pet',
-          services: serviceRows
-            .filter((sr) => sr.appointment_services.appointmentPetId === pr.appointment_pets.id)
-            .map((sr) => ({
-              ...sr.appointment_services,
-              serviceName: sr.services.name,
-            })),
-          addons: addonRows
-            .filter((ar) => ar.appointment_addons.appointmentPetId === pr.appointment_pets.id)
-            .map((ar) => ({
-              ...ar.appointment_addons,
-              serviceName: ar.services.name,
-            })),
-          bundles: bundleRows
-            .filter((br) => br.appointment_bundles.appointmentPetId === pr.appointment_pets.id)
-            .map((br) => ({
-              ...br.appointment_bundles,
-              bundleName: br.bundles.name,
-            })),
+      pets: (petsByApptId.get(appt.id) ?? []).map((pr) => ({
+        ...pr.appointment_pets,
+        petName: pr.pets?.name ?? pr.appointment_pets.guestPetName ?? 'Guest Pet',
+        petBreed: pr.pets?.breed ?? pr.appointment_pets.guestPetBreed ?? null,
+        assignedGroomerName: pr.appointment_pets.assignedGroomerId
+          ? (() => {
+              const g = groomerById.get(pr.appointment_pets.assignedGroomerId);
+              return g ? formatFullName(g.firstName, g.lastName) : null;
+            })()
+          : null,
+        services: (servicesByPetId.get(pr.appointment_pets.id) ?? []).map((sr) => ({
+          ...sr.appointment_services,
+          serviceName: sr.services.name,
         })),
+        addons: (addonsByPetId.get(pr.appointment_pets.id) ?? []).map((ar) => ({
+          ...ar.appointment_addons,
+          serviceName: ar.services.name,
+        })),
+        bundles: (bundlesByPetId.get(pr.appointment_pets.id) ?? []).map((br) => ({
+          ...br.appointment_bundles,
+          bundleName: br.bundles.name,
+        })),
+      })),
     };
   });
 }
@@ -721,7 +732,7 @@ export async function createGuestBooking(input: CreateGuestBookingInput) {
     try {
       await updateStripeCustomer(input.stripeCustomerId, {
         email: input.guestDetails.email,
-        name: `${input.guestDetails.firstName} ${input.guestDetails.lastName}`,
+        name: formatFullName(input.guestDetails.firstName, input.guestDetails.lastName),
       });
     } catch (err) {
       console.error('[stripe] Failed to enrich guest customer:', err);

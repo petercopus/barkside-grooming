@@ -5,6 +5,7 @@ import { site } from '~/data/site';
 const { user, isLoggedIn, logout } = useAuth();
 
 const menuOpen = ref(false);
+const userFullName = computed(() => formatFullName(user.value?.firstName, user.value?.lastName));
 
 const accountItems = [
   [
@@ -15,16 +16,19 @@ const accountItems = [
   ],
   [{ label: 'Logout', icon: 'i-lucide-log-out', onSelect: () => logout() }],
 ];
+
 const scrolled = ref(false);
 
 const onScroll = () => {
   const next = window.scrollY > 8;
   if (next !== scrolled.value) scrolled.value = next;
 };
+
 onMounted(() => {
   onScroll();
   window.addEventListener('scroll', onScroll, { passive: true });
 });
+
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', onScroll);
 });
@@ -35,7 +39,7 @@ const address = computed(() => {
     [site.address_locality, site.address_region].filter(Boolean).join(', '),
     site.postal_code,
   ].filter(Boolean);
-  return parts.length ? parts.join(' · ') : undefined;
+  return parts.length ? parts.join(', ') : undefined;
 });
 
 const route = useRoute();
@@ -68,6 +72,7 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
                 'SOFT' 80;
             ">
             {{ item.label }}
+
             <span
               class="pointer-events-none absolute inset-x-0 -bottom-1.5 h-[1.5px] origin-left bg-coral-500 transition-transform duration-400"
               :class="
@@ -85,6 +90,7 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
             to="/book"
             class="group relative hidden items-center gap-1.5 rounded-full bg-barkside-900 px-5 py-2.5 text-sm font-medium text-bone-50 shadow-[0_1px_0_rgba(255,255,255,0.15)_inset,0_4px_14px_rgba(15,30,43,0.2)] transition-transform duration-200 hover:-translate-y-px hover:bg-barkside-800 sm:inline-flex">
             <span>Book now</span>
+
             <UIcon
               name="i-lucide-arrow-up-right"
               class="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -97,11 +103,17 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
               class="hidden sm:block">
               <UButton
                 variant="ghost"
-                color="neutral"
-                icon="i-lucide-user"
-                :label="user?.firstName ?? 'Account'" />
+                color="neutral">
+                <template #default>
+                  <UAvatar
+                    v-if="user?.firstName"
+                    :alt="userFullName" />
+                  <span v-else>Account</span>
+                </template>
+              </UButton>
             </UDropdownMenu>
           </template>
+
           <template v-else>
             <UButton
               to="/login"
@@ -139,30 +151,35 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
 
           <template v-if="isLoggedIn">
             <hr class="my-2 border-bone-300" />
+
             <NuxtLink
               to="/me/pets"
               class="font-display text-lg text-barkside-900 hover:text-coral-600"
               @click="menuOpen = false">
               My Pets
             </NuxtLink>
+
             <NuxtLink
               to="/me/appointments"
               class="font-display text-lg text-barkside-900 hover:text-coral-600"
               @click="menuOpen = false">
               Appointments
             </NuxtLink>
+
             <NuxtLink
               to="/me/documents"
               class="font-display text-lg text-barkside-900 hover:text-coral-600"
               @click="menuOpen = false">
               Documents
             </NuxtLink>
+
             <NuxtLink
               to="/me/settings"
               class="font-display text-lg text-barkside-900 hover:text-coral-600"
               @click="menuOpen = false">
               Settings
             </NuxtLink>
+
             <div class="mt-2">
               <UButton
                 variant="solid"
@@ -177,6 +194,7 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
                 " />
             </div>
           </template>
+
           <div
             v-else
             class="mt-2">
@@ -214,7 +232,8 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
       <div class="relative cms-container pt-20 pb-10 sm:px-6">
         <div class="grid items-end gap-10 border-b border-bone-100/15 pb-12 md:grid-cols-12">
           <div class="md:col-span-8">
-            <p class="kicker text-coral-300!">Paws &bull; Play &bull; Pamper</p>
+            <p class="kicker text-coral-300!">Paws · Play · Pamper</p>
+
             <h3 class="font-display-soft mt-3 text-4xl leading-[1.05] text-bone-50 sm:text-6xl">
               {{ site.tagline }}
             </h3>
@@ -235,6 +254,7 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
         <div class="grid gap-10 pt-12 md:grid-cols-12">
           <div class="md:col-span-4">
             <AppLogo variant="dark" />
+
             <p class="mt-4 max-w-xs text-sm leading-relaxed text-bone-100/70">
               Small-batch grooming for dogs who deserve better than a production line. Salt-air
               calm, salon-standard finish.
@@ -243,6 +263,7 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
 
           <div class="md:col-span-3">
             <h4 class="kicker text-bone-100/60!">Explore</h4>
+
             <ul class="mt-4 space-y-2.5">
               <li
                 v-for="item in footerNav"
@@ -265,22 +286,26 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
                 <UIcon
                   name="i-lucide-mail"
                   class="mt-1 h-4 w-4 text-coral-300" />
+
                 <a
                   :href="`mailto:${site.email}`"
                   class="hover:text-coral-300">
                   {{ site.email }}
                 </a>
               </li>
+
               <li class="flex items-start gap-2">
                 <UIcon
                   name="i-lucide-phone"
                   class="mt-1 h-4 w-4 text-coral-300" />
+
                 <a
                   :href="`tel:${site.phone}`"
                   class="hover:text-coral-300">
                   {{ site.phone }}
                 </a>
               </li>
+
               <li
                 v-if="address"
                 class="flex items-start gap-2">
@@ -294,6 +319,7 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
 
           <div class="md:col-span-2">
             <h4 class="kicker text-bone-100/60!">Follow</h4>
+
             <div class="mt-4 flex flex-wrap gap-2">
               <a
                 v-for="link in site.social_links"
@@ -315,7 +341,8 @@ const isActive = (to: string) => route.path === to || (to !== '/' && route.path.
           <span>
             {{ `© ${new Date().getFullYear()} ${site.title}. All rights reserved.` }}
           </span>
-          <span class="font-hand text-sm text-coral-300/80">Made with wet-nose kisses.</span>
+
+          <span class="font-hand text-lg text-coral-300/80">Made with wet-nose kisses.</span>
         </div>
       </div>
     </footer>

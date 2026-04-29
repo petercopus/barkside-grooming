@@ -28,22 +28,19 @@ const initialValues = {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <AppPageHeader
-      title="Edit Employee"
-      back-to="/admin/settings/employees">
-      <template #actions>
-        <UButton
-          :to="`/admin/settings/employees/${id}/schedule`"
-          icon="i-lucide-calendar"
-          label="Manage Schedule"
-          variant="outline" />
-      </template>
-    </AppPageHeader>
-
-    <EmployeesEditLayout
-      mode="edit"
-      :initial-values="initialValues"
-      :employee-id="id" />
-  </div>
+  <EmployeesEditLayout
+    mode="edit"
+    title="Edit Employee"
+    back-to="/admin/settings/employees"
+    :initial-values="initialValues"
+    :employee-id="id">
+    <template #extra-actions>
+      <UButton
+        :to="`/admin/settings/employees/${id}/schedule`"
+        icon="i-lucide-calendar"
+        label="Manage Schedule"
+        variant="outline"
+        size="sm" />
+    </template>
+  </EmployeesEditLayout>
 </template>

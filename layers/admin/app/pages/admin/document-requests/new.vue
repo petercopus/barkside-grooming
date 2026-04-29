@@ -71,14 +71,26 @@ function onSubmit() {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <AppPageHeader
-      title="New Document Request"
-      back-to="/admin/document-requests" />
+  <AppPage
+    title="New Document Request"
+    back-to="/admin/document-requests">
+    <template #actions>
+      <UButton
+        to="/admin/document-requests"
+        variant="ghost"
+        size="sm"
+        label="Cancel" />
+      <UButton
+        label="Send Request"
+        icon="i-lucide-send"
+        size="sm"
+        :loading="form.loading.value"
+        :disabled="!state.targetUserId || !state.documentType"
+        @click="onSubmit" />
+    </template>
 
     <AppSection :error="form.error.value">
       <div class="space-y-4">
-        <!-- Customer -->
         <UFormField
           label="Customer"
           required>
@@ -88,7 +100,6 @@ function onSubmit() {
             placeholder="Select a customer" />
         </UFormField>
 
-        <!-- Pet -->
         <UFormField label="Pet">
           <USelect
             v-model="state.petId"
@@ -97,7 +108,6 @@ function onSubmit() {
             placeholder="Select a pet (optional)" />
         </UFormField>
 
-        <!-- Document type -->
         <UFormField
           label="Document Type"
           required>
@@ -106,31 +116,16 @@ function onSubmit() {
             :items="docTypeItems" />
         </UFormField>
 
-        <!-- Message -->
         <UFormField label="Message">
           <UTextarea
             v-model="state.message"
             placeholder="Explain request..." />
         </UFormField>
 
-        <!-- Due date -->
         <UFormField label="Due Date">
           <AppDatePicker v-model="dueDateCalendar" />
         </UFormField>
       </div>
     </AppSection>
-
-    <div class="flex justify-end gap-2">
-      <UButton
-        to="/admin/document-requests"
-        variant="ghost"
-        label="Cancel" />
-      <UButton
-        label="Send Request"
-        icon="i-lucide-send"
-        :loading="form.loading.value"
-        :disabled="!state.targetUserId || !state.documentType"
-        @click="onSubmit" />
-    </div>
-  </div>
+  </AppPage>
 </template>

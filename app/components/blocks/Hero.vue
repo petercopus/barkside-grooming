@@ -26,6 +26,7 @@ const headlineHtml = computed(
 
     <div
       class="absolute inset-0 bg-linear-to-r from-barkside-950/88 via-barkside-950/55 to-transparent sm:via-barkside-950/40" />
+
     <div class="absolute inset-x-0 bottom-0 h-48 bg-linear-to-t from-bone-50/40 to-transparent" />
 
     <div
@@ -63,6 +64,7 @@ const headlineHtml = computed(
             to="/services"
             class="inline-flex items-center gap-2 text-bone-50/90 hover:text-coral-300 transition-colors">
             <span class="font-hand text-xl">see the menu</span>
+
             <UIcon
               name="i-lucide-arrow-down-right"
               class="h-5 w-5" />
@@ -73,19 +75,21 @@ const headlineHtml = computed(
       <div
         class="pointer-events-none mt-16 flex items-center gap-6 text-sm text-bone-100/70 delay-5 reveal-subtle">
         <div class="flex items-center gap-2">
-          <span class="inline-block h-1.5 w-1.5 rounded-full bg-coral-400" />
+          <span class="inline-block h-2 w-2 rounded-full bg-coral-400" />
           <span class="font-medium">Open Tue-Sun</span>
         </div>
+
         <span class="hidden h-px w-12 bg-bone-100/30 sm:block" />
 
         <div class="hidden items-center gap-2 sm:flex">
-          <span class="inline-block h-1.5 w-1.5 rounded-full bg-coral-400" />
+          <span class="inline-block h-2 w-2 rounded-full bg-coral-400" />
           <span>All breeds, all temperaments</span>
         </div>
 
         <span class="hidden h-px w-12 bg-bone-100/30 lg:block" />
+
         <div class="hidden items-center gap-2 lg:flex">
-          <span class="inline-block h-1.5 w-1.5 rounded-full bg-coral-400" />
+          <span class="inline-block h-2 w-2 rounded-full bg-coral-400" />
           <span>Spa-grade products</span>
         </div>
       </div>

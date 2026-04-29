@@ -19,15 +19,10 @@ const ROTATIONS = ['-1.2deg', '1.5deg', '-0.8deg', '1deg', '-1.4deg', '0.7deg'];
       class="torn-top absolute inset-x-0 top-0 h-4 bg-bone-50"
       aria-hidden="true" />
 
-    <div
-      class="pointer-events-none absolute -right-8 top-8 select-none text-[22rem] leading-none text-coral-200 font-display-soft italic opacity-70 sm:top-14"
-      aria-hidden="true">
-      &ldquo;
-    </div>
-
     <div class="relative cms-container sm:px-6">
       <div class="mb-14 max-w-3xl">
         <p class="kicker reveal-subtle">{{ tagline || 'Wagging Endorsements' }}</p>
+
         <h2
           class="font-display-soft mt-4 text-5xl leading-[1.04] text-barkside-900 sm:text-6xl delay-1 reveal">
           {{ headline || 'What pet parents say' }}
@@ -43,6 +38,7 @@ const ROTATIONS = ['-1.2deg', '1.5deg', '-0.8deg', '1deg', '-1.4deg', '0.7deg'];
             aria-hidden="true">
             &ldquo;
           </span>
+
           <div class="flex-1 pt-4">
             <blockquote
               class="font-display-sub text-2xl leading-[1.3] text-barkside-900 sm:text-3xl md:text-4xl">
@@ -50,14 +46,19 @@ const ROTATIONS = ['-1.2deg', '1.5deg', '-0.8deg', '1deg', '-1.4deg', '0.7deg'];
             </blockquote>
           </div>
         </div>
+
         <figcaption class="mt-6 flex items-center gap-3 text-barkside-700">
           <span class="inline-block h-px w-10 bg-coral-500" />
           <span class="font-medium">{{ featured.title }}</span>
-          <span
-            v-if="featured.subtitle"
-            class="text-barkside-700/70">
-            · {{ featured.subtitle }}
-          </span>
+
+          <div class="flex items-center gap-2">
+            <span
+              v-if="featured.subtitle"
+              class="text-barkside-700/70">
+              — {{ featured.subtitle }}
+            </span>
+          </div>
+
           <span
             v-if="featured.rating"
             class="ml-auto flex items-center gap-0.5"
@@ -100,15 +101,18 @@ const ROTATIONS = ['-1.2deg', '1.5deg', '-0.8deg', '1deg', '-1.4deg', '0.7deg'];
                 :class="star <= (t.rating ?? 0) ? 'text-coral-500' : 'text-bone-300'"
                 aria-hidden="true" />
             </div>
+
             <blockquote class="font-display-caption text-lg leading-[1.4] italic text-barkside-900">
               &ldquo;{{ t.content }}&rdquo;
             </blockquote>
+
             <figcaption class="mt-5 flex items-center gap-3 text-sm">
               <span
                 class="flex h-9 w-9 items-center justify-center rounded-full bg-barkside-900 font-display text-sm text-bone-50"
                 aria-hidden="true">
                 {{ (t.title || '?').charAt(0) }}
               </span>
+
               <span class="font-medium text-barkside-900">{{ t.title }}</span>
             </figcaption>
 

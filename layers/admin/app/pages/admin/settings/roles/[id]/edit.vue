@@ -53,25 +53,22 @@ async function onDelete() {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <AppPageHeader
-      :title="role.name"
-      back-to="/admin/settings/roles">
-      <template
-        v-if="!role.isSystem"
-        #actions>
-        <UButton
-          color="error"
-          variant="soft"
-          icon="i-lucide-trash-2"
-          label="Delete"
-          @click="onDelete" />
-      </template>
-    </AppPageHeader>
-
-    <RolesEditLayout
-      mode="edit"
-      :initial-values="initialValues"
-      :role-id="roleId" />
-  </div>
+  <RolesEditLayout
+    mode="edit"
+    :title="role.name"
+    back-to="/admin/settings/roles"
+    :initial-values="initialValues"
+    :role-id="roleId">
+    <template
+      v-if="!role.isSystem"
+      #extra-actions>
+      <UButton
+        color="error"
+        variant="soft"
+        icon="i-lucide-trash-2"
+        label="Delete"
+        size="sm"
+        @click="onDelete" />
+    </template>
+  </RolesEditLayout>
 </template>

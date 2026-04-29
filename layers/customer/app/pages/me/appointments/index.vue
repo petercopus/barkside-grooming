@@ -19,86 +19,310 @@ async function cancelAppointment(id: string) {
   await $fetch(`/api/appointments/${id}/cancel`, { method: 'PATCH' });
   await refresh();
 }
+
+const today = new Date().toISOString().slice(0, 10);
+
+const grouped = computed(() => {
+  const all = data.value?.appointments ?? [];
+  const upcoming: typeof all = [];
+  const past: typeof all = [];
+
+  for (const appt of all) {
+    const earliest = appt.pets
+      .map((p) => p.scheduledDate)
+      .filter(Boolean)
+      .sort()[0] as string | undefined;
+
+    const isPast =
+      appt.status === 'completed' ||
+      appt.status === 'cancelled' ||
+      appt.status === 'no_show' ||
+      (earliest && earliest < today);
+
+    if (isPast) past.push(appt);
+    else upcoming.push(appt);
+  }
+
+  // Sort upcoming by earliest pet date asc, past by earliest desc
+  const earliestOf = (a: any) =>
+    a.pets
+      .map((p: any) => p.scheduledDate)
+      .filter(Boolean)
+      .sort()[0] ?? '';
+
+  upcoming.sort((a, b) => earliestOf(a).localeCompare(earliestOf(b)));
+  past.sort((a, b) => earliestOf(b).localeCompare(earliestOf(a)));
+
+  return { upcoming, past };
+});
+
+function petTotalCents(pet: any) {
+  const base = (pet.services ?? []).reduce(
+    (sum: number, s: any) => sum + (s.priceAtBookingCents ?? 0),
+    0,
+  );
+
+  const addons = (pet.addons ?? []).reduce(
+    (sum: number, a: any) => sum + (a.priceAtBookingCents ?? 0),
+    0,
+  );
+
+  const discounts = (pet.bundles ?? []).reduce(
+    (sum: number, b: any) => sum + (b.discountAppliedCents ?? 0),
+    0,
+  );
+
+  return Math.max(0, base + addons - discounts);
+}
+
+function appointmentTotalCents(appt: any) {
+  return appt.pets.reduce((sum: number, p: any) => sum + petTotalCents(p), 0);
+}
+
+function dateMonth(date: string) {
+  if (!date) return '';
+
+  const d = new Date(date + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+}
+function dateDay(date: string) {
+  if (!date) return '';
+
+  const d = new Date(date + 'T00:00:00');
+  return d.getDate();
+}
+function dateWeekday(date: string) {
+  if (!date) return '';
+
+  const d = new Date(date + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short' });
+}
 </script>
 
 <template>
-  <div class="cms-container py-6 sm:py-10">
-    <AppPageHeader
-      title="My Appointments"
-      description="View and manage your appointments">
+  <div class="cms-container py-10 sm:py-14">
+    <AppPageIntro
+      kicker="Your account"
+      title="My appointments"
+      description="Upcoming visits, past grooms, and everything in between.">
       <template #actions>
         <UButton
           to="/book"
-          icon="i-lucide-plus">
-          Book Appointment
+          icon="i-lucide-plus"
+          size="lg">
+          Book a visit
         </UButton>
       </template>
-    </AppPageHeader>
+    </AppPageIntro>
 
-    <div class="py-4">
+    <div class="mt-10 space-y-10">
       <AppEmptyState
         v-if="!data?.appointments?.length"
-        icon="i-lucide-calendar"
-        title="No appointments"
-        description="Book your first appointment to get started."
-        action-label="Book Appointment"
+        icon="i-lucide-calendar-heart"
+        title="No appointments yet"
+        description="Book your first groom and we'll have a treat waiting."
+        action-label="Book a visit"
         action-icon="i-lucide-plus"
-        variant="section"
         @action="navigateTo('/book')" />
 
-      <div
-        v-else
-        class="space-y-4">
-        <AppCard
-          v-for="appt in data.appointments"
-          :key="appt.id"
-          :title="appt.pets.map((p) => p.petName).join(', ')">
-          <template #actions>
-            <UBadge
-              :color="
-                appt.status === 'cancelled'
-                  ? 'error'
-                  : appt.status === 'completed'
-                    ? 'success'
-                    : 'primary'
-              "
-              variant="subtle"
-              :label="appt.status" />
+      <template v-else>
+        <!-- Upcoming -->
+        <section v-if="grouped.upcoming.length">
+          <div class="flex items-end justify-between mb-4">
+            <div>
+              <p class="kicker">Upcoming</p>
 
-            <UButton
-              v-if="['pending', 'pending_documents', 'confirmed'].includes(appt.status)"
-              variant="ghost"
-              size="sm"
-              color="error"
-              icon="i-lucide-x"
-              @click="cancelAppointment(appt.id)" />
-          </template>
+              <h2 class="font-display-soft text-3xl text-barkside-900 leading-tight mt-1">
+                Coming up
+              </h2>
+            </div>
 
-          <div
-            v-for="pet in appt.pets"
-            :key="pet.id"
-            class="mb-2">
-            <p class="text-sm font-medium">{{ pet.petName }}</p>
-            <dl class="text-sm space-y-1">
-              <div class="flex gap-2">
-                <dt class="text-muted">Date:</dt>
-                <dd>{{ pet.scheduledDate }}</dd>
-              </div>
-              <div class="flex gap-2">
-                <dt class="text-muted">Time:</dt>
-                <dd>{{ pet.startTime }}—{{ pet.endTime }}</dd>
-              </div>
-              <div
-                v-for="service in pet.services"
-                :key="service.id"
-                class="flex gap-2">
-                <dt class="text-muted">Service:</dt>
-                <dd>{{ service.serviceName }} — ${{ formatCents(service.priceAtBookingCents) }}</dd>
-              </div>
-            </dl>
+            <p class="text-sm text-muted">
+              {{ grouped.upcoming.length }}
+              {{ grouped.upcoming.length === 1 ? 'visit' : 'visits' }}
+            </p>
           </div>
-        </AppCard>
-      </div>
+
+          <div class="space-y-4">
+            <article
+              v-for="(appt, idx) in grouped.upcoming"
+              :key="appt.id"
+              :style="{ animationDelay: `${Math.min(idx * 60, 360)}ms` }"
+              class="reveal-subtle rounded-2xl border border-default/70 bg-white/70 shadow-sm overflow-hidden">
+              <header
+                class="flex items-center justify-between gap-3 px-5 sm:px-6 py-3 border-b border-default/60 bg-bone-100/50">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <UIcon
+                    name="i-lucide-paw-print"
+                    class="size-4 text-primary-500 shrink-0" />
+
+                  <p class="text-sm font-semibold text-default truncate">
+                    {{ appt.pets.map((p) => p.petName).join(', ') }}
+                  </p>
+                </div>
+
+                <UBadge
+                  :color="apptStatusColor[appt.status] ?? 'neutral'"
+                  variant="subtle"
+                  :label="apptStatusLabel[appt.status] ?? appt.status" />
+              </header>
+
+              <div class="px-5 sm:px-6 py-5 space-y-5">
+                <div
+                  v-for="(pet, petIdx) in appt.pets"
+                  :key="pet.id"
+                  class="flex items-start gap-4"
+                  :class="petIdx > 0 ? 'pt-5 border-t border-default/50' : ''">
+                  <!-- Date block -->
+                  <div
+                    class="flex flex-col items-center justify-center rounded-xl bg-primary-50/50 border border-primary-100/70 size-16 shrink-0">
+                    <span
+                      class="text-[10px] font-semibold uppercase tracking-[0.12em] text-primary-600">
+                      {{ dateMonth(pet.scheduledDate) }}
+                    </span>
+
+                    <span class="font-display-soft text-2xl text-barkside-900 leading-none">
+                      {{ dateDay(pet.scheduledDate) }}
+                    </span>
+
+                    <span class="text-[10px] text-muted">{{ dateWeekday(pet.scheduledDate) }}</span>
+                  </div>
+
+                  <div class="min-w-0 flex-1">
+                    <p class="font-display-soft text-xl text-barkside-900 leading-tight">
+                      {{ pet.petName }}
+                    </p>
+
+                    <div
+                      class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-muted">
+                      <span class="inline-flex items-center gap-1">
+                        <UIcon
+                          name="i-lucide-clock"
+                          class="size-3.5 text-primary-500" />
+                        {{ formatClockTime(pet.startTime) }} — {{ formatClockTime(pet.endTime) }}
+                      </span>
+
+                      <span
+                        v-if="pet.assignedGroomerName"
+                        class="inline-flex items-center gap-1">
+                        <UIcon
+                          name="i-lucide-user"
+                          class="size-3.5 text-primary-500" />
+                        with {{ pet.assignedGroomerName }}
+                      </span>
+                    </div>
+
+                    <ul
+                      v-if="pet.services?.length"
+                      class="mt-3 space-y-1 text-sm">
+                      <li
+                        v-for="service in pet.services"
+                        :key="service.id"
+                        class="flex justify-between gap-3">
+                        <span class="text-default truncate">{{ service.serviceName }}</span>
+                        <span class="text-muted tabular-nums shrink-0">
+                          ${{ formatCents(service.priceAtBookingCents) }}
+                        </span>
+                      </li>
+
+                      <li
+                        v-for="addon in pet.addons"
+                        :key="addon.id"
+                        class="flex justify-between gap-3 text-muted">
+                        <span class="truncate">+ {{ addon.serviceName }}</span>
+                        <span class="tabular-nums shrink-0">
+                          ${{ formatCents(addon.priceAtBookingCents) }}
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <footer
+                class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 sm:px-6 py-4 border-t border-default/60 bg-bone-100/30">
+                <div class="flex items-center gap-2 text-sm">
+                  <UIcon
+                    name="i-lucide-receipt"
+                    class="size-4 text-primary-500" />
+
+                  <span class="text-muted">Total</span>
+                  <span class="font-semibold text-default tabular-nums">
+                    ${{ formatCents(appointmentTotalCents(appt)) }}
+                  </span>
+                </div>
+
+                <UButton
+                  v-if="['pending', 'pending_documents', 'confirmed'].includes(appt.status)"
+                  variant="ghost"
+                  color="error"
+                  size="sm"
+                  icon="i-lucide-x"
+                  label="Cancel appointment"
+                  @click="cancelAppointment(appt.id)" />
+              </footer>
+            </article>
+          </div>
+        </section>
+
+        <!-- Past -->
+        <section v-if="grouped.past.length">
+          <div class="flex items-end justify-between mb-4">
+            <div>
+              <p class="kicker">History</p>
+
+              <h2 class="font-display-soft text-3xl text-barkside-900 leading-tight mt-1">
+                Past visits
+              </h2>
+            </div>
+
+            <p class="text-sm text-muted">
+              {{ grouped.past.length }}
+              {{ grouped.past.length === 1 ? 'visit' : 'visits' }}
+            </p>
+          </div>
+
+          <div class="space-y-3">
+            <article
+              v-for="appt in grouped.past"
+              :key="appt.id"
+              class="rounded-2xl border border-default/60 bg-white/40 px-5 py-4">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                  <span
+                    class="inline-flex size-9 items-center justify-center rounded-xl bg-bone-200/60 text-bone-700 shrink-0">
+                    <UIcon
+                      name="i-lucide-paw-print"
+                      class="size-4" />
+                  </span>
+
+                  <div class="min-w-0">
+                    <p class="font-medium text-default truncate">
+                      {{ appt.pets.map((p) => p.petName).join(', ') }}
+                    </p>
+
+                    <p class="text-sm text-muted">
+                      {{ formatDate(appt.pets[0]?.scheduledDate, 'long') }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-3 shrink-0">
+                  <span class="text-sm text-muted tabular-nums">
+                    ${{ formatCents(appointmentTotalCents(appt)) }}
+                  </span>
+
+                  <UBadge
+                    :color="apptStatusColor[appt.status] ?? 'neutral'"
+                    variant="subtle"
+                    size="sm"
+                    :label="apptStatusLabel[appt.status] ?? appt.status" />
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+      </template>
     </div>
   </div>
 </template>

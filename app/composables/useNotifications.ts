@@ -14,7 +14,7 @@ export function useNotifications() {
 
   const notifications = useState<AppNotification[]>('notifications', () => []);
   const unreadCount = useState<number>('notification-unread-count', () => 0);
-  const isOpen = ref(false);
+  const isOpen = useState<boolean>('notification-drawer-open', () => false);
 
   let pollInterval: ReturnType<typeof setInterval> | null = null;
 

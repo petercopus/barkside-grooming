@@ -2,14 +2,9 @@ import { and, count, eq, ilike, inArray, max, or } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import { appointments, pets, roles, userRoles, users } from '~~/server/db/schema';
 import { listBookings } from '~~/server/services/appointment.service';
-import type { UpdateCustomerInput } from '~~/shared/schemas/customer';
+import type { CreateCustomerInput, UpdateCustomerInput } from '~~/shared/schemas/customer';
 
-/**
- * List all users that only have the 'customer' role
- * - Optionally pass a search string
- */
 export async function listCustomers(search?: string) {
-  // 1. Find users with the Customer role
   const conditions = [eq(roles.name, 'Customer')];
 
   if (search) {
@@ -31,7 +26,6 @@ export async function listCustomers(search?: string) {
     .innerJoin(roles, eq(roles.id, userRoles.roleId))
     .where(and(...conditions));
 
-  // dedup
   const seen = new Set<string>();
   const uqCustomers = customerRows
     .filter((r) => {
@@ -45,25 +39,27 @@ export async function listCustomers(search?: string) {
 
   const customerIds = uqCustomers.map((c) => c.id);
 
-  // 2. Batch pet counts
-  const petCounts = await db
-    .select({ ownerId: pets.ownerId, petCount: count() })
-    .from(pets)
-    .where(and(inArray(pets.ownerId, customerIds), eq(pets.isActive, true)))
-    .groupBy(pets.ownerId);
+  const [petCounts, lastAppointments] = await Promise.all([
+    db
+      .select({ ownerId: pets.ownerId, petCount: count() })
+      .from(pets)
+      .where(and(inArray(pets.ownerId, customerIds), eq(pets.isActive, true)))
+      .groupBy(pets.ownerId),
+    db
+      .select({ customerId: appointments.customerId, lastDate: max(appointments.createdAt) })
+      .from(appointments)
+      .where(inArray(appointments.customerId, customerIds))
+      .groupBy(appointments.customerId),
+  ]);
 
-  // 3. Batch last appointment dtes
-  const lastAppointments = await db
-    .select({ customerId: appointments.customerId, lastDate: max(appointments.createdAt) })
-    .from(appointments)
-    .where(inArray(appointments.customerId, customerIds))
-    .groupBy(appointments.customerId);
+  const petCountByOwner = new Map(petCounts.map((p) => [p.ownerId, p.petCount]));
+  const lastApptByCustomer = new Map(lastAppointments.map((a) => [a.customerId, a.lastDate]));
 
-  // 4. Merge
   return uqCustomers.map((user) => ({
     ...stripPassword(user),
-    petCount: petCounts.find((p) => p.ownerId === user.id)?.petCount ?? 0,
-    lastAppointment: lastAppointments.find((a) => a.customerId === user.id)?.lastDate ?? null,
+    name: formatFullName(user.firstName, user.lastName),
+    petCount: petCountByOwner.get(user.id) ?? 0,
+    lastAppointment: lastApptByCustomer.get(user.id) ?? null,
   }));
 }
 
@@ -78,15 +74,58 @@ export async function getCustomer(id: string) {
 }
 
 export async function getCustomerWithRelations(id: string) {
-  const customer = await getCustomer(id);
-  const customerPets = await db.select().from(pets).where(eq(pets.ownerId, id));
-  const customerAppointments = await listBookings(id);
+  const [customer, customerPets, customerAppointments] = await Promise.all([
+    getCustomer(id),
+    db.select().from(pets).where(eq(pets.ownerId, id)),
+    listBookings(id),
+  ]);
 
   return {
     ...customer,
     pets: customerPets,
     appointments: customerAppointments,
   };
+}
+
+export async function createCustomer(input: CreateCustomerInput) {
+  const existing = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, input.email))
+    .limit(1);
+
+  if (existing.length > 0) {
+    throw createError({ statusCode: 409, message: 'Email already registered' });
+  }
+
+  const passwordHash = await hashPassword(input.password);
+
+  const [user] = await db
+    .insert(users)
+    .values({
+      email: input.email,
+      passwordHash,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phone: input.phone ?? null,
+    })
+    .returning();
+
+  if (!user) {
+    throw createError({ statusCode: 500, message: 'Failed to create customer' });
+  }
+
+  const [customerRole] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(eq(roles.name, 'Customer'))
+    .limit(1);
+
+  if (customerRole) {
+    await db.insert(userRoles).values({ userId: user.id, roleId: customerRole.id });
+  }
+
+  return stripPassword(user);
 }
 
 export async function updateCustomer(id: string, input: UpdateCustomerInput) {

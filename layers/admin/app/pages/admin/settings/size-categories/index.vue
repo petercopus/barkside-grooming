@@ -22,33 +22,35 @@ const columns = [
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      title="Size Categories"
-      description="Manage pet size categories and weight ranges" />
+  <AppPage
+    title="Size Categories"
+    description="Manage pet size categories and weight ranges"
+    width="wide">
+    <AppTable
+      card="default"
+      title="All Size Categories"
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :on-select="onRowSelect"
+      empty-icon="i-lucide-ruler"
+      empty-title="No size categories found"
+      empty-description="Add your first size category to get started."
+      empty-action-label="Add Size Category"
+      empty-action-icon="i-lucide-plus"
+      @empty-action="navigateTo('/admin/settings/size-categories/new')">
+      <template #actions>
+        <UButton
+          to="/admin/settings/size-categories/new"
+          icon="i-lucide-plus"
+          label="Add Size Category"
+          size="sm" />
+      </template>
 
-    <div class="py-4">
-      <AppTable
-        card="default"
-        title="All Size Categories"
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :on-select="onRowSelect"
-        empty-icon="i-lucide-ruler"
-        empty-title="No size categories found"
-        empty-description="Add your first size category to get started."
-        empty-action-label="Add Size Category"
-        empty-action-icon="i-lucide-plus"
-        @empty-action="navigateTo('/admin/settings/size-categories/new')">
-        <template #actions>
-          <UButton
-            to="/admin/settings/size-categories/new"
-            icon="i-lucide-plus"
-            label="Add Size Category"
-            size="sm" />
-        </template>
-      </AppTable>
-    </div>
-  </div>
+      <!-- name -->
+      <template #name-cell="{ row }: any">
+        {{ sizeCategoryLabel[row.original.name] ?? row.original.name }}
+      </template>
+    </AppTable>
+  </AppPage>
 </template>

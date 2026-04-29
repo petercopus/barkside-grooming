@@ -3,3 +3,7 @@ definePageMeta({
   redirect: '/me/settings/notifications',
 });
 </script>
+
+<template>
+  <div />
+</template>

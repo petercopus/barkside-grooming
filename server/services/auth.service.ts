@@ -9,12 +9,6 @@ import {
   userRoles,
   users,
 } from '~~/server/db/schema';
-import { hashPassword, verifyPassword } from '~~/server/utils/password';
-import {
-  generateSessionToken,
-  hashSessionToken,
-  SESSION_MAX_AGE_MS,
-} from '~~/server/utils/session';
 import type { LoginInput, RegisterInput } from '~~/shared/schemas/auth';
 
 //#region REGISTER

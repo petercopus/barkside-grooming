@@ -11,7 +11,7 @@ const props = defineProps<{
   notes: string;
 }>();
 
-defineExpose({ canAdvance, buildPayload });
+defineExpose({ canAdvance, buildPayload, nextStepHint });
 
 const toast = useToast();
 
@@ -49,11 +49,13 @@ const guestContactReady = computed(
 async function fetchGuestSetupIntent() {
   if (loadingGuestCardSetup.value || guestCardClientSecret.value) return;
   loadingGuestCardSetup.value = true;
+
   try {
     const res = await $fetch<{ clientSecret: string; stripeCustomerId: string }>(
       '/api/payment-methods/guest-setup-intent',
       { method: 'POST' },
     );
+
     guestCardClientSecret.value = res.clientSecret;
     guestStripeCustomerId.value = res.stripeCustomerId;
   } catch {
@@ -73,21 +75,28 @@ watch(
 /* ─────────────────────────────────── *
  * Resolved size category
  * ─────────────────────────────────── */
-const guestSizeCategoryId = computed(() => {
+const guestSizeCategoryMatch = computed(() => {
   if (!guestPet.value.weightLbs) return null;
+
   const categories = props.sizeCategoryData?.sizeCategories ?? [];
-  const match = categories.find(
-    (cat: any) =>
-      guestPet.value.weightLbs! >= cat.minWeight && guestPet.value.weightLbs! <= cat.maxWeight,
+
+  return (
+    categories.find(
+      (cat: any) =>
+        guestPet.value.weightLbs! >= cat.minWeight && guestPet.value.weightLbs! <= cat.maxWeight,
+    ) ?? null
   );
-  return match?.id ?? null;
 });
+
+const guestSizeCategoryId = computed(() => guestSizeCategoryMatch.value?.id ?? null);
+const guestSizeCategoryName = computed(() => guestSizeCategoryMatch.value?.name ?? '');
 
 /* ─────────────────────────────────── *
  * Service / bundle / addon helpers
  * ─────────────────────────────────── */
 function servicesForSizeCategory(sizeCategoryId: number | null) {
   if (!sizeCategoryId) return [];
+
   return (props.serviceData?.services ?? [])
     .map((s: any) => {
       const pricing = s.pricing.find((p: any) => p.sizeCategoryId === sizeCategoryId);
@@ -108,6 +117,7 @@ function baseServicesForGuest() {
 function availableBundlesForGuest() {
   const guestServices = availableServicesForGuest();
   const guestServiceIds = new Set(guestServices.map((s: any) => s.id));
+
   return (props.bundleData?.bundles ?? []).filter((bundle: any) =>
     bundle.serviceIds.every((id: number) => guestServiceIds.has(id)),
   );
@@ -115,12 +125,15 @@ function availableBundlesForGuest() {
 
 function compatibleAddonsForGuest() {
   if (!guestBaseServices.value.length) return [];
+
   const addonMap = props.addonMapData?.addonMap ?? {};
   const compatibleAddonIds = new Set(guestBaseServices.value.flatMap((id) => addonMap[id] ?? []));
+
   return availableServicesForGuest().filter((s: any) => s.isAddon && compatibleAddonIds.has(s.id));
 }
 
 const guestContext = computed(() => ({
+  available: availableServicesForGuest(),
   base: baseServicesForGuest(),
   bundles: availableBundlesForGuest(),
   addons: compatibleAddonsForGuest(),
@@ -136,11 +149,14 @@ function partitionBundleServices(
   const svcMap = new Map(allServices.map((s: any) => [s.id, s]));
   const baseIds: number[] = [];
   const addonIds: number[] = [];
+
   for (const id of bundle.serviceIds) {
     const svc = svcMap.get(id);
     if (!svc) continue;
+
     ((svc as any).isAddon ? addonIds : baseIds).push(id);
   }
+
   return { baseIds, addonIds };
 }
 
@@ -169,6 +185,7 @@ function toggleBundleGuest(bundleId: number) {
     guestBundle.value = null;
     guestBaseServices.value = guestBaseServices.value.filter((id) => !baseIds.includes(id));
     guestAddons.value = guestAddons.value.filter((id) => !addonIds.includes(id));
+
     return;
   }
 
@@ -186,6 +203,7 @@ function autoDetectBundleGuest() {
 
   for (const bundle of available) {
     if (!bundle.serviceIds.every((id: number) => allSelectedIds.has(id))) continue;
+
     const discount = computeBundleDiscount(allServices, bundle);
     if (discount > bestDiscount) {
       bestDiscount = discount;
@@ -193,7 +211,40 @@ function autoDetectBundleGuest() {
     }
   }
 
+  const previousId = guestBundle.value?.bundleId ?? null;
   guestBundle.value = bestBundle ? { bundleId: bestBundle.id, discountCents: bestDiscount } : null;
+
+  if (bestBundle && bestBundle.id !== previousId) {
+    toast.add({
+      title: `${bestBundle.name} applied`,
+      description: `You saved $${formatCents(bestDiscount)}.`,
+      icon: 'i-lucide-sparkles',
+      color: 'success',
+    });
+  }
+}
+
+const bestValueBundleId = computed(() => {
+  const allServices = availableServicesForGuest();
+  const bundles = availableBundlesForGuest();
+  if (bundles.length < 2) return null;
+
+  let bestId: number | null = null;
+  let bestDiscount = 0;
+
+  for (const bundle of bundles) {
+    const d = computeBundleDiscount(allServices, bundle);
+    if (d > bestDiscount) {
+      bestDiscount = d;
+      bestId = bundle.id;
+    }
+  }
+
+  return bestId;
+});
+
+function bundleDiscountFor(bundle: any) {
+  return computeBundleDiscount(availableServicesForGuest(), bundle);
 }
 
 /* ─────────────────────────────────── *
@@ -209,11 +260,14 @@ function computeTotal(
     const svc = allServices.find((s: any) => s.id === id);
     return { name: svc?.name ?? '', priceCents: svc?.pricing.priceCents ?? 0 };
   });
+
   const addonItems = addonIds.map((id) => {
     const svc = allServices.find((s: any) => s.id === id);
     return { name: svc?.name ?? '', priceCents: svc?.pricing.priceCents ?? 0 };
   });
+
   const subtotal = [...baseItems, ...addonItems].reduce((sum, item) => sum + item.priceCents, 0);
+
   return { baseItems, addonItems, discountCents, subtotal, total: subtotal - discountCents };
 }
 
@@ -236,19 +290,24 @@ function onGuestDateChange() {
   schedule('guest', () => fetchAvailabilityGuest());
 }
 
+const guestTotalDuration = computed(() => {
+  const allServices = availableServicesForGuest();
+  const allIds = [...guestBaseServices.value, ...guestAddons.value];
+
+  return allIds.reduce((sum, svcId) => {
+    const svc = allServices.find((s: any) => s.id === svcId);
+    return sum + (svc?.pricing.durationMinutes ?? 0);
+  }, 0);
+});
+
 async function fetchAvailabilityGuest() {
   if (!isCompleteCalendarDate(guestDate.value)) return;
   if (!guestBaseServices.value.length) return;
 
-  const allServices = availableServicesForGuest();
-  const allIds = [...guestBaseServices.value, ...guestAddons.value];
-  const totalDuration = allIds.reduce((sum, svcId) => {
-    const svc = allServices.find((s: any) => s.id === svcId);
-    return sum + (svc?.pricing.durationMinutes ?? 0);
-  }, 0);
-
+  const totalDuration = guestTotalDuration.value;
   if (totalDuration <= 0) return;
 
+  const allIds = [...guestBaseServices.value, ...guestAddons.value];
   const { slots } = await $fetch('/api/availability', {
     params: {
       date: calendarDateToString(guestDate.value),
@@ -259,6 +318,13 @@ async function fetchAvailabilityGuest() {
 
   guestAvailability.value = slots;
 }
+
+const guestSelectedGroomerName = computed(() => {
+  if (!guestSlot.value) return '';
+
+  const g = guestAvailability.value.find((g: any) => g.groomerId === guestSlot.value!.groomerId);
+  return g?.groomerName ?? 'Groomer';
+});
 
 function selectSlotGuest(groomerId: string, startTime: string, scheduledDate: string) {
   guestSlot.value = { scheduledDate, groomerId, startTime };
@@ -296,10 +362,35 @@ function canAdvance(step: number): boolean {
   }
 }
 
+function nextStepHint(step: number): string | null {
+  switch (step) {
+    case 0: {
+      if (!guestPet.value.name.trim()) return "Add your pup's name to continue.";
+      if (!guestPet.value.weightLbs) return 'Enter a weight so we can show the right services.';
+      if (!guestSizeCategoryId.value)
+        return 'That weight is outside our size ranges — double-check it.';
+      return null;
+    }
+    case 1:
+      return guestBaseServices.value.length > 0 ? null : 'Pick at least one service to continue.';
+    case 2:
+      return guestSlot.value ? null : 'Choose a date and time slot to continue.';
+    case 3: {
+      const missing: string[] = [];
+      if (!guestContactReady.value) missing.push('contact details');
+      if (!guestCardComplete.value) missing.push('card details');
+      return missing.length ? `Add your ${missing.join(' and ')} to continue.` : null;
+    }
+    default:
+      return null;
+  }
+}
+
 async function buildPayload() {
   if (!cardFormRef.value) return null;
 
   let paymentMethodId: string;
+
   try {
     paymentMethodId = await cardFormRef.value.confirm();
   } catch {
@@ -351,12 +442,17 @@ async function buildPayload() {
               v-model="guestPet.name"
               placeholder="e.g. Buddy" />
           </UFormField>
+
           <UFormField label="Breed">
             <UInput
               v-model="guestPet.breed"
               placeholder="e.g. Golden Retriever" />
           </UFormField>
-          <UFormField label="Weight (lbs)">
+
+          <UFormField
+            label="Weight (lbs)"
+            required
+            help="We use this to match your pup to the right service pricing.">
             <UInput
               v-model.number="guestPet.weightLbs"
               type="number"
@@ -364,10 +460,28 @@ async function buildPayload() {
               :min="1"
               :max="300" />
           </UFormField>
+
+          <div
+            v-if="guestPet.weightLbs && guestSizeCategoryName"
+            class="flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-sm">
+            <UIcon
+              name="i-lucide-paw-print"
+              class="size-4 text-primary-500" />
+
+            <span>
+              That counts as a
+              <strong class="font-semibold">{{ guestSizeCategoryName }}</strong>
+              dog.
+            </span>
+          </div>
           <p
-            v-if="guestPet.weightLbs && !guestSizeCategoryId"
-            class="text-sm text-warning">
-            No size category matches this weight. Please check the value.
+            v-else-if="guestPet.weightLbs && !guestSizeCategoryId"
+            class="text-sm text-warning flex items-center gap-1.5">
+            <UIcon
+              name="i-lucide-alert-triangle"
+              class="size-4 shrink-0" />
+
+            <span>That weight is outside our size ranges — please double-check it.</span>
           </p>
         </div>
       </AppCard>
@@ -383,131 +497,220 @@ async function buildPayload() {
         </p>
       </div>
 
-      <div v-else>
-        <div
-          v-if="guestContext.bundles.length"
-          class="mb-6">
-          <h4 class="text-sm font-medium text-muted mb-2">Bundles</h4>
-          <UPageGrid>
-            <UPageCard
-              v-for="bundle in guestContext.bundles"
-              :key="bundle.id"
-              variant="subtle"
-              :class="{ 'ring-2 ring-success-400': guestBundle?.bundleId === bundle.id }"
-              @click="toggleBundleGuest(bundle.id)">
-              <template #body>
+      <div
+        v-else
+        class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+          <BookingSectionPanel
+            v-if="guestContext.bundles.length"
+            kicker="Save with a bundle"
+            title="Bundles &amp; savings"
+            description="Pre-picked combos with the lowest price per service."
+            icon="i-lucide-sparkles">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <BookingBundleCard
+                v-for="bundle in guestContext.bundles"
+                :key="bundle.id"
+                :bundle="bundle"
+                :services="guestContext.available"
+                :discount-cents="bundleDiscountFor(bundle)"
+                :selected="guestBundle?.bundleId === bundle.id"
+                :best-value="bestValueBundleId === bundle.id"
+                @click="toggleBundleGuest(bundle.id)" />
+            </div>
+          </BookingSectionPanel>
+
+          <BookingSectionPanel
+            kicker="Pick what your pup needs"
+            title="Services"
+            description="Choose one or more — pricing reflects your pup's size."
+            icon="i-lucide-scissors">
+            <BookingServicesList
+              :services="guestContext.base"
+              v-model:selected="guestBaseServices"
+              @update:selected="autoDetectBundleGuest()" />
+          </BookingSectionPanel>
+
+          <BookingSectionPanel
+            v-if="guestContext.addons.length"
+            kicker="Optional finishing touches"
+            title="Add-ons"
+            description="Quick extras you can tack on."
+            icon="i-lucide-plus-circle">
+            <BookingAddonList
+              :addons="guestContext.addons"
+              v-model:selected="guestAddons"
+              @update:selected="autoDetectBundleGuest()" />
+          </BookingSectionPanel>
+        </div>
+
+        <aside class="lg:col-span-1">
+          <div class="lg:sticky lg:top-6">
+            <div class="rounded-2xl border border-default/70 bg-white/70 p-5 shadow-sm">
+              <p
+                class="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-600 mb-1">
+                Order summary
+              </p>
+
+              <h4 class="text-base font-semibold text-default mb-4">
+                {{ guestPet.name || 'Your pup' }}
+              </h4>
+
+              <div
+                v-if="!guestTotalResult.baseItems.length"
+                class="text-sm text-muted py-6 text-center">
+                Pick a service to see your total.
+              </div>
+
+              <div
+                v-else
+                class="space-y-3 text-sm">
                 <div class="space-y-1">
-                  <p class="font-medium">{{ bundle.name }}</p>
-                  <p
-                    v-if="bundle.description"
-                    class="text-sm text-muted">
-                    {{ bundle.description }}
-                  </p>
-                  <UBadge color="success">
-                    {{
-                      bundle.discountType === 'percent'
-                        ? `${bundle.discountValue}% off`
-                        : `$${formatCents(bundle.discountValue)} off`
-                    }}
-                  </UBadge>
+                  <div
+                    v-for="item in guestTotalResult.baseItems"
+                    :key="`base-${item.name}`"
+                    class="flex justify-between">
+                    <span class="text-default">{{ item.name }}</span>
+                    <span class="text-default">${{ formatCents(item.priceCents) }}</span>
+                  </div>
+
+                  <div
+                    v-for="item in guestTotalResult.addonItems"
+                    :key="`addon-${item.name}`"
+                    class="flex justify-between text-muted">
+                    <span>+ {{ item.name }}</span>
+                    <span>${{ formatCents(item.priceCents) }}</span>
+                  </div>
                 </div>
-              </template>
-            </UPageCard>
-          </UPageGrid>
-        </div>
 
-        <div class="mb-6">
-          <h4 class="text-sm font-medium text-muted mb-2">Services</h4>
-          <ServicesGrid
-            :services="guestContext.base"
-            v-model:selected="guestBaseServices"
-            @update:selected="autoDetectBundleGuest()" />
-        </div>
+                <div
+                  v-if="guestTotalResult.discountCents > 0"
+                  class="flex justify-between font-medium text-primary-600 pt-1 border-t border-default/70">
+                  <span class="inline-flex items-center gap-1">
+                    <UIcon
+                      name="i-lucide-sparkles"
+                      class="size-3.5" />
+                    Bundle discount
+                  </span>
 
-        <div
-          v-if="guestContext.addons.length"
-          class="mb-6">
-          <h4 class="text-sm font-medium text-muted mb-2">Addons</h4>
-          <ServicesGrid
-            :services="guestContext.addons"
-            v-model:selected="guestAddons"
-            @update:selected="autoDetectBundleGuest()" />
-        </div>
+                  <span>-${{ formatCents(guestTotalResult.discountCents) }}</span>
+                </div>
 
-        <AppCard v-if="guestBaseServices.length > 0">
-          <div class="p-4 space-y-1 text-sm">
-            <div
-              v-for="item in guestTotalResult.baseItems"
-              :key="item.name"
-              class="flex justify-between">
-              <span>{{ item.name }}</span>
-              <span>${{ formatCents(item.priceCents) }}</span>
-            </div>
-            <div
-              v-for="item in guestTotalResult.addonItems"
-              :key="item.name"
-              class="flex justify-between text-muted">
-              <span>{{ item.name }}</span>
-              <span>${{ formatCents(item.priceCents) }}</span>
-            </div>
-            <div
-              v-if="guestTotalResult.discountCents > 0"
-              class="flex justify-between text-success">
-              <span>Bundle discount</span>
-              <span>-${{ formatCents(guestTotalResult.discountCents) }}</span>
-            </div>
-            <hr class="my-2 border-default" />
-            <div class="flex justify-between font-semibold">
-              <span>Total</span>
-              <span>${{ formatCents(guestTotalResult.total) }}</span>
+                <div class="flex justify-between text-base font-bold pt-2 border-t border-default">
+                  <span>Total</span>
+                  <span>${{ formatCents(guestTotalResult.total) }}</span>
+                </div>
+              </div>
             </div>
           </div>
-        </AppCard>
+        </aside>
       </div>
     </div>
 
     <!-- Step 2: Schedule -->
-    <div v-if="step === 2">
-      <div class="space-y-4">
-        <h3 class="font-semibold">{{ guestPet.name }}</h3>
-        <AppDatePicker
-          v-model="guestDate"
-          :min-value="minBookingDate"
-          @update:model-value="onGuestDateChange()" />
-        <div v-if="guestAvailability.length">
-          <div
-            v-for="groomer in guestAvailability"
-            :key="groomer.groomerId"
-            class="mb-4">
-            <p class="text-sm font-medium mb-2">{{ groomer.groomerName || 'Groomer' }}</p>
-            <div class="flex flex-wrap gap-2">
-              <UButton
-                v-for="slot in groomer.slots"
-                :key="slot.startTime"
-                size="sm"
-                :variant="
-                  guestSlot?.groomerId === groomer.groomerId &&
-                  guestSlot?.startTime === slot.startTime
-                    ? 'solid'
-                    : 'outline'
-                "
-                :label="slot.startTime"
-                @click="
-                  selectSlotGuest(
-                    groomer.groomerId,
-                    slot.startTime,
-                    calendarDateToString(guestDate!),
-                  )
-                " />
+    <div
+      v-if="step === 2"
+      class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 space-y-6">
+        <header class="flex items-center gap-3">
+          <span
+            class="inline-flex size-9 items-center justify-center rounded-full bg-primary-100/70 text-primary-600">
+            <UIcon
+              name="i-lucide-paw-print"
+              class="size-5" />
+          </span>
+
+          <h3 class="text-xl font-semibold leading-none">{{ guestPet.name || 'Your pup' }}</h3>
+        </header>
+
+        <BookingSectionPanel
+          kicker="Step 1 of 2"
+          title="Choose a date"
+          description="We'll show openings for that day next."
+          icon="i-lucide-calendar">
+          <AppDatePicker
+            v-model="guestDate"
+            :min-value="minBookingDate"
+            @update:model-value="onGuestDateChange()" />
+        </BookingSectionPanel>
+
+        <BookingSectionPanel
+          v-if="guestDate"
+          kicker="Step 2 of 2"
+          title="Pick a time"
+          description="Times are grouped by part of day. Tap any opening to lock it in."
+          icon="i-lucide-clock">
+          <BookingSlotPicker
+            :groomers="guestAvailability"
+            :selected-groomer-id="guestSlot?.groomerId"
+            :selected-start-time="guestSlot?.startTime"
+            :duration-minutes="guestTotalDuration"
+            @select="
+              (groomerId, startTime) =>
+                selectSlotGuest(groomerId, startTime, calendarDateToString(guestDate!))
+            " />
+        </BookingSectionPanel>
+      </div>
+
+      <aside class="lg:col-span-1">
+        <div class="lg:sticky lg:top-6">
+          <div class="rounded-2xl border border-default/70 bg-white/70 p-5 shadow-sm">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-600 mb-1">
+              Your appointment
+            </p>
+
+            <h4 class="text-base font-semibold text-default mb-4">
+              {{ guestPet.name || 'Your pup' }}
+            </h4>
+
+            <div class="space-y-3 text-sm">
+              <div class="flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-calendar"
+                  class="size-4 text-primary-500 shrink-0 mt-0.5" />
+
+                <span :class="guestDate ? 'text-default' : 'text-muted italic'">
+                  {{
+                    guestDate
+                      ? formatDate(calendarDateToString(guestDate), 'long')
+                      : 'Pick a date to start'
+                  }}
+                </span>
+              </div>
+
+              <div class="flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-clock"
+                  class="size-4 text-primary-500 shrink-0 mt-0.5" />
+
+                <span :class="guestSlot ? 'text-default' : 'text-muted italic'">
+                  {{ guestSlot ? formatClockTime(guestSlot.startTime) : 'No time selected yet' }}
+                </span>
+              </div>
+
+              <div
+                v-if="guestSlot"
+                class="flex items-start gap-2">
+                <UIcon
+                  name="i-lucide-user"
+                  class="size-4 text-primary-500 shrink-0 mt-0.5" />
+
+                <span class="text-default">with {{ guestSelectedGroomerName }}</span>
+              </div>
+
+              <div
+                v-if="guestTotalDuration > 0"
+                class="flex items-start gap-2 pt-2 border-t border-default/60">
+                <UIcon
+                  name="i-lucide-timer"
+                  class="size-4 text-muted shrink-0 mt-0.5" />
+
+                <span class="text-muted">{{ guestTotalDuration }} min appointment</span>
+              </div>
             </div>
           </div>
         </div>
-        <p
-          v-else-if="guestDate"
-          class="text-sm text-muted">
-          No available slots for this date
-        </p>
-      </div>
+      </aside>
     </div>
 
     <!-- Step 3: Finalize -->
@@ -516,18 +719,23 @@ async function buildPayload() {
       class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Inputs: bottom on mobile, left on desktop -->
       <div class="lg:col-span-2 order-2 lg:order-1 space-y-6">
-        <AppCard title="Your Contact Details">
+        <BookingSectionPanel
+          kicker="Step 1 of 2"
+          title="Your contact details"
+          description="So we can reach you about the appointment."
+          icon="i-lucide-user-round">
           <div class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <UFormField
-                label="First Name"
+                label="First name"
                 required>
                 <UInput
                   v-model="guestContact.firstName"
                   placeholder="First name" />
               </UFormField>
+
               <UFormField
-                label="Last Name"
+                label="Last name"
                 required>
                 <UInput
                   v-model="guestContact.lastName"
@@ -554,12 +762,13 @@ async function buildPayload() {
             </UFormField>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <UFormField label="Emergency Contact Name">
+              <UFormField label="Emergency contact name">
                 <UInput
                   v-model="guestContact.emergencyContactName"
                   placeholder="Optional" />
               </UFormField>
-              <UFormField label="Emergency Contact Phone">
+
+              <UFormField label="Emergency contact phone">
                 <UInput
                   v-model="guestContact.emergencyContactPhone"
                   type="tel"
@@ -567,26 +776,37 @@ async function buildPayload() {
               </UFormField>
             </div>
           </div>
-        </AppCard>
+        </BookingSectionPanel>
 
-        <AppCard title="Payment Method">
-          <p class="text-sm text-muted mb-3">
-            A card is required to complete your booking. You will not be charged until your
-            appointment is complete.
-          </p>
-
+        <BookingSectionPanel
+          kicker="Step 2 of 2"
+          title="Payment method"
+          description="A card is required to hold your booking. You won't be charged until your appointment is complete."
+          icon="i-lucide-credit-card">
           <PaymentCardForm
             v-if="guestCardClientSecret"
             ref="cardFormRef"
             :client-secret="guestCardClientSecret"
             @update:complete="guestCardComplete = $event" />
 
-          <p
+          <div
             v-else
-            class="text-sm text-muted">
-            Setting up secure payment…
+            class="flex items-center gap-2 text-sm text-muted py-3">
+            <UIcon
+              name="i-lucide-loader-2"
+              class="size-4 animate-spin text-primary-500" />
+
+            <span>Setting up secure payment&hellip;</span>
+          </div>
+
+          <p class="mt-4 flex items-center gap-1.5 text-xs text-muted">
+            <UIcon
+              name="i-lucide-shield-check"
+              class="size-3.5 text-primary-500" />
+
+            <span>Card details are encrypted and processed by Stripe.</span>
           </p>
-        </AppCard>
+        </BookingSectionPanel>
       </div>
 
       <!-- Summary: top on mobile, right on desktop -->
@@ -595,12 +815,28 @@ async function buildPayload() {
           <BookingPetSummaryCard
             :pet-name="guestPet.name"
             :total="guestTotalResult"
-            :slot="guestSlot" />
+            :slot="guestSlot"
+            :groomer-name="guestSelectedGroomerName"
+            :duration-minutes="guestTotalDuration" />
 
-          <div v-if="notes">
-            <p class="text-sm font-medium mb-1">Notes</p>
-            <p class="text-sm text-muted">{{ notes }}</p>
+          <div
+            v-if="notes"
+            class="rounded-2xl border border-default/70 bg-white/70 p-5 shadow-sm">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-600 mb-2">
+              Notes for the team
+            </p>
+
+            <p class="text-sm text-default leading-relaxed">{{ notes }}</p>
           </div>
+
+          <p class="flex items-center gap-1.5 text-xs text-muted px-1">
+            <UIcon
+              name="i-lucide-lock"
+              class="size-3.5 text-primary-500" />
+            <span>
+              Secure checkout · You won't be charged until your appointment is complete.
+            </span>
+          </p>
         </div>
       </aside>
     </div>

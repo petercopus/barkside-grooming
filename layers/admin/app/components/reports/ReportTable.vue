@@ -23,10 +23,8 @@ function formatValue(value: unknown, format?: ReportTableColumn['format']): stri
       return Number(value).toLocaleString('en-US');
     case 'percent':
       return `${Number(value).toFixed(1)}%`;
-    case 'date': {
-      const d = new Date(value as string);
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
+    case 'date':
+      return formatDate(value as string);
     default:
       return String(value);
   }

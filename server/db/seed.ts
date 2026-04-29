@@ -78,6 +78,7 @@ async function seed() {
     { key: 'booking:cancel', description: 'Cancel bookings' },
     { key: 'pet:manage:own', description: 'Manage own pets' },
     { key: 'pet:read:all', description: 'View all pets' },
+    { key: 'pet:manage:all', description: 'Manage all pets' },
     { key: 'document:request', description: 'Request documents from customers' },
     { key: 'document:approve', description: 'Approve uploaded documents' },
     { key: 'document:delete', description: 'Delete uploaded documents' },

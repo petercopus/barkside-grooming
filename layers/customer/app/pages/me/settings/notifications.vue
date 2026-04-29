@@ -10,12 +10,27 @@ definePageMeta({
 const { hasPerm } = usePermissions();
 const toast = useToast();
 
-const categoryLabels: Record<NotificationCategory, string> = {
-  appointment_confirmed: 'Booking Confirmed',
-  appointment_reminder: 'Appointment Reminders',
-  appointment_cancelled: 'Booking Cancelled',
-  appointment_status_changed: 'Status Updates',
-  admin_new_booking: 'New Booking (Admin)',
+const categoryDescriptions: Record<NotificationCategory, { label: string; hint: string }> = {
+  appointment_confirmed: {
+    label: 'Booking confirmed',
+    hint: 'When a new appointment lands on the calendar.',
+  },
+  appointment_reminder: {
+    label: 'Appointment reminders',
+    hint: "A friendly nudge ahead of your pup's visit.",
+  },
+  appointment_cancelled: {
+    label: 'Booking cancelled',
+    hint: 'If a visit is cancelled — by you or by us.',
+  },
+  appointment_status_changed: {
+    label: 'Status updates',
+    hint: 'Pickups, drop-offs, and check-ins along the way.',
+  },
+  admin_new_booking: {
+    label: 'New booking (admin)',
+    hint: 'Internal alerts when a customer books.',
+  },
 };
 
 interface PreferenceRow {
@@ -36,6 +51,7 @@ const visibleCategories = computed(() =>
 const preferences = ref<PreferenceRow[]>(
   NOTIFICATION_CATEGORIES.map((category) => {
     const existing = data.value?.preferences.find((p) => p.category === category);
+
     return {
       category,
       emailEnabled: existing?.emailEnabled ?? true,
@@ -64,36 +80,68 @@ async function save(pref: PreferenceRow) {
     toast.add({ title: 'Failed to save preference', color: 'error' });
   }
 }
+
+const channels = [
+  { key: 'inappEnabled', label: 'In-app', icon: 'i-lucide-bell' },
+  { key: 'emailEnabled', label: 'Email', icon: 'i-lucide-mail' },
+  { key: 'smsEnabled', label: 'SMS', icon: 'i-lucide-message-circle' },
+] as const;
 </script>
 
 <template>
-  <div class="py-4">
-    <AppSection title="Notification Preferences">
-      <div class="divide-y divide-default">
+  <AppSectionPanel
+    kicker="Notifications"
+    title="How should we reach you?"
+    description="Toggle channels per type — changes save automatically."
+    icon="i-lucide-bell">
+    <!-- Column headers -->
+    <div
+      class="hidden sm:grid sm:grid-cols-[1fr_auto_auto_auto] gap-x-8 items-center pb-3 mb-2 border-b border-default/60">
+      <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+        Notification
+      </span>
+
+      <span
+        v-for="ch in channels"
+        :key="ch.key"
+        class="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted text-center min-w-15 inline-flex flex-col items-center gap-1">
+        <UIcon
+          :name="ch.icon"
+          class="size-3.5 text-primary-500" />
+        {{ ch.label }}
+      </span>
+    </div>
+
+    <div class="divide-y divide-default/60">
+      <div
+        v-for="category in visibleCategories"
+        :key="category"
+        class="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto] sm:gap-x-8 gap-y-3 items-center py-4">
+        <div class="min-w-0">
+          <p class="font-medium text-default">{{ categoryDescriptions[category].label }}</p>
+          <p class="text-sm text-muted mt-0.5">{{ categoryDescriptions[category].hint }}</p>
+        </div>
+
+        <!-- Mobile -->
+        <div class="sm:hidden col-span-2 flex flex-wrap gap-x-5 gap-y-2 -mt-1">
+          <USwitch
+            v-for="ch in channels"
+            :key="ch.key"
+            v-model="getPreference(category)[ch.key]"
+            :label="ch.label"
+            @update:model-value="save(getPreference(category))" />
+        </div>
+
+        <!-- Desktop -->
         <div
-          v-for="category in visibleCategories"
-          :key="category"
-          class="flex items-center justify-between py-4 gap-4">
-          <p class="text-sm font-medium">{{ categoryLabels[category] }}</p>
-
-          <div class="flex items-center gap-6">
-            <USwitch
-              v-model="getPreference(category).inappEnabled"
-              label="In-App"
-              @update:model-value="save(getPreference(category))" />
-
-            <USwitch
-              v-model="getPreference(category).emailEnabled"
-              label="Email"
-              @update:model-value="save(getPreference(category))" />
-
-            <USwitch
-              v-model="getPreference(category).smsEnabled"
-              label="SMS"
-              @update:model-value="save(getPreference(category))" />
-          </div>
+          v-for="ch in channels"
+          :key="ch.key"
+          class="hidden sm:flex justify-center">
+          <USwitch
+            v-model="getPreference(category)[ch.key]"
+            @update:model-value="save(getPreference(category))" />
         </div>
       </div>
-    </AppSection>
-  </div>
+    </div>
+  </AppSectionPanel>
 </template>

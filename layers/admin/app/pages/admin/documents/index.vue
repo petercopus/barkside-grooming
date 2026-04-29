@@ -42,73 +42,66 @@ const typeItems = [{ label: 'All', value: 'all' }, ...docTypeItems];
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      title="Documents"
-      description="Review and manage uploaded documents" />
+  <AppPage
+    title="Documents"
+    description="Review and manage uploaded documents"
+    width="wide">
+    <AppTable
+      card="default"
+      title="All Documents"
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :on-select="onRowSelect"
+      empty-icon="i-lucide-file-text"
+      empty-title="No documents found">
+      <template #actions>
+        <div class="flex gap-2">
+          <USelect
+            v-model="statusFilter"
+            :items="statusItems"
+            size="sm"
+            class="w-36" />
+          <USelect
+            v-model="typeFilter"
+            :items="typeItems"
+            size="sm"
+            class="w-48" />
+        </div>
+      </template>
 
-    <div class="py-4">
-      <AppTable
-        card="default"
-        title="All Documents"
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :on-select="onRowSelect"
-        empty-item="i-lucide-file-text"
-        empty-title="No documents found">
-        <template #actions>
-          <div class="flex gap-2">
-            <USelect
-              v-model="statusFilter"
-              :items="statusItems"
-              size="sm"
-              class="w-36" />
-            <USelect
-              v-model="typeFilter"
-              :items="typeItems"
-              size="sm"
-              class="w-48" />
-          </div>
-        </template>
+      <template #type-cell="{ row }: any">
+        <UBadge variant="subtle">
+          {{ formatDocType(row.original.type) }}
+        </UBadge>
+      </template>
 
-        <!-- type -->
-        <template #type-cell="{ row }: any">
-          <UBadge variant="subtle">
-            {{ formatDocType(row.original.type) }}
-          </UBadge>
-        </template>
+      <template #uploader-cell="{ row }: any">
+        <AppCustomerLink
+          v-if="row.original.uploadedByUserId"
+          :id="row.original.uploadedByUserId">
+          {{ formatFullName(row.original.uploaderFirstName, row.original.uploaderLastName) }}
+        </AppCustomerLink>
+      </template>
 
-        <!-- uploader -->
-        <template #uploader-cell="{ row }: any">
-          <NuxtLink
-            v-if="row.original.uploadedByUserId"
-            :to="`/admin/customers/${row.original.uploadedByUserId}`"
-            class="text-primary hover:underline"
-            @click.stop>
-            {{ row.original.uploaderFirstName }} {{ row.original.uploaderLastName }}
-          </NuxtLink>
-        </template>
+      <template #petName-cell="{ row }: any">
+        <AppPetLink
+          v-if="row.original.petId"
+          :id="row.original.petId">
+          {{ row.original.petName }}
+        </AppPetLink>
+        <span v-else>—</span>
+      </template>
 
-        <!-- pet -->
-        <template #petName-cell="{ row }: any">
-          {{ row.original.petName ?? '—' }}
-        </template>
+      <template #status-cell="{ row }: any">
+        <AppStatusBadge
+          kind="document"
+          :value="row.original.status" />
+      </template>
 
-        <!-- status -->
-        <template #status-cell="{ row }: any">
-          <UBadge
-            :color="docStatusColor[row.original.status] ?? 'neutral'"
-            variant="subtle">
-            {{ row.original.status }}
-          </UBadge>
-        </template>
-
-        <!-- date -->
-        <template #createdAt-cell="{ row }: any">
-          {{ new Date(row.original.createdAt).toLocaleDateString() }}
-        </template>
-      </AppTable>
-    </div>
-  </div>
+      <template #createdAt-cell="{ row }: any">
+        {{ formatDate(row.original.createdAt) }}
+      </template>
+    </AppTable>
+  </AppPage>
 </template>

@@ -8,7 +8,7 @@ import {
   scheduleOverrides,
   users,
 } from '~~/server/db/schema';
-import { minutesToTime, timeToMinutes, todayDateString } from '~~/server/utils/date';
+import { minutesToTime, timeToMinutes, todayDateString } from '~~/shared/utils/date';
 
 import type {
   CreateOverrideInput,

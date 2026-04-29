@@ -28,49 +28,46 @@ const categoryIcons: Record<string, string> = {
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      title="Reports"
-      description="View business reports and analytics" />
+  <AppPage
+    title="Reports"
+    description="View business reports and analytics"
+    width="wide">
+    <div
+      v-for="(categoryReports, category) in grouped"
+      :key="category">
+      <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
+        <UIcon
+          :name="categoryIcons[category] || 'i-lucide-folder'"
+          class="text-muted" />
+        {{ category }}
+      </h2>
 
-    <div class="space-y-8 py-4">
-      <div
-        v-for="(categoryReports, category) in grouped"
-        :key="category">
-        <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
-          <UIcon
-            :name="categoryIcons[category] || 'i-lucide-folder'"
-            class="text-muted" />
-          {{ category }}
-        </h2>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <AppCard
-            v-for="report in categoryReports"
-            :key="report.id"
-            :to="`/admin/reports/${report.id}`">
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center gap-2">
-                <UIcon
-                  :name="
-                    report.display?.chart?.type === 'doughnut'
-                      ? 'i-lucide-pie-chart'
-                      : 'i-lucide-bar-chart-3'
-                  "
-                  class="text-primary shrink-0" />
-                <h3 class="font-medium">{{ report.name }}</h3>
-              </div>
-              <p class="text-sm text-muted">{{ report.description }}</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <AppCard
+          v-for="report in categoryReports"
+          :key="report.id"
+          :to="`/admin/reports/${report.id}`">
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+              <UIcon
+                :name="
+                  report.display?.chart?.type === 'doughnut'
+                    ? 'i-lucide-pie-chart'
+                    : 'i-lucide-bar-chart-3'
+                "
+                class="text-primary shrink-0" />
+              <h3 class="font-medium">{{ report.name }}</h3>
             </div>
-          </AppCard>
-        </div>
+            <p class="text-sm text-muted">{{ report.description }}</p>
+          </div>
+        </AppCard>
       </div>
-
-      <AppEmptyState
-        v-if="reports.length === 0"
-        icon="i-lucide-bar-chart-3"
-        title="No reports available"
-        description="Reports will appear here once configured." />
     </div>
-  </div>
+
+    <AppEmptyState
+      v-if="reports.length === 0"
+      icon="i-lucide-bar-chart-3"
+      title="No reports available"
+      description="Reports will appear here once configured." />
+  </AppPage>
 </template>

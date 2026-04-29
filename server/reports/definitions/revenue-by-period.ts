@@ -4,6 +4,7 @@
 
 import { and, between, eq, sql } from 'drizzle-orm';
 import { payments } from '~~/server/db/schema';
+import { brandChartColors } from '../chart-colors';
 import { defineReport } from '../types';
 import { defaultEnd, defaultStart } from '../utils';
 
@@ -82,8 +83,8 @@ export default defineReport({
           {
             label: 'Revenue ($)',
             data: rows.map((r) => Number(r.revenue) / 100),
-            backgroundColor: 'rgba(59, 130, 246, 0.7)',
-            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: brandChartColors.primary.bg,
+            borderColor: brandChartColors.primary.border,
             borderWidth: 1,
           },
         ],

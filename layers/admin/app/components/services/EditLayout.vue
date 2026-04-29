@@ -12,6 +12,8 @@ const props = defineProps<{
   initialPricing?: { sizeCategoryId: number; priceCents: number; durationMinutes: number }[];
   initialAddonLinks?: { baseServiceIds?: number[]; addonServiceIds?: number[] };
   serviceId?: number;
+  title: string;
+  backTo: string;
 }>();
 
 const isCreate = computed(() => props.mode === 'create');
@@ -28,9 +30,6 @@ const addonServices = computed(() =>
 const { data: categoryData } = await useFetch('/api/admin/size-categories');
 const categories = computed(() => categoryData.value?.categories ?? []);
 
-/* ─────────────────────────────────── *
- *  Form State
- * ─────────────────────────────────── */
 const pricingMap: Record<
   number,
   { priceDollars: number | undefined; durationMinutes: number | undefined }
@@ -71,18 +70,12 @@ function toggleAddonLink(id: number) {
   toggleArrayItem(state.addonLinkIds, id);
 }
 
-/* ─────────────────────────────────── *
- *  Create Mode
- * ─────────────────────────────────── */
 const create = isCreate.value
   ? useFormAction({
       redirectTo: (res: any) => `/admin/settings/services/${res.service.id}/edit`,
     })
   : null;
 
-/* ─────────────────────────────────── *
- *  Edit Mode
- * ─────────────────────────────────── */
 const pageSave = !isCreate.value
   ? usePageSave({
       sections: {
@@ -120,9 +113,6 @@ const pageSave = !isCreate.value
 
 const { discardChanges } = useDiscardable(state, pageSave);
 
-/* ─────────────────────────────────── *
- *  Submit
- * ─────────────────────────────────── */
 const loading = computed(() => (isCreate.value ? create!.loading.value : pageSave!.loading.value));
 const error = computed(() => (isCreate.value ? create!.error.value : pageSave!.error.value));
 
@@ -138,159 +128,139 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 </script>
 
 <template>
-  <UForm
+  <AppFormLayout
+    :title="title"
+    :back-to="backTo"
+    form-id="service-edit-form"
     :schema="schema"
     :state="state"
-    @submit="onSubmit">
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] items-start gap-6">
-      <!-- Left -->
-      <div class="space-y-6">
-        <AppSection :error="error">
-          <div class="space-y-4">
-            <!-- Name -->
-            <UFormField
-              label="Name"
-              name="name"
-              required>
-              <UInput v-model="state.name" />
-            </UFormField>
+    :mode="mode"
+    :loading="loading"
+    :is-dirty="pageSave?.isDirty.value ?? false"
+    @submit="onSubmit"
+    @discard="discardChanges">
+    <template
+      v-if="$slots['extra-actions']"
+      #extra-actions>
+      <slot name="extra-actions" />
+    </template>
 
-            <!-- Category -->
-            <UFormField
-              label="Category"
-              name="category">
-              <UInput v-model="state.category" />
-            </UFormField>
+    <AppSection :error="error">
+      <div class="space-y-4">
+        <UFormField
+          label="Name"
+          name="name"
+          required>
+          <UInput v-model="state.name" />
+        </UFormField>
 
-            <!-- Description -->
-            <UFormField
-              label="Description"
-              name="description">
-              <UTextarea v-model="state.description" />
-            </UFormField>
-          </div>
-        </AppSection>
+        <UFormField
+          label="Category"
+          name="category">
+          <UInput v-model="state.category" />
+        </UFormField>
 
-        <AppSection title="Pricing by Size">
-          <div
-            v-if="!categories.length"
-            class="text-sm text-muted">
-            No size categories found.
-          </div>
+        <UFormField
+          label="Description"
+          name="description">
+          <UTextarea v-model="state.description" />
+        </UFormField>
+      </div>
+    </AppSection>
 
-          <div
-            v-else
-            class="space-y-3">
-            <div
-              v-for="cat in categories"
-              :key="cat.id"
-              class="p-3 border border-default rounded-lg space-y-2">
-              <span class="font-medium text-sm">{{ cat.name }}</span>
-
-              <div class="flex gap-3">
-                <!-- Price -->
-                <UFormField
-                  label="Price ($)"
-                  class="flex-1">
-                  <UInputNumber
-                    v-model="state.pricingMap[cat.id]!.priceDollars"
-                    :min="0"
-                    :step="0.01" />
-                </UFormField>
-
-                <!-- Duration -->
-                <UFormField
-                  label="Duration (min)"
-                  class="flex-1">
-                  <UInputNumber
-                    v-model="state.pricingMap[cat.id]!.durationMinutes"
-                    :min="1"
-                    :step="5" />
-                </UFormField>
-              </div>
-            </div>
-          </div>
-        </AppSection>
-
-        <!-- ADDON SERVICE -> BASE SERVICE LINKING -->
-        <AppSection
-          v-if="state.isAddon && !isCreate"
-          title="Compatible Base Services">
-          <div class="space-y-2">
-            <UCheckbox
-              v-for="service in baseServices"
-              :key="service.id"
-              :label="service.name"
-              :model-value="state.addonLinkIds.includes(service.id)"
-              @update:model-value="toggleAddonLink(service.id)" />
-            <p
-              v-if="baseServices.length === 0"
-              class="text-sm text-muted">
-              No base services exist yet.
-            </p>
-          </div>
-        </AppSection>
-
-        <!-- BASE SERVICE -> ADDON SERVICE LINKING -->
-        <AppSection
-          v-if="!state.isAddon && !isCreate"
-          title="Available Addons">
-          <div class="space-y-2">
-            <UCheckbox
-              v-for="service in addonServices"
-              :key="service.id"
-              :label="service.name"
-              :model-value="state.addonLinkIds.includes(service.id)"
-              @update:model-value="toggleAddonLink(service.id)" />
-            <p
-              v-if="addonServices.length === 0"
-              class="text-sm text-muted">
-              No addon services exist yet.
-            </p>
-          </div>
-        </AppSection>
+    <AppSection title="Pricing by Size">
+      <div
+        v-if="!categories.length"
+        class="text-sm text-muted">
+        No size categories found.
       </div>
 
-      <!-- Right -->
-      <div class="space-y-6">
-        <AppSection title="Options">
-          <div class="space-y-4">
-            <!-- Addon switch -->
-            <UFormField
-              label="Addon Service"
-              name="isAddon">
-              <USwitch v-model="state.isAddon" />
-            </UFormField>
+      <div
+        v-else
+        class="space-y-3">
+        <div
+          v-for="cat in categories"
+          :key="cat.id"
+          class="p-3 border border-default rounded-lg space-y-2">
+          <span class="font-medium text-sm">{{ sizeCategoryLabel[cat.name] ?? cat.name }}</span>
 
-            <!-- Sort order -->
+          <div class="flex gap-3">
             <UFormField
-              label="Sort Order"
-              name="sortOrder">
+              label="Price ($)"
+              class="flex-1">
               <UInputNumber
-                v-model="state.sortOrder"
-                :min="0" />
+                v-model="state.pricingMap[cat.id]!.priceDollars"
+                :min="0"
+                :step="0.01" />
+            </UFormField>
+
+            <UFormField
+              label="Duration (min)"
+              class="flex-1">
+              <UInputNumber
+                v-model="state.pricingMap[cat.id]!.durationMinutes"
+                :min="1"
+                :step="5" />
             </UFormField>
           </div>
-        </AppSection>
+        </div>
       </div>
-    </div>
+    </AppSection>
 
-    <div class="flex justify-end gap-2 mt-6">
-      <UButton
-        v-if="isCreate"
-        to="/admin/settings/services"
-        variant="ghost"
-        label="Cancel" />
-      <UButton
-        v-else-if="pageSave?.isDirty.value"
-        variant="ghost"
-        label="Discard"
-        @click="discardChanges" />
-      <UButton
-        type="submit"
-        :loading="loading"
-        :disabled="!isCreate && !pageSave?.isDirty.value"
-        :label="isCreate ? 'Create' : 'Save'" />
-    </div>
-  </UForm>
+    <AppSection
+      v-if="state.isAddon && !isCreate"
+      title="Compatible Base Services">
+      <div class="space-y-2">
+        <UCheckbox
+          v-for="service in baseServices"
+          :key="service.id"
+          :label="service.name"
+          :model-value="state.addonLinkIds.includes(service.id)"
+          @update:model-value="toggleAddonLink(service.id)" />
+        <p
+          v-if="baseServices.length === 0"
+          class="text-sm text-muted">
+          No base services exist yet.
+        </p>
+      </div>
+    </AppSection>
+
+    <AppSection
+      v-if="!state.isAddon && !isCreate"
+      title="Available Addons">
+      <div class="space-y-2">
+        <UCheckbox
+          v-for="service in addonServices"
+          :key="service.id"
+          :label="service.name"
+          :model-value="state.addonLinkIds.includes(service.id)"
+          @update:model-value="toggleAddonLink(service.id)" />
+        <p
+          v-if="addonServices.length === 0"
+          class="text-sm text-muted">
+          No addon services exist yet.
+        </p>
+      </div>
+    </AppSection>
+
+    <template #sidebar>
+      <AppSection title="Options">
+        <div class="space-y-4">
+          <UFormField
+            label="Addon Service"
+            name="isAddon">
+            <USwitch v-model="state.isAddon" />
+          </UFormField>
+
+          <UFormField
+            label="Sort Order"
+            name="sortOrder">
+            <UInputNumber
+              v-model="state.sortOrder"
+              :min="0" />
+          </UFormField>
+        </div>
+      </AppSection>
+    </template>
+  </AppFormLayout>
 </template>

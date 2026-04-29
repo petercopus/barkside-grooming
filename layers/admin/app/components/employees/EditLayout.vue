@@ -10,6 +10,8 @@ const props = defineProps<{
   mode: 'create' | 'edit';
   initialValues?: Record<string, unknown>;
   employeeId?: string;
+  title: string;
+  backTo: string;
 }>();
 
 const isCreate = computed(() => props.mode === 'create');
@@ -18,9 +20,6 @@ const schema = computed(() => (isCreate.value ? createEmployeeSchema : updateEmp
 const { data: servicesData } = await useFetch('/api/admin/services');
 const { data: rolesData } = await useFetch('/api/admin/roles');
 
-/* ─────────────────────────────────── *
- *  Form State
- * ─────────────────────────────────── */
 const state = reactive({
   email: (props.initialValues?.email as string) ?? undefined,
   password: undefined as string | undefined,
@@ -43,18 +42,12 @@ function toggleService(serviceId: number) {
   toggleArrayItem(state.serviceIds, serviceId);
 }
 
-/* ─────────────────────────────────── *
- *  Create Mode
- * ─────────────────────────────────── */
 const create = isCreate.value
   ? useFormAction({
       redirectTo: (res: any) => `/admin/settings/employees/${res.employee.id}/edit`,
     })
   : null;
 
-/* ─────────────────────────────────── *
- *  Edit Mode
- * ─────────────────────────────────── */
 const pageSave = !isCreate.value
   ? usePageSave({
       sections: {
@@ -85,9 +78,6 @@ const pageSave = !isCreate.value
 
 const { discardChanges } = useDiscardable(state, pageSave);
 
-/* ─────────────────────────────────── *
- *  Submit
- * ─────────────────────────────────── */
 const loading = computed(() => (isCreate.value ? create!.loading.value : pageSave!.loading.value));
 const error = computed(() => (isCreate.value ? create!.error.value : pageSave!.error.value));
 
@@ -106,115 +96,99 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 </script>
 
 <template>
-  <UForm
+  <AppFormLayout
+    :title="title"
+    :back-to="backTo"
+    form-id="employee-edit-form"
     :schema="schema"
     :state="state"
-    @submit="onSubmit">
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] items-start gap-6">
-      <!-- Left -->
-      <AppSection :error="error">
-        <div class="space-y-4">
-          <!-- Email -->
-          <UFormField
-            label="Email"
-            name="email">
-            <UInput
-              v-model="state.email"
-              type="email" />
-          </UFormField>
+    :mode="mode"
+    :loading="loading"
+    :is-dirty="pageSave?.isDirty.value ?? false"
+    @submit="onSubmit"
+    @discard="discardChanges">
+    <template
+      v-if="$slots['extra-actions']"
+      #extra-actions>
+      <slot name="extra-actions" />
+    </template>
 
-          <!-- Password -->
-          <UFormField
-            v-if="isCreate"
-            label="Temporary Password"
-            name="password">
-            <UInput
-              v-model="state.password"
-              type="password" />
-          </UFormField>
+    <AppSection :error="error">
+      <div class="space-y-4">
+        <UFormField
+          label="Email"
+          name="email">
+          <UInput
+            v-model="state.email"
+            type="email" />
+        </UFormField>
 
-          <!-- First name -->
-          <UFormField
-            label="First Name"
-            name="firstName">
-            <UInput v-model="state.firstName" />
-          </UFormField>
+        <UFormField
+          v-if="isCreate"
+          label="Temporary Password"
+          name="password">
+          <UInput
+            v-model="state.password"
+            type="password" />
+        </UFormField>
 
-          <!-- Last name -->
-          <UFormField
-            label="Last Name"
-            name="lastName">
-            <UInput v-model="state.lastName" />
-          </UFormField>
+        <UFormField
+          label="First Name"
+          name="firstName">
+          <UInput v-model="state.firstName" />
+        </UFormField>
 
-          <!-- Phone -->
-          <UFormField
-            label="Phone"
-            name="phone">
-            <UInput v-model="state.phone" />
-          </UFormField>
-        </div>
+        <UFormField
+          label="Last Name"
+          name="lastName">
+          <UInput v-model="state.lastName" />
+        </UFormField>
+
+        <UFormField
+          label="Phone"
+          name="phone">
+          <UInput v-model="state.phone" />
+        </UFormField>
+      </div>
+    </AppSection>
+
+    <template #sidebar>
+      <AppSection title="Status">
+        <UFormField name="isActive">
+          <USwitch
+            v-model="state.isActive"
+            label="Active" />
+        </UFormField>
       </AppSection>
 
-      <!-- Right -->
-      <div class="space-y-6">
-        <AppSection title="Status">
-          <UFormField name="isActive">
-            <USwitch
-              v-model="state.isActive"
-              label="Active" />
-          </UFormField>
-        </AppSection>
+      <AppSection title="Roles">
+        <UFormField name="roleIds">
+          <UCheckboxGroup
+            v-model="state.roleIds"
+            value-key="id"
+            :items="roleItems" />
+        </UFormField>
+      </AppSection>
 
-        <!-- Roles -->
-        <AppSection title="Roles">
-          <UFormField name="roleIds">
-            <UCheckboxGroup
-              v-model="state.roleIds"
-              value-key="id"
-              :items="roleItems" />
-          </UFormField>
-        </AppSection>
-
-        <!-- Services -->
-        <AppSection title="Service Qualifications">
-          <div class="space-y-2">
-            <div
-              v-for="service in servicesData?.services ?? []"
-              :key="service.id"
-              class="flex items-center gap-2">
-              <UCheckbox
-                :label="service.name"
-                :model-value="state.serviceIds.includes(service.id)"
-                @update:model-value="toggleService(service.id)" />
-              <UBadge
-                v-if="service.isAddon"
-                variant="subtle"
-                size="sm">
-                addon
-              </UBadge>
-            </div>
+      <AppSection title="Service Qualifications">
+        <div class="space-y-2">
+          <div
+            v-for="service in servicesData?.services ?? []"
+            :key="service.id"
+            class="flex items-center gap-2">
+            <UCheckbox
+              :label="service.name"
+              :model-value="state.serviceIds.includes(service.id)"
+              @update:model-value="toggleService(service.id)" />
+            <UBadge
+              v-if="service.isAddon"
+              variant="subtle"
+              size="sm">
+              addon
+            </UBadge>
           </div>
-        </AppSection>
-      </div>
-    </div>
-
-    <div class="flex justify-end gap-2 mt-6">
-      <UButton
-        v-if="isCreate"
-        to="/admin/settings/employees"
-        variant="ghost"
-        label="Cancel" />
-      <UButton
-        v-else-if="pageSave?.isDirty.value"
-        variant="ghost"
-        label="Discard"
-        @click="discardChanges" />
-      <UButton
-        type="submit"
-        :loading="loading"
-        :disabled="!isCreate && !pageSave?.isDirty.value"
-        :label="isCreate ? 'Create' : 'Save'" />
-    </div>
-  </UForm>
+        </div>
+      </AppSection>
+    </template>
+  </AppFormLayout>
 </template>

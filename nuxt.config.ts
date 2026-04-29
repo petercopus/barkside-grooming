@@ -64,6 +64,8 @@ export default defineNuxtConfig({
         '@internationalized/date',
         'zod',
         '@stripe/stripe-js',
+        'chart.js',
+        'vue-chartjs',
       ],
     },
   },

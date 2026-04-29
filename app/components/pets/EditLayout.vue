@@ -67,10 +67,10 @@ const pageSave = !isCreate.value
 const loading = computed(() => (isCreate.value ? create!.loading.value : pageSave!.loading.value));
 const error = computed(() => (isCreate.value ? create!.error.value : pageSave!.error.value));
 
-function onSubmit(event: FormSubmitEvent<unknown>) {
+function onSubmit(_event: FormSubmitEvent<unknown>) {
   if (isCreate.value) {
     create!.execute(() =>
-      $fetch('/api/pets', { method: 'POST', body: event.data as CreatePetInput }),
+      $fetch('/api/pets', { method: 'POST', body: _event.data as CreatePetInput }),
     );
   } else {
     pageSave!.submit();
@@ -83,87 +83,131 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
     :schema="schema"
     :state="state"
     @submit="onSubmit">
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] items-start gap-6">
-      <!-- Left -->
-      <div class="space-y-6">
-        <AppSection :error="error">
-          <div class="space-y-4">
-            <!-- Name -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Main column -->
+      <div class="lg:col-span-2 space-y-6">
+        <AppSectionPanel
+          kicker="The basics"
+          title="Pup details"
+          description="Name, breed, and the essentials we need to size up the visit."
+          icon="i-lucide-paw-print"
+          :error="error">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <UFormField
               label="Name"
               name="name"
               required>
-              <UInput v-model="state.name" />
+              <UInput
+                v-model="state.name"
+                placeholder="e.g. Biscuit"
+                size="lg"
+                class="w-full" />
             </UFormField>
 
-            <!-- Breed -->
             <UFormField
               label="Breed"
               name="breed">
-              <UInput v-model="state.breed" />
+              <UInput
+                v-model="state.breed"
+                placeholder="Mixed, Labrador, …"
+                size="lg"
+                class="w-full" />
             </UFormField>
 
-            <!-- Weight -->
             <UFormField
               label="Weight (lbs)"
-              name="weightLbs">
+              name="weightLbs"
+              hint="Helps us pick the right size">
               <UInputNumber
                 v-model="state.weightLbs"
                 :min="1"
-                :max="300" />
+                :max="300"
+                size="lg"
+                class="w-full" />
             </UFormField>
 
-            <!-- Birthday -->
             <UFormField
-              label="Date of Birth"
+              label="Date of birth"
               name="dateOfBirth">
               <AppDatePicker v-model="dobCalendar" />
             </UFormField>
           </div>
-        </AppSection>
+        </AppSectionPanel>
+
+        <AppSectionPanel
+          kicker="Optional"
+          title="Notes for the team"
+          description="Temperament, sensitivities, special requests — anything we should know."
+          icon="i-lucide-message-square">
+          <UFormField name="specialNotes">
+            <UTextarea
+              v-model="state.specialNotes"
+              :rows="4"
+              placeholder="e.g. A bit nervous around clippers, loves a cheek scratch."
+              class="w-full" />
+          </UFormField>
+        </AppSectionPanel>
       </div>
 
-      <!-- Right -->
+      <!-- Side column -->
       <div class="space-y-6">
-        <AppSection title="Characteristics">
+        <AppSectionPanel
+          kicker="Looks & traits"
+          title="Characteristics"
+          icon="i-lucide-sparkles">
           <div class="space-y-4">
-            <!-- Gender selection -->
             <UFormField
               label="Gender"
               name="gender">
               <USelect
                 v-model="state.gender"
-                :items="genderItems" />
+                :items="genderItems"
+                size="lg"
+                class="w-full" />
             </UFormField>
 
-            <!-- Coat type -->
             <UFormField
-              label="Coat Type"
-              name="coatType">
-              <UInput v-model="state.coatType" />
+              label="Coat type"
+              name="coatType"
+              hint="Short, double, curly, wire…">
+              <UInput
+                v-model="state.coatType"
+                placeholder="e.g. Curly"
+                size="lg"
+                class="w-full" />
             </UFormField>
           </div>
-        </AppSection>
+        </AppSectionPanel>
 
-        <!-- Notes -->
-        <AppSection title="Notes">
-          <UFormField name="specialNotes">
-            <UTextarea v-model="state.specialNotes" />
-          </UFormField>
-        </AppSection>
+        <div
+          class="rounded-2xl bg-primary-50/40 border border-primary-100/70 px-4 py-4 text-sm text-barkside-800">
+          <div class="flex items-start gap-2.5">
+            <UIcon
+              name="i-lucide-info"
+              class="size-4 text-primary-500 shrink-0 mt-0.5" />
+
+            <p class="leading-relaxed">
+              Adding accurate weight + coat type means we can pre-quote services and pick the right
+              brush before your pup walks in.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="flex justify-end gap-2 mt-6">
+    <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-8">
       <UButton
         to="/me/pets"
         variant="ghost"
+        size="lg"
         label="Cancel" />
       <UButton
         type="submit"
+        size="lg"
         :loading="loading"
         :disabled="!isCreate && !pageSave?.isDirty.value"
-        :label="isCreate ? 'Add Pet' : 'Save'" />
+        :icon="isCreate ? 'i-lucide-plus' : 'i-lucide-check'"
+        :label="isCreate ? 'Add pup' : 'Save changes'" />
     </div>
   </UForm>
 </template>

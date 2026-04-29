@@ -16,58 +16,112 @@ if (!data.value?.document) {
 const doc = data.value.document;
 
 const isImage = computed(() => ['image/jpeg', 'image/png'].includes(doc.mimeType ?? ''));
+const isPdf = computed(() => doc.mimeType === 'application/pdf');
+
+function docTypeIcon(type: string): string {
+  const t = type?.toLowerCase() ?? '';
+
+  if (t.includes('vaccin') || t.includes('rabies')) return 'i-lucide-syringe';
+  if (t.includes('id')) return 'i-lucide-id-card';
+  if (t.includes('medical') || t.includes('health')) return 'i-lucide-heart-pulse';
+  if (t.includes('photo') || t.includes('image')) return 'i-lucide-image';
+
+  return 'i-lucide-file-text';
+}
 </script>
 
 <template>
-  <div class="cms-container py-6 sm:py-10 space-y-6">
-    <AppPageHeader
+  <div class="cms-container py-10 sm:py-14 max-w-4xl">
+    <AppPageIntro
+      kicker="Document"
       :title="doc.fileName"
       back-to="/me/documents" />
 
-    <AppSection>
-      <div class="space-y-4">
-        <!-- Status + type -->
-        <div class="flex gap-2">
-          <UBadge variant="subtle">{{ formatDocType(doc.type) }}</UBadge>
+    <div class="mt-8 space-y-6">
+      <AppSectionPanel
+        kicker="Details"
+        title="Overview"
+        :icon="docTypeIcon(doc.type)">
+        <template #actions>
           <UBadge
             variant="subtle"
-            :color="docStatusColor[doc.status] ?? 'neutral'">
-            {{ doc.status }}
-          </UBadge>
-        </div>
+            :color="docStatusColor[doc.status] ?? 'neutral'"
+            :label="docStatusLabel[doc.status] ?? doc.status" />
+        </template>
 
-        <!-- Metadata -->
-        <dl class="text-sm space-y-1">
-          <div class="flex gap-2">
-            <dt class="text-muted">Uploaded:</dt>
-            <dd>{{ new Date(doc.createdAt).toLocaleDateString() }}</dd>
+        <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+          <div>
+            <dt class="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">Type</dt>
+            <dd class="text-default font-medium mt-1">{{ formatDocType(doc.type) }}</dd>
           </div>
-          <div
-            v-if="doc.notes"
-            class="flex gap-2">
-            <dt class="text-muted">Notes:</dt>
-            <dd>{{ doc.notes }}</dd>
+
+          <div>
+            <dt class="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+              Uploaded
+            </dt>
+            <dd class="text-default font-medium mt-1">
+              {{ formatDate(doc.createdAt, 'long') }}
+            </dd>
+          </div>
+
+          <div>
+            <dt class="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">Status</dt>
+            <dd class="text-default font-medium mt-1 capitalize">{{ doc.status }}</dd>
           </div>
         </dl>
 
-        <!-- Image preview -->
+        <div
+          v-if="doc.notes"
+          class="mt-5 rounded-xl bg-bone-100/60 border border-bone-200/60 px-4 py-3 text-sm text-barkside-800 italic">
+          <UIcon
+            name="i-lucide-quote"
+            class="size-3.5 text-coral-500 inline-block mr-1 -mt-0.5" />
+          {{ doc.notes }}
+        </div>
+
+        <div class="mt-5 flex flex-wrap gap-2">
+          <UButton
+            :href="doc.url"
+            target="_blank"
+            download
+            icon="i-lucide-download"
+            size="lg"
+            label="Download" />
+          <UButton
+            v-if="!isImage && !isPdf"
+            :href="doc.url"
+            target="_blank"
+            variant="ghost"
+            icon="i-lucide-external-link"
+            size="lg"
+            label="Open in new tab" />
+        </div>
+      </AppSectionPanel>
+
+      <AppSectionPanel
+        v-if="isImage || isPdf"
+        kicker="Preview"
+        title="Document preview"
+        icon="i-lucide-eye"
+        tone="plain">
         <div
           v-if="isImage"
-          class="rounded-lg border overflow-hidden">
+          class="rounded-xl border border-default/70 bg-white overflow-hidden">
           <img
             :src="doc.url"
             :alt="doc.fileName"
-            class="max-w-full max-h-96 object-contain mx-auto" />
+            class="max-w-full max-h-150 object-contain mx-auto" />
         </div>
 
-        <!-- Download -->
-        <UButton
-          :href="doc.url"
-          target="_blank"
-          download
-          icon="i-lucide-download"
-          label="Download" />
-      </div>
-    </AppSection>
+        <div
+          v-else-if="isPdf"
+          class="rounded-xl border border-default/70 bg-white overflow-hidden">
+          <iframe
+            :src="doc.url"
+            :title="doc.fileName"
+            class="w-full h-150" />
+        </div>
+      </AppSectionPanel>
+    </div>
   </div>
 </template>

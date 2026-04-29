@@ -16,30 +16,36 @@ const props = withDefaults(
     card?: 'default' | 'thin';
     title?: string;
     skeletonRows?: number;
+    showRowChevron?: boolean;
   }>(),
-  { skeletonRows: 5 },
+  { skeletonRows: 5, showRowChevron: true },
 );
 
 defineEmits<{
   emptyAction: [];
 }>();
 
-const slots = useSlots();
-
-const tableSlots = computed(() => {
-  const result: Record<string, any> = {};
-
-  for (const name of Object.keys(slots)) {
-    if (name !== 'actions') result[name] = slots[name];
-  }
-
-  return result;
+const effectiveColumns = computed<TableColumn<Record<string, unknown>>[]>(() => {
+  if (!props.onSelect || !props.showRowChevron) return props.columns;
+  return [
+    ...props.columns,
+    { id: '_navChevron', header: '', size: 32 } as TableColumn<Record<string, unknown>>,
+  ];
 });
 
-// Show skeleton rows on initial load (loading + no data yet)
-const showSkeleton = computed(() => props.loading && props.data.length === 0);
+const tableUi = computed(() => ({
+  thead: 'bg-elevated/70',
+  th: 'font-normal text-muted py-2',
+  td: 'text-default',
+  tr: props.onSelect ? 'group' : '',
+}));
 
-// Deterministic varied widths for skeleton rows
+const slots = useSlots();
+const cellSlotNames = computed(() => Object.keys(slots).filter((name) => name !== 'actions'));
+
+const showSkeleton = computed(() => props.loading && props.data.length === 0);
+const showEmpty = computed(() => !props.loading && props.data.length === 0);
+
 function skeletonWidth(row: number, col: number): string {
   return `${50 + ((row * 17 + col * 31) % 40)}%`;
 }
@@ -61,37 +67,40 @@ function skeletonWidth(row: number, col: number): string {
       :columns="columns.length"
       :rows="skeletonRows"
       :skeleton-width="skeletonWidth" />
+    <slot
+      v-else-if="showEmpty && $slots.empty"
+      name="empty" />
+    <AppEmptyState
+      v-else-if="showEmpty && emptyTitle"
+      :icon="emptyIcon"
+      :title="emptyTitle"
+      :description="emptyDescription"
+      :action-label="emptyActionLabel"
+      :action-icon="emptyActionIcon"
+      :variant="emptyVariant ?? 'page'"
+      @action="$emit('emptyAction')" />
 
     <UTable
       v-else
-      :columns="columns"
+      :columns="effectiveColumns"
       :data="data"
       :loading="loading"
       :on-select="onSelect"
-      :ui="{
-        thead: 'bg-elevated/70',
-        th: 'font-normal text-muted py-2',
-        td: 'text-default',
-      }">
+      :ui="tableUi">
       <template
-        v-for="(_, name) in tableSlots"
+        v-for="name in cellSlotNames"
         :key="name"
         #[name]="slotProps">
         <slot
           :name="name"
           v-bind="slotProps ?? {}" />
       </template>
-      <template
-        v-if="!$slots.empty && emptyTitle"
-        #empty>
-        <AppEmptyState
-          :icon="emptyIcon"
-          :title="emptyTitle"
-          :description="emptyDescription"
-          :action-label="emptyActionLabel"
-          :action-icon="emptyActionIcon"
-          :variant="emptyVariant ?? 'page'"
-          @action="$emit('emptyAction')" />
+      <template #_navChevron-cell>
+        <div class="flex items-center justify-end">
+          <UIcon
+            name="i-lucide-arrow-right"
+            class="size-5 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+        </div>
       </template>
     </UTable>
   </AppCard>
@@ -102,37 +111,40 @@ function skeletonWidth(row: number, col: number): string {
       :columns="columns.length"
       :rows="skeletonRows"
       :skeleton-width="skeletonWidth" />
+    <slot
+      v-else-if="showEmpty && $slots.empty"
+      name="empty" />
+    <AppEmptyState
+      v-else-if="showEmpty && emptyTitle"
+      :icon="emptyIcon"
+      :title="emptyTitle"
+      :description="emptyDescription"
+      :action-label="emptyActionLabel"
+      :action-icon="emptyActionIcon"
+      :variant="emptyVariant ?? 'page'"
+      @action="$emit('emptyAction')" />
 
     <UTable
       v-else
-      :columns="columns"
+      :columns="effectiveColumns"
       :data="data"
       :loading="loading"
       :on-select="onSelect"
-      :ui="{
-        thead: 'bg-elevated/70',
-        th: 'font-normal text-muted py-2',
-        td: 'text-default',
-      }">
+      :ui="tableUi">
       <template
-        v-for="(_, name) in tableSlots"
+        v-for="name in cellSlotNames"
         :key="name"
         #[name]="slotProps">
         <slot
           :name="name"
           v-bind="slotProps ?? {}" />
       </template>
-      <template
-        v-if="!$slots.empty && emptyTitle"
-        #empty>
-        <AppEmptyState
-          :icon="emptyIcon"
-          :title="emptyTitle"
-          :description="emptyDescription"
-          :action-label="emptyActionLabel"
-          :action-icon="emptyActionIcon"
-          :variant="emptyVariant ?? 'page'"
-          @action="$emit('emptyAction')" />
+      <template #_navChevron-cell>
+        <div class="flex items-center justify-end">
+          <UIcon
+            name="i-lucide-arrow-right"
+            class="size-5 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+        </div>
       </template>
     </UTable>
   </template>

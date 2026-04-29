@@ -25,15 +25,10 @@ const initialValues = {
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      title="Edit Customer"
-      :back-to="`/admin/customers/${id}`" />
-
-    <div class="py-4">
-      <CustomersEditLayout
-        :initial-values="initialValues"
-        :customer-id="id" />
-    </div>
-  </div>
+  <CustomersEditLayout
+    mode="edit"
+    title="Edit Customer"
+    :back-to="`/admin/customers/${id}`"
+    :initial-values="initialValues"
+    :customer-id="id" />
 </template>

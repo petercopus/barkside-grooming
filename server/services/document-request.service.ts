@@ -81,8 +81,12 @@ export async function listAllDocumentRequests(filters?: { status?: string }) {
       createdAt: documentRequests.createdAt,
       petId: documentRequests.petId,
       petName: pets.name,
+      petBreed: pets.breed,
+      targetId: target.id,
       targetFirstName: target.firstName,
       targetLastName: target.lastName,
+      targetPhone: target.phone,
+      requesterId: requester.id,
       requesterFirstName: requester.firstName,
       requesterLastName: requester.lastName,
     })
@@ -93,7 +97,11 @@ export async function listAllDocumentRequests(filters?: { status?: string }) {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(documentRequests.createdAt));
 
-  return requests;
+  return requests.map((req) => ({
+    ...req,
+    targetName: formatFullName(req.targetFirstName, req.targetLastName),
+    requesterName: formatFullName(req.requesterFirstName, req.requesterLastName),
+  }));
 }
 
 export async function getDocumentRequest(requestId: string, userId: string) {

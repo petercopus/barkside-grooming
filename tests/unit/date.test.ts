@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { minutesToTime, timeToMinutes, todayDateString } from '~~/server/utils/date';
+import { minutesToTime, timeToMinutes, todayDateString } from '~~/shared/utils/date';
 
 describe('timeToMinutes', () => {
   it('parses HH:MM correctly at the start of day', () => {

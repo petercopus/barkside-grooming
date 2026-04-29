@@ -54,63 +54,128 @@ function onSubmit() {
     return $fetch('/api/documents', { method: 'POST', body: fd });
   });
 }
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 </script>
 
 <template>
-  <div class="cms-container py-6 sm:py-10 space-y-6">
-    <AppPageHeader
-      title="Upload Document"
+  <div class="cms-container py-10 sm:py-14 max-w-3xl">
+    <AppPageIntro
+      kicker="New upload"
+      title="Upload a document"
+      description="PDFs and images up to 10 MB. We'll review it and link it to the right pup."
       back-to="/me/documents" />
 
-    <AppSection :error="form.error.value">
-      <div class="space-y-4">
-        <!-- File input -->
+    <div class="mt-8 space-y-6">
+      <AppSectionPanel
+        kicker="Step 1"
+        title="Choose a file"
+        description="PDF, JPG, or PNG."
+        icon="i-lucide-paperclip"
+        :error="form.error.value">
         <UFormField
-          label="Document"
           required
           :error="fileError ?? undefined">
           <UFileUpload
             v-model="file"
-            accept=".pdf,.jpg,.jpeg,.png" />
+            accept=".pdf,.jpg,.jpeg,.png"
+            class="w-full" />
         </UFormField>
 
-        <!-- Document type -->
+        <div
+          v-if="file"
+          class="mt-3 flex items-center gap-3 rounded-xl bg-primary-50/40 border border-primary-100/70 px-3 py-2.5 text-sm">
+          <UIcon
+            name="i-lucide-file-check"
+            class="size-4 text-primary-500 shrink-0" />
+
+          <span class="font-medium text-default truncate">{{ file.name }}</span>
+          <span class="text-muted tabular-nums shrink-0">{{ formatBytes(file.size) }}</span>
+
+          <UButton
+            variant="ghost"
+            size="xs"
+            icon="i-lucide-x"
+            class="ml-auto"
+            aria-label="Remove file"
+            @click="file = null" />
+        </div>
+      </AppSectionPanel>
+
+      <AppSectionPanel
+        kicker="Step 2"
+        title="Document details"
+        description="Tag the type and link to a pup so we can find it fast."
+        icon="i-lucide-tag">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <UFormField
+            label="Document type"
+            required>
+            <USelect
+              v-model="state.type"
+              :items="docTypeItems"
+              :disabled="!!prefillType"
+              size="lg"
+              class="w-full" />
+          </UFormField>
+
+          <UFormField
+            label="Pet"
+            hint="Optional">
+            <USelect
+              v-model="state.petId"
+              :items="petItems"
+              placeholder="Select a pup"
+              :disabled="!!prefillPetId"
+              size="lg"
+              class="w-full" />
+          </UFormField>
+        </div>
+
         <UFormField
-          label="Document Type"
-          required>
-          <USelect
-            v-model="state.type"
-            :items="docTypeItems"
-            :disabled="!!prefillType" />
+          label="Notes"
+          hint="Optional"
+          class="mt-4">
+          <UTextarea
+            v-model="state.notes"
+            :rows="3"
+            placeholder="e.g. Updated rabies booster, valid through 2026."
+            class="w-full" />
         </UFormField>
+      </AppSectionPanel>
 
-        <!-- Pet selector -->
-        <UFormField label="Pet">
-          <USelect
-            v-model="state.petId"
-            :items="petItems"
-            placeholder="Select a pet (optional)"
-            :disabled="!!prefillPetId" />
-        </UFormField>
+      <div
+        class="rounded-2xl bg-primary-50/40 border border-primary-100/70 px-4 py-3 text-sm text-barkside-800">
+        <div class="flex items-start gap-2.5">
+          <UIcon
+            name="i-lucide-shield-check"
+            class="size-4 text-primary-500 shrink-0 mt-0.5" />
 
-        <!-- Notes -->
-        <UFormField label="Notes">
-          <UTextarea v-model="state.notes" />
-        </UFormField>
+          <p class="leading-relaxed">
+            Documents are encrypted in transit and only visible to your groomers.
+          </p>
+        </div>
       </div>
-    </AppSection>
 
-    <div class="flex justify-end gap-2">
-      <UButton
-        to="/me/documents"
-        variant="ghost"
-        label="Cancel" />
-      <UButton
-        :loading="form.loading.value"
-        :disabled="!file || !state.type"
-        label="Upload"
-        icon="i-lucide-upload"
-        @click="onSubmit" />
+      <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+        <UButton
+          to="/me/documents"
+          variant="ghost"
+          size="lg"
+          label="Cancel" />
+        <UButton
+          :loading="form.loading.value"
+          :disabled="!file || !state.type"
+          icon="i-lucide-upload"
+          size="lg"
+          label="Upload"
+          @click="onSubmit" />
+      </div>
     </div>
   </div>
 </template>

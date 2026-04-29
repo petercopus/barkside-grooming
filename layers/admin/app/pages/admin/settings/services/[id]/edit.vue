@@ -27,16 +27,12 @@ const initialValues = {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <AppPageHeader
-      :title="service.name"
-      back-to="/admin/settings/services" />
-
-    <ServicesEditLayout
-      mode="edit"
-      :initial-values="initialValues"
-      :initial-pricing="serviceData?.pricing ?? []"
-      :initial-addon-links="addonData"
-      :service-id="serviceId" />
-  </div>
+  <ServicesEditLayout
+    mode="edit"
+    :title="service.name"
+    back-to="/admin/settings/services"
+    :initial-values="initialValues"
+    :initial-pricing="serviceData?.pricing ?? []"
+    :initial-addon-links="addonData"
+    :service-id="serviceId" />
 </template>

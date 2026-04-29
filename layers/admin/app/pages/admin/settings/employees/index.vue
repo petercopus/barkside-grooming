@@ -25,63 +25,58 @@ const columns = [
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      title="Employees"
-      description="Manage employees, permissions, and schedules" />
+  <AppPage
+    title="Employees"
+    description="Manage employees, permissions, and schedules"
+    width="wide">
+    <AppTable
+      card="default"
+      title="All Employees"
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :on-select="onRowSelect"
+      empty-icon="i-lucide-users"
+      empty-title="No employees found"
+      empty-description="Add your first employee to get started."
+      empty-action-label="Add Employee"
+      empty-action-icon="i-lucide-plus"
+      @empty-action="navigateTo('/admin/settings/employees/new')">
+      <template #actions>
+        <UButton
+          to="/admin/settings/employees/new"
+          icon="i-lucide-plus"
+          label="Add Employee"
+          size="sm" />
+      </template>
 
-    <div class="py-4">
-      <AppTable
-        card="default"
-        title="All Employees"
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :on-select="onRowSelect"
-        empty-icon="i-lucide-users"
-        empty-title="No employees found"
-        empty-description="Add your first employee to get started."
-        empty-action-label="Add Employee"
-        empty-action-icon="i-lucide-plus"
-        @empty-action="navigateTo('/admin/settings/employees/new')">
-        <template #actions>
-          <UButton
-            to="/admin/settings/employees/new"
-            icon="i-lucide-plus"
-            label="Add Employee"
-            size="sm" />
-        </template>
-
-        <!-- Roles -->
-        <template #roles-cell="{ row }">
-          <div class="flex gap-1">
-            <UBadge
-              v-for="role in row.original.roles as { id: number; name: string }[]"
-              :key="role.id"
-              variant="subtle">
-              {{ role.name }}
-            </UBadge>
-          </div>
-        </template>
-
-        <!-- Status -->
-        <template #isActive-cell="{ row }">
+      <!-- Roles -->
+      <template #roles-cell="{ row }">
+        <div class="flex gap-1">
           <UBadge
-            :color="row.original.isActive ? 'success' : 'error'"
+            v-for="role in row.original.roles as { id: number; name: string }[]"
+            :key="role.id"
             variant="subtle">
-            {{ row.original.isActive ? 'Active' : 'Inactive' }}
+            {{ role.name }}
           </UBadge>
-        </template>
+        </div>
+      </template>
 
-        <!-- Actions -->
-        <template #actions-cell="{ row }">
-          <UButton
-            :to="`/admin/settings/employees/${row.original.id}/edit`"
-            icon="i-lucide-pencil"
-            variant="ghost"
-            size="sm" />
-        </template>
-      </AppTable>
-    </div>
-  </div>
+      <!-- Status -->
+      <template #isActive-cell="{ row }">
+        <AppStatusBadge
+          kind="active"
+          :value="!!row.original.isActive" />
+      </template>
+
+      <!-- Actions -->
+      <template #actions-cell="{ row }">
+        <UButton
+          :to="`/admin/settings/employees/${row.original.id}/edit`"
+          icon="i-lucide-pencil"
+          variant="ghost"
+          size="sm" />
+      </template>
+    </AppTable>
+  </AppPage>
 </template>

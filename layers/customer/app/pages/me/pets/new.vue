@@ -6,11 +6,15 @@ definePageMeta({
 </script>
 
 <template>
-  <div class="cms-container py-6 sm:py-10 space-y-6">
-    <AppPageHeader
-      title="Add Pet"
+  <div class="cms-container py-10 sm:py-14">
+    <AppPageIntro
+      kicker="New profile"
+      title="Add a pup"
+      description="Tell us a little about your pup so we can roll out the red carpet."
       back-to="/me/pets" />
 
-    <PetsEditLayout mode="create" />
+    <div class="mt-8">
+      <PetsEditLayout mode="create" />
+    </div>
   </div>
 </template>

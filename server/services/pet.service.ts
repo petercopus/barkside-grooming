@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, ilike, inArray, max, or } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import { appointmentPets, appointments, pets, petSizeCategories, users } from '~~/server/db/schema';
 import { enrichAppointments } from '~~/server/services/appointment.service';
@@ -88,8 +88,40 @@ export async function deletePet(petId: string, ownerId: string) {
 }
 
 //#region ADMIN
-export async function listAllPets() {
-  return db
+export async function updatePetAsAdmin(petId: string, input: UpdatePetInput) {
+  const [existing] = await db.select().from(pets).where(eq(pets.id, petId));
+  if (!existing) {
+    throw createError({ statusCode: 404, message: 'Pet not found' });
+  }
+
+  const sizeCategoryId =
+    input.weightLbs !== undefined ? await resolveSizeCategory(input.weightLbs) : undefined;
+
+  const values: Record<string, any> = { ...input, updatedAt: new Date() };
+  if (sizeCategoryId !== undefined) {
+    values.sizeCategoryId = sizeCategoryId;
+  }
+
+  const [updated] = await db.update(pets).set(values).where(eq(pets.id, petId)).returning();
+  return updated;
+}
+
+export async function listAllPets(search?: string) {
+  const conditions = [];
+
+  if (search) {
+    const pattern = `%${search}%`;
+    conditions.push(
+      or(
+        ilike(pets.name, pattern),
+        ilike(pets.breed, pattern),
+        ilike(users.firstName, pattern),
+        ilike(users.lastName, pattern),
+      )!,
+    );
+  }
+
+  const rows = await db
     .select({
       id: pets.id,
       name: pets.name,
@@ -106,7 +138,25 @@ export async function listAllPets() {
       ownerLastName: users.lastName,
     })
     .from(pets)
-    .leftJoin(users, eq(pets.ownerId, users.id));
+    .leftJoin(users, eq(pets.ownerId, users.id))
+    .where(and(...conditions));
+
+  if (rows.length === 0) return [];
+
+  // Batch: last scheduled appointment per pet
+  const petIds = rows.map((r) => r.id);
+  const lastAppointments = await db
+    .select({ petId: appointmentPets.petId, lastDate: max(appointmentPets.scheduledDate) })
+    .from(appointmentPets)
+    .where(inArray(appointmentPets.petId, petIds))
+    .groupBy(appointmentPets.petId);
+
+  const lastByPetId = new Map(lastAppointments.map((a) => [a.petId, a.lastDate]));
+
+  return rows.map((row) => ({
+    ...row,
+    lastAppointment: lastByPetId.get(row.id) ?? null,
+  }));
 }
 
 export async function getAdminPet(petId: string) {
@@ -134,7 +184,6 @@ export async function getAdminPet(petId: string) {
     throw createError({ statusCode: 404, message: 'Pet not found' });
   }
 
-  // fetch appointment history for this pet
   const petAppointmentRows = await db
     .selectDistinct({ appointmentId: appointmentPets.appointmentId })
     .from(appointmentPets)

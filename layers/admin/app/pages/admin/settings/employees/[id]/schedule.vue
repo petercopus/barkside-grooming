@@ -104,11 +104,10 @@ async function deleteOverride(overrideId: number) {
 </script>
 
 <template>
-  <div class="space-y-8">
-    <AppPageHeader
-      :title="`Schedule — ${employeeName}`"
-      :back-to="`/admin/settings/employees/${id}/edit`" />
-
+  <AppPage
+    :title="`Schedule — ${employeeName}`"
+    :back-to="`/admin/settings/employees/${id}/edit`"
+    width="wide">
     <!-- Weekly Schedule -->
     <AppSection
       title="Weekly Hours"
@@ -151,6 +150,10 @@ async function deleteOverride(overrideId: number) {
         v-if="overrideRows.length > 0"
         :data="overrideRows"
         :columns="overrideColumns">
+        <template #date-cell="{ row }">
+          {{ formatDate(row.original.date) }}
+        </template>
+
         <template #isAvailable-cell="{ row }">
           <UBadge
             :color="row.original.isAvailable ? 'success' : 'warning'"
@@ -161,7 +164,7 @@ async function deleteOverride(overrideId: number) {
 
         <template #times-cell="{ row }">
           <span v-if="row.original.isAvailable && row.original.startTime">
-            {{ row.original.startTime.slice(0, 5) }} – {{ row.original.endTime?.slice(0, 5) }}
+            {{ formatTimeRange(row.original.startTime, row.original.endTime) }}
           </span>
           <span
             v-else
@@ -197,5 +200,5 @@ async function deleteOverride(overrideId: number) {
         No overrides scheduled.
       </p>
     </AppSection>
-  </div>
+  </AppPage>
 </template>

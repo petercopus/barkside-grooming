@@ -18,13 +18,7 @@ const customer = computed(() => data.value!.customer);
 const petRows = computed(() => (customer.value.pets ?? []) as Record<string, unknown>[]);
 const apptRows = computed(() => (customer.value.appointments ?? []) as Record<string, unknown>[]);
 
-const petColumns = [
-  { accessorKey: 'name', header: 'Name' },
-  { accessorKey: 'breed', header: 'Breed' },
-  { accessorKey: 'weightLbs', header: 'Weight (lbs)' },
-  { accessorKey: 'gender', header: 'Gender' },
-  { accessorKey: 'coatType', header: 'Coat Type' },
-];
+const petColumns = [{ accessorKey: 'name', header: 'Name' }];
 
 const apptColumns = [
   { accessorKey: 'date', header: 'Date' },
@@ -42,93 +36,106 @@ function onAppointmentSelect(_e: Event, row: any) {
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      :title="`${customer.firstName} ${customer.lastName}`"
-      back-to="/admin/customers">
+  <AppPage
+    :title="formatFullName(customer.firstName, customer.lastName)"
+    back-to="/admin/customers">
+    <template #actions>
+      <UButton
+        :to="`/admin/customers/${id}/edit`"
+        icon="i-lucide-pencil"
+        label="Edit"
+        size="sm" />
+    </template>
+
+    <AppCard title="Profile">
+      <AppFieldGrid>
+        <AppField
+          label="Email"
+          :value="customer.email" />
+        <AppField label="Phone">
+          <AppPhoneLink :phone-number="customer.phone" />
+        </AppField>
+        <AppField label="Status">
+          <AppStatusBadge
+            kind="active"
+            :value="customer.isActive" />
+        </AppField>
+        <AppField
+          label="Member Since"
+          :value="formatDate(customer.createdAt)" />
+      </AppFieldGrid>
+    </AppCard>
+
+    <AppTable
+      card="default"
+      title="Pets"
+      :columns="petColumns"
+      :data="petRows"
+      :on-select="onPetSelect"
+      empty-icon="i-lucide-paw-print"
+      empty-title="No pets"
+      empty-action-label="Add Pet"
+      empty-action-icon="i-lucide-plus"
+      @empty-action="navigateTo(`/admin/pets/new?ownerId=${id}`)">
       <template #actions>
         <UButton
-          :to="`/admin/customers/${id}/edit`"
-          icon="i-lucide-pencil"
-          label="Edit"
-          size="sm" />
+          :to="`/admin/pets/new?ownerId=${id}`"
+          icon="i-lucide-plus"
+          label="Add Pet"
+          size="sm"
+          variant="ghost" />
       </template>
-    </AppPageHeader>
 
-    <div class="py-4 space-y-6">
-      <!-- Profiole -->
-      <AppCard title="Profile">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <span class="text-muted">Email</span>
-            <p>{{ customer.email }}</p>
-          </div>
-          <div>
-            <span class="text-muted">Phone</span>
-            <p>{{ customer.phone || '—' }}</p>
-          </div>
-          <div>
-            <span class="text-muted">Status</span>
-            <p>
-              <UBadge
-                :color="customer.isActive ? 'success' : 'error'"
-                variant="subtle">
-                {{ customer.isActive ? 'Active' : 'Inactive' }}
-              </UBadge>
-            </p>
-          </div>
-          <div>
-            <span class="text-muted">Member Since</span>
-            <p>{{ new Date(customer.createdAt).toLocaleDateString() }}</p>
+      <template #name-cell="{ row }: any">
+        <div class="flex items-center gap-2">
+          <UAvatar
+            :alt="row.original.name"
+            size="lg" />
+
+          <div class="flex flex-col">
+            <AppPetLink :id="row.original.id">
+              {{ row.original.name }}
+            </AppPetLink>
+            {{ row.original.breed }}
           </div>
         </div>
-      </AppCard>
+      </template>
+    </AppTable>
 
-      <!-- Pets -->
-      <AppTable
-        card="default"
-        title="Pets"
-        :columns="petColumns"
-        :data="petRows"
-        :on-select="onPetSelect"
-        empty-icon="i-lucide-paw-print"
-        empty-title="No pets" />
+    <AppTable
+      card="default"
+      title="Appointments"
+      :columns="apptColumns"
+      :data="apptRows"
+      :on-select="onAppointmentSelect"
+      empty-icon="i-lucide-calendar"
+      empty-title="No appointments">
+      <template #date-cell="{ row }: any">
+        <div class="flex flex-col whitespace-nowrap">
+          <span>{{ formatDate(row.original.pets[0]?.scheduledDate) }}</span>
+          <span class="text-muted text-xs">
+            {{ formatClockTime(row.original.pets[0]?.startTime) }}
+          </span>
+        </div>
+      </template>
 
-      <!-- Appointments -->
-      <AppTable
-        card="default"
-        title="Appointments"
-        :columns="apptColumns"
-        :data="apptRows"
-        :on-select="onAppointmentSelect"
-        empty-icon="i-lucide-calendar"
-        empty-title="No appointments">
-        <!-- date -->
-        <template #date-cell="{ row }: any">
-          {{ row.original.pets[0]?.scheduledDate ?? '—' }}
-        </template>
+      <template #pets-cell="{ row }: any">
+        <div class="flex">
+          <template
+            v-for="(pet, index) in row.original.pets"
+            :key="pet.id">
+            <AppPetLink :id="pet.petId">
+              {{ pet.petName }}{{ index !== row.original.pets.length - 1 ? ', ' : '' }}
+            </AppPetLink>
+          </template>
+        </div>
+      </template>
 
-        <!-- pets -->
-        <template #pets-cell="{ row }: any">
-          <div class="flex gap-2">
-            <UBadge
-              v-for="pet in row.original.pets"
-              :key="pet.id"
-              variant="subtle">
-              {{ pet.petName }}
-            </UBadge>
-          </div>
-        </template>
-
-        <!-- status -->
-        <template #status-cell="{ row }: any">
-          <UBadge
-            :color="apptStatusColor[row.original.status] ?? 'neutral'"
-            variant="subtle">
-            {{ row.original.status }}
-          </UBadge>
-        </template>
-      </AppTable>
-    </div>
-  </div>
+      <template #status-cell="{ row }: any">
+        <AppStatusBadge
+          kind="appointment"
+          :value="row.original.status" />
+      </template>
+    </AppTable>
+  </AppPage>
 </template>

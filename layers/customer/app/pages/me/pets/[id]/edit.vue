@@ -17,14 +17,18 @@ const pet = data.value.pet;
 </script>
 
 <template>
-  <div class="cms-container py-6 sm:py-10 space-y-6">
-    <AppPageHeader
-      :title="`Edit ${pet.name}`"
+  <div class="cms-container py-10 sm:py-14">
+    <AppPageIntro
+      kicker="Edit profile"
+      :title="pet.name"
+      :description="pet.breed ? `Updating ${pet.name}'s ${pet.breed} profile.` : `Update ${pet.name}'s profile.`"
       back-to="/me/pets" />
 
-    <PetsEditLayout
-      mode="edit"
-      :initial-values="pet"
-      :pet-id="petId" />
+    <div class="mt-8">
+      <PetsEditLayout
+        mode="edit"
+        :initial-values="pet"
+        :pet-id="petId" />
+    </div>
   </div>
 </template>

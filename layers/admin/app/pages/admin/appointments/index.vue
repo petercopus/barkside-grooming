@@ -5,7 +5,7 @@ definePageMeta({
   permission: 'booking:read:all',
 });
 
-const statusFilter = ref<string>();
+const statusFilter = ref<AppointmentStatus>();
 const dateFilter = ref<string>();
 
 const { data, status, refresh } = await useFetch('/api/admin/appointments', {
@@ -19,12 +19,19 @@ const loading = computed(() => status.value === 'pending');
 const rows = computed(() => data.value?.appointments ?? []);
 
 const columns = [
+  { accessorKey: 'dateTime', header: 'Date / Time' },
   { accessorKey: 'customerName', header: 'Customer' },
   { accessorKey: 'pets', header: 'Pets' },
-  { accessorKey: 'date', header: 'Date' },
+  { accessorKey: 'services', header: 'Services' },
+  { accessorKey: 'groomer', header: 'Groomer' },
   { accessorKey: 'status', header: 'Status' },
   { accessorKey: 'actions', header: '' },
 ];
+
+const statusItems = apptStatusOptions.map((value) => ({
+  label: apptStatusLabel[value] ?? value,
+  value,
+}));
 
 async function updateStatus(id: string, newStatus: string) {
   await $fetch(`/api/admin/appointments/${id}/status`, {
@@ -35,29 +42,24 @@ async function updateStatus(id: string, newStatus: string) {
   await refresh();
 }
 
-function nextAction(currentStatus: string) {
-  switch (currentStatus) {
-    case 'pending':
-      return {
-        label: 'Confirm',
-        status: 'confirmed',
-        color: 'primary' as const,
-      };
-    case 'confirmed':
-      return {
-        label: 'Check In',
-        status: 'in_progress',
-        color: 'success' as const,
-      };
-    case 'in_progress':
-      return {
-        label: 'Complete',
-        status: 'completed',
-        color: 'success' as const,
-      };
-    default:
-      return null;
-  }
+const NEXT_ACTION: Partial<
+  Record<AppointmentStatus, { label: string; icon: string; status: AppointmentStatus }>
+> = {
+  pending: { label: 'Confirm', icon: 'i-lucide-check', status: 'confirmed' },
+  confirmed: { label: 'Check In', icon: 'i-lucide-log-in', status: 'in_progress' },
+  in_progress: { label: 'Complete', icon: 'i-lucide-check-check', status: 'completed' },
+};
+
+const CANCELLABLE_STATUSES: string[] = [
+  'pending',
+  'pending_documents',
+  'confirmed',
+] satisfies AppointmentStatus[];
+
+function nextAction(currentStatus: AppointmentStatus) {
+  const next = NEXT_ACTION[currentStatus];
+  if (!next) return null;
+  return { ...next, color: apptStatusColor[next.status] };
 }
 
 function onRowSelect(_e: Event, row: any) {
@@ -66,80 +68,128 @@ function onRowSelect(_e: Event, row: any) {
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      title="Appointments"
-      description="View and manage all appointments" />
+  <AppPage
+    title="Appointments"
+    description="View and manage all appointments"
+    width="wide">
+    <AppTable
+      card="default"
+      title="All Appointments"
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :on-select="onRowSelect"
+      empty-icon="i-lucide-calendar"
+      empty-title="No appointments found"
+      empty-description="No appointments match the current filters.">
+      <template #actions>
+        <USelect
+          v-model="statusFilter"
+          :items="statusItems"
+          placeholder="All statuses"
+          class="w-48"
+          size="xs" />
+      </template>
 
-    <div class="py-4">
-      <AppTable
-        card="default"
-        title="All Appointments"
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :on-select="onRowSelect"
-        empty-icon="i-lucide-calendar"
-        empty-title="No appointments found"
-        empty-description="No appointments match the current filters.">
-        <template #actions>
-          <!-- Filters -->
-          <div class="flex gap-3">
-            <USelect
-              v-model="statusFilter"
-              :items="apptStatusOptions"
-              placeholder="All statuses"
-              class="w-48"
-              size="xs" />
+      <template #dateTime-cell="{ row }: any">
+        <div class="flex flex-col text-sm whitespace-nowrap">
+          <span>{{ formatDate(row.original.pets[0]?.scheduledDate) }}</span>
+          <span class="text-muted">
+            {{ formatClockTime(row.original.pets[0]?.startTime) }}
+          </span>
+        </div>
+      </template>
+
+      <template #customerName-cell="{ row }: any">
+        <div class="flex items-center gap-2">
+          <UAvatar
+            :alt="row.original.customerName"
+            size="lg" />
+          <div class="flex flex-col">
+            <AppCustomerLink :id="row.original.customerId">
+              {{ row.original.customerName }}
+            </AppCustomerLink>
+            <AppPhoneLink :phoneNumber="row.original.phone" />
           </div>
-        </template>
+        </div>
+      </template>
 
-        <!-- Pets -->
-        <template #pets-cell="{ row }: any">
-          <div class="flex gap-2">
-            <UBadge
-              v-for="pet in row.original.pets"
-              :key="pet.id"
-              variant="subtle">
-              {{ pet.petName }}
-            </UBadge>
-          </div>
-        </template>
+      <template #pets-cell="{ row }: any">
+        <div class="flex flex-col">
+          <AppPetLink
+            v-for="pet in row.original.pets"
+            :id="pet.petId"
+            :key="pet.id">
+            {{ pet.petName }}
+          </AppPetLink>
+        </div>
+      </template>
 
-        <!-- Date -->
-        <template #date-cell="{ row }: any">
-          {{ row.original.pets[0]?.scheduledDate ?? '—' }}
-        </template>
+      <template #services-cell="{ row }: any">
+        <div class="flex flex-col text-sm">
+          <span
+            v-for="pet in row.original.pets"
+            :key="pet.id">
+            <template v-if="pet.services?.length">
+              {{ pet.services.map((s: any) => s.serviceName).join(', ') }}
+            </template>
+            <span
+              v-else
+              class="text-muted"
+              >—</span
+            >
+          </span>
+        </div>
+      </template>
 
-        <!-- Status -->
-        <template #status-cell="{ row }: any">
-          <UBadge
-            :color="apptStatusColor[row.original.status] ?? 'neutral'"
-            variant="subtle">
-            {{ row.original.status }}
-          </UBadge>
-        </template>
+      <template #groomer-cell="{ row }: any">
+        <div class="flex flex-col text-sm">
+          <span
+            v-for="pet in row.original.pets"
+            :key="pet.id"
+            :class="{ 'text-muted': !pet.assignedGroomerName }">
+            {{ pet.assignedGroomerName ?? 'Unassigned' }}
+          </span>
+        </div>
+      </template>
 
-        <!-- Actions -->
-        <template #actions-cell="{ row }: any">
-          <div class="flex gap-1">
+      <template #status-cell="{ row }: any">
+        <AppStatusBadge
+          kind="appointment"
+          :value="row.original.status" />
+      </template>
+
+      <template #actions-cell="{ row }: any">
+        <div class="flex gap-1">
+          <UTooltip
+            v-if="nextAction(row.original.status)"
+            :text="nextAction(row.original.status)!.label">
             <UButton
-              v-if="nextAction(row.original.status)"
-              :label="nextAction(row.original.status)!.label"
+              :icon="nextAction(row.original.status)!.icon"
               :color="nextAction(row.original.status)!.color"
+              :aria-label="nextAction(row.original.status)!.label"
               variant="subtle"
-              size="sm"
-              @click="updateStatus(row.original.id, nextAction(row.original.status)!.status)" />
+              size="xs"
+              square
+              @click.stop="
+                updateStatus(row.original.id, nextAction(row.original.status)!.status)
+              " />
+          </UTooltip>
+
+          <UTooltip
+            v-if="CANCELLABLE_STATUSES.includes(row.original.status)"
+            text="Cancel">
             <UButton
-              v-if="['pending', 'pending_documents', 'confirmed'].includes(row.original.status)"
-              label="Cancel"
+              icon="i-lucide-x"
               color="error"
+              aria-label="Cancel"
               variant="ghost"
-              size="sm"
-              @click="updateStatus(row.original.id, 'cancelled')" />
-          </div>
-        </template>
-      </AppTable>
-    </div>
-  </div>
+              size="xs"
+              square
+              @click.stop="updateStatus(row.original.id, 'cancelled')" />
+          </UTooltip>
+        </div>
+      </template>
+    </AppTable>
+  </AppPage>
 </template>

@@ -4,21 +4,9 @@
 
 import { between, count, eq, sql, sum } from 'drizzle-orm';
 import { appointmentPets, appointmentServices, services } from '~~/server/db/schema';
+import { brandChartSequence } from '../chart-colors';
 import { defineReport } from '../types';
 import { defaultEnd, defaultStart } from '../utils';
-
-const barColors = [
-  'rgba(59, 130, 246, 0.7)',
-  'rgba(34, 197, 94, 0.7)',
-  'rgba(234, 179, 8, 0.7)',
-  'rgba(168, 85, 247, 0.7)',
-  'rgba(239, 68, 68, 0.7)',
-  'rgba(236, 72, 153, 0.7)',
-  'rgba(20, 184, 166, 0.7)',
-  'rgba(249, 115, 22, 0.7)',
-  'rgba(107, 114, 128, 0.7)',
-  'rgba(99, 102, 241, 0.7)',
-];
 
 export default defineReport({
   id: 'top-services',
@@ -70,7 +58,7 @@ export default defineReport({
           {
             label: 'Bookings',
             data: rows.map((r) => Number(r.bookings)),
-            backgroundColor: rows.map((_, i) => barColors[i % barColors.length]!),
+            backgroundColor: rows.map((_, i) => brandChartSequence[i % brandChartSequence.length]!),
           },
         ],
       },

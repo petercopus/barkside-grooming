@@ -37,39 +37,36 @@ function onSubmit(filters: Record<string, unknown>) {
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      :title="meta?.name ?? 'Report'"
-      :description="meta?.description"
-      back-to="/admin/reports" />
+  <AppPage
+    :title="meta?.name ?? 'Report'"
+    :description="meta?.description"
+    back-to="/admin/reports"
+    width="wide">
+    <!-- filters -->
+    <AppCard v-if="meta?.filters?.length">
+      <ReportsReportFilters
+        :filters="meta.filters"
+        :loading="loading"
+        @submit="onSubmit" />
+    </AppCard>
 
-    <div class="space-y-6 py-4">
-      <!-- filters -->
-      <AppCard v-if="meta?.filters?.length">
-        <ReportsReportFilters
-          :filters="meta.filters"
-          :loading="loading"
-          @submit="onSubmit" />
-      </AppCard>
+    <!-- KPIs -->
+    <ReportsReportKpis
+      v-if="showKpis"
+      :kpis="result!.kpis!" />
 
-      <!-- KPIs -->
-      <ReportsReportKpis
-        v-if="showKpis"
-        :kpis="result!.kpis!" />
+    <!-- chart -->
+    <AppCard
+      v-if="showChart"
+      title="Chart">
+      <ReportsReportChart
+        :type="meta!.display.chart!.type"
+        :data="result!.chart!" />
+    </AppCard>
 
-      <!-- chart -->
-      <AppCard
-        v-if="showChart"
-        title="Chart">
-        <ReportsReportChart
-          :type="meta!.display.chart!.type"
-          :data="result!.chart!" />
-      </AppCard>
-
-      <!-- table -->
-      <div v-if="showTable">
-        <ReportsReportTable :data="result!.table!" />
-      </div>
+    <!-- table -->
+    <div v-if="showTable">
+      <ReportsReportTable :data="result!.table!" />
     </div>
-  </div>
+  </AppPage>
 </template>

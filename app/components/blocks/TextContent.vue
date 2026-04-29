@@ -18,14 +18,16 @@ const alignClass = computed(() =>
       :class="alignClass">
       <p
         v-if="tagline"
-        class="kicker text-coral-600! mb-2">
+        class="kicker mb-2">
         {{ tagline }}
       </p>
+
       <h2
         v-if="headline"
         class="font-display text-3xl sm:text-4xl text-barkside-900 mb-6">
         {{ headline }}
       </h2>
+
       <div v-html="content" />
     </div>
   </section>

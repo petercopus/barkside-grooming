@@ -204,17 +204,6 @@ body::before {
   border-radius: 9999px;
 }
 
-.has-dropcap > p:first-of-type::first-letter {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-style: italic;
-  float: left;
-  font-size: 4.5em;
-  line-height: 0.85;
-  padding: 0.12em 0.1em 0 0;
-  color: var(--color-coral-600);
-}
-
 .kicker {
   font-family: var(--font-sans);
   text-transform: uppercase;

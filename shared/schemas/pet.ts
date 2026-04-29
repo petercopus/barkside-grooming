@@ -12,5 +12,10 @@ export const createPetSchema = z.object({
 
 export const updatePetSchema = createPetSchema.partial();
 
+export const createAdminPetSchema = createPetSchema.extend({
+  ownerId: z.uuid('Owner is required'),
+});
+
 export type CreatePetInput = z.infer<typeof createPetSchema>;
 export type UpdatePetInput = z.infer<typeof updatePetSchema>;
+export type CreateAdminPetInput = z.infer<typeof createAdminPetSchema>;

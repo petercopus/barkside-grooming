@@ -30,10 +30,26 @@ const grandTotal = computed(() =>
   (appointment.pets ?? []).reduce((sum: number, pet: any) => sum + petSubtotal(pet), 0),
 );
 
+const headerDate = computed(() => {
+  const dates = (appointment.pets ?? [])
+    .map((p: any) => p.scheduledDate)
+    .filter(Boolean)
+    .sort();
+  return dates[0] ?? appointment.createdAt;
+});
+
 const toast = useToast();
 const confirm = useConfirmDialog();
 
-// Invoice
+const INVOICE_STATUSES: string[] = ['in_progress', 'completed'] satisfies AppointmentStatus[];
+
+const LINE_ITEM_TYPE_ITEMS = [
+  { label: 'Service', value: 'service' },
+  { label: 'Addon', value: 'addon' },
+  { label: 'Discount', value: 'bundle_discount' },
+  { label: 'Adjustment', value: 'adjustment' },
+];
+
 const { data: invoiceData, refresh: refreshInvoice } = await useFetch(
   `/api/admin/appointments/${id}/invoice`,
 );
@@ -187,320 +203,294 @@ async function recordCash() {
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      title="Appointment"
-      back-to="/admin/appointments">
-      <template #info>
-        <div class="flex items-center gap-3 text-sm">
-          <NuxtLink
-            :to="`/admin/customers/${appointment.customerId}`"
-            class="text-primary hover:underline">
-            {{ appointment.customerName }}
-          </NuxtLink>
-          <UBadge
-            :color="apptStatusColor[appointment.status] ?? 'neutral'"
-            variant="subtle">
-            {{ appointment.status }}
-          </UBadge>
-          <span class="text-muted">
-            {{ new Date(appointment.createdAt).toLocaleDateString() }}
-          </span>
-        </div>
+  <AppPage
+    title="Appointment"
+    back-to="/admin/appointments"
+    width="wide">
+    <template #info>
+      <div class="flex items-center gap-3 text-sm">
+        <AppCustomerLink :id="appointment.customerId">
+          {{ appointment.customerName }}
+        </AppCustomerLink>
+        <AppStatusBadge
+          kind="appointment"
+          :value="appointment.status" />
+        <span class="text-muted">
+          {{ formatDate(headerDate) }}
+        </span>
+      </div>
+    </template>
+    <AppCard
+      v-for="pet in appointment.pets"
+      :key="pet.id">
+      <template #title>
+        <AppPetLink
+          v-if="pet.petId"
+          :id="pet.petId">
+          {{ pet.petName }}
+        </AppPetLink>
+        <span v-else>{{ pet.petName }}</span>
       </template>
-    </AppPageHeader>
 
-    <div class="py-4 space-y-6">
-      <!-- per pet breakdown -->
+      <div class="space-y-4 text-sm">
+        <div class="flex flex-wrap gap-4 text-muted">
+          <span>{{ formatDate(pet.scheduledDate) }}</span>
+          <span>{{ formatTimeRange(pet.startTime, pet.endTime) }}</span>
+          <span>{{ pet.estimatedDurationMinutes }} min</span>
+        </div>
+
+        <div v-if="pet.services?.length">
+          <p class="font-medium mb-1">Services</p>
+          <div
+            v-for="svc in pet.services"
+            :key="svc.id"
+            class="flex justify-between py-1">
+            <span>{{ svc.serviceName }}</span>
+            <span>{{ formatCurrency(svc.priceAtBookingCents) }}</span>
+          </div>
+        </div>
+
+        <div v-if="pet.addons?.length">
+          <p class="font-medium mb-1">Addons</p>
+          <div
+            v-for="addon in pet.addons"
+            :key="addon.id"
+            class="flex justify-between py-1">
+            <span>{{ addon.serviceName }}</span>
+            <span>{{ formatCurrency(addon.priceAtBookingCents) }}</span>
+          </div>
+        </div>
+
+        <div v-if="pet.bundles?.length">
+          <p class="font-medium mb-1">Bundles</p>
+          <div
+            v-for="bundle in pet.bundles"
+            :key="bundle.id"
+            class="flex justify-between py-1 text-success">
+            <span>{{ bundle.bundleName }}</span>
+            <span>{{ formatCurrency(-bundle.discountAppliedCents) }}</span>
+          </div>
+        </div>
+
+        <div class="flex justify-between pt-2 border-t font-medium">
+          <span>Subtotal</span>
+          <span>{{ formatCurrency(petSubtotal(pet)) }}</span>
+        </div>
+      </div>
+    </AppCard>
+
+    <AppCard v-if="!invoice">
+      <div class="flex justify-between text-lg font-semibold">
+        <span>Total</span>
+        <span>{{ formatCurrency(grandTotal) }}</span>
+      </div>
+    </AppCard>
+
+    <template v-if="INVOICE_STATUSES.includes(appointment.status)">
       <AppCard
-        v-for="pet in appointment.pets"
-        :key="pet.id">
-        <template #title>
-          <NuxtLink
-            :to="`/admin/pets/${pet.petId}`"
-            class="text-primary hover:underline">
-            {{ pet.petName }}
-          </NuxtLink>
+        v-if="!invoice"
+        title="Invoice">
+        <UButton
+          label="Generate Invoice"
+          icon="i-lucide-file-text"
+          :loading="generating"
+          @click="genInvoice" />
+      </AppCard>
+
+      <AppCard
+        v-else
+        title="Invoice">
+        <template #actions>
+          <AppStatusBadge
+            kind="invoice"
+            :value="invoice.status" />
         </template>
 
-        <div class="space-y-4 text-sm">
-          <!-- schedule -->
-          <div class="flex flex-wrap gap-4 text-muted">
-            <span>{{ pet.scheduledDate }}</span>
-            <span>{{ pet.startTime }} — {{ pet.endTime }}</span>
-            <span>{{ pet.estimatedDurationMinutes }} min</span>
-          </div>
-
-          <!-- services -->
-          <div v-if="pet.services?.length">
-            <p class="font-medium mb-1">Services</p>
-            <div
-              v-for="svc in pet.services"
-              :key="svc.id"
-              class="flex justify-between py-1">
-              <span>{{ svc.serviceName }}</span>
-              <span>${{ formatCents(svc.priceAtBookingCents) }}</span>
-            </div>
-          </div>
-
-          <!-- addons -->
-          <div v-if="pet.addons?.length">
-            <p class="font-medium mb-1">Addons</p>
-            <div
-              v-for="addon in pet.addons"
-              :key="addon.id"
-              class="flex justify-between py-1">
-              <span>{{ addon.serviceName }}</span>
-              <span>${{ formatCents(addon.priceAtBookingCents) }}</span>
-            </div>
-          </div>
-
-          <!-- bundles -->
-          <div v-if="pet.bundles?.length">
-            <p class="font-medium mb-1">Bundles</p>
-            <div
-              v-for="bundle in pet.bundles"
-              :key="bundle.id"
-              class="flex justify-between py-1 text-success">
-              <span>{{ bundle.bundleName }}</span>
-              <span>-${{ formatCents(bundle.discountAppliedCents) }}</span>
-            </div>
-          </div>
-
-          <!-- subtotal -->
-          <div class="flex justify-between pt-2 border-t font-medium">
-            <span>Subtotal</span>
-            <span>${{ formatCents(petSubtotal(pet)) }}</span>
-          </div>
-        </div>
-      </AppCard>
-
-      <!-- Grand total -->
-      <AppCard>
-        <div class="flex justify-between text-lg font-semibold">
-          <span>Total</span>
-          <span>${{ formatCents(grandTotal) }}</span>
-        </div>
-      </AppCard>
-
-      <!-- Invoice -->
-      <template v-if="['in_progress', 'completed'].includes(appointment.status)">
-        <AppCard
-          v-if="!invoice"
-          title="Invoice">
-          <UButton
-            label="Generate Invoice"
-            icon="i-lucide-file-text"
-            :loading="generating"
-            @click="genInvoice" />
-        </AppCard>
-
-        <AppCard
-          v-else
-          title="Invoice">
-          <template #actions>
-            <UBadge
-              :color="invoice.status === 'draft' ? 'warning' : 'success'"
-              variant="subtle">
-              {{ invoice.status }}
-            </UBadge>
-          </template>
-
-          <!-- Editable line items (draft) -->
+        <div
+          v-if="invoice.status === 'draft'"
+          class="space-y-3">
           <div
-            v-if="invoice.status === 'draft'"
-            class="space-y-3">
-            <div
-              v-for="(item, index) in editableLineItems"
-              :key="index"
-              class="flex items-center gap-3">
-              <UInput
-                v-model="item.description"
-                placeholder="Description"
-                class="flex-1" />
-              <UInputNumber
-                v-model="item.amountCents"
-                :step="100"
-                class="w-32" />
-              <USelect
-                v-model="item.type"
-                :items="[
-                  { label: 'Service', value: 'service' },
-                  { label: 'Addon', value: 'addon' },
-                  { label: 'Discount', value: 'bundle_discount' },
-                  { label: 'Adjustment', value: 'adjustment' },
-                ]"
-                class="w-36" />
-              <UButton
-                icon="i-lucide-trash-2"
-                variant="ghost"
-                color="error"
-                size="xs"
-                @click="removeLineItem(index)" />
-            </div>
-
-            <div class="flex gap-2 pt-2">
-              <UButton
-                label="Add Adjustment"
-                icon="i-lucide-plus"
-                variant="outline"
-                size="sm"
-                @click="addAdjustment" />
-              <UButton
-                label="Save Changes"
-                icon="i-lucide-save"
-                size="sm"
-                :loading="saving"
-                @click="saveLineItems" />
-            </div>
-          </div>
-
-          <!-- Read-only line items (finalized) -->
-          <div
-            v-else
-            class="space-y-2">
-            <div
-              v-for="item in invoice.lineItems"
-              :key="item.id"
-              class="flex justify-between text-sm">
-              <span>{{ item.description }}</span>
-              <span :class="item.amountCents < 0 ? 'text-success' : ''">
-                {{ item.amountCents < 0 ? '-' : '' }}${{ formatCents(Math.abs(item.amountCents)) }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Totals -->
-          <hr class="border-default my-4" />
-          <div class="space-y-1 text-sm">
-            <div class="flex justify-between">
-              <span>Subtotal</span>
-              <span>${{ formatCents(invoice.subtotalCents) }}</span>
-            </div>
-            <div
-              v-if="invoice.discountCents > 0"
-              class="flex justify-between text-success">
-              <span>Discounts</span>
-              <span>-${{ formatCents(invoice.discountCents) }}</span>
-            </div>
-            <div class="flex justify-between font-semibold text-base pt-1">
-              <span>Total</span>
-              <span>${{ formatCents(invoice.totalCents) }}</span>
-            </div>
-          </div>
-
-          <!-- Finalize -->
-          <div
-            v-if="invoice.status === 'draft'"
-            class="pt-4">
+            v-for="(item, index) in editableLineItems"
+            :key="index"
+            class="flex items-center gap-3">
+            <UInput
+              v-model="item.description"
+              placeholder="Description"
+              class="flex-1" />
+            <UInputNumber
+              v-model="item.amountCents"
+              :step="100"
+              class="w-32" />
+            <USelect
+              v-model="item.type"
+              :items="LINE_ITEM_TYPE_ITEMS"
+              class="w-36" />
             <UButton
-              label="Finalize Invoice"
-              icon="i-lucide-lock"
-              color="primary"
-              @click="finalize" />
-          </div>
-        </AppCard>
-
-        <!-- Checkout -->
-        <AppCard
-          v-if="invoice?.status === 'finalized' && !paymentResult"
-          title="Checkout">
-          <!-- Tip selector -->
-          <div class="mb-4">
-            <p class="text-sm font-medium mb-2">Tip</p>
-            <div class="flex flex-wrap gap-2">
-              <UButton
-                v-for="pct in TIP_PRESETS"
-                :key="pct"
-                :label="`${pct}%`"
-                :variant="selectedTipPreset === pct ? 'solid' : 'outline'"
-                size="sm"
-                @click="selectPreset(pct)" />
-              <UButton
-                label="Custom"
-                :variant="showCustomTip ? 'solid' : 'outline'"
-                size="sm"
-                @click="selectCustom" />
-            </div>
-
-            <div
-              v-if="showCustomTip"
-              class="mt-3 flex items-center gap-2">
-              <span class="text-sm">$</span>
-              <UInputNumber
-                v-model="customTipDollars"
-                :min="0"
-                :step="1"
-                placeholder="0.00"
-                class="w-32" />
-            </div>
-
-            <p
-              v-if="tipCents > 0"
-              class="text-sm text-muted mt-2">
-              Tip: ${{ formatCents(tipCents) }}
-            </p>
+              icon="i-lucide-trash-2"
+              variant="ghost"
+              color="error"
+              size="xs"
+              @click="removeLineItem(index)" />
           </div>
 
-          <!-- Charge total -->
-          <hr class="border-default my-4" />
-          <div class="flex justify-between font-semibold text-lg mb-4">
-            <span>Charge Total</span>
-            <span>${{ formatCents(chargeTotal) }}</span>
-          </div>
-
-          <!-- Charge or manual payment -->
-          <div v-if="hasCardOnFile">
+          <div class="flex gap-2 pt-2">
             <UButton
-              label="Charge Card"
-              icon="i-lucide-credit-card"
-              color="primary"
-              size="lg"
-              :loading="charging"
-              @click="chargeCard" />
-          </div>
-
-          <div v-else>
-            <p class="text-sm text-muted mb-3">No payment method on file.</p>
-            <UButton
-              label="Record Payment (Cash/Other)"
-              icon="i-lucide-banknote"
+              label="Add Adjustment"
+              icon="i-lucide-plus"
               variant="outline"
-              size="lg"
-              :loading="charging"
-              @click="recordCash" />
+              size="sm"
+              @click="addAdjustment" />
+            <UButton
+              label="Save Changes"
+              icon="i-lucide-save"
+              size="sm"
+              :loading="saving"
+              @click="saveLineItems" />
           </div>
-        </AppCard>
+        </div>
 
-        <!-- Payment success -->
-        <AppCard
-          v-if="invoice?.status === 'paid' || paymentResult"
-          title="Payment">
-          <div class="flex items-center gap-2 text-success mb-2">
-            <UIcon name="i-lucide-check-circle" />
-            <span class="font-semibold">Paid</span>
+        <div
+          v-else
+          class="space-y-2">
+          <div
+            v-for="item in invoice.lineItems"
+            :key="item.id"
+            class="flex justify-between text-sm">
+            <span>{{ item.description }}</span>
+            <span :class="item.amountCents < 0 ? 'text-success' : ''">
+              {{ formatCurrency(item.amountCents) }}
+            </span>
           </div>
-          <div class="space-y-1 text-sm">
-            <div class="flex justify-between">
-              <span>Amount</span>
-              <span>${{ formatCents(invoice?.totalCents ?? 0) }}</span>
-            </div>
-            <div
-              v-if="(invoice?.tipCents ?? 0) > 0"
-              class="flex justify-between">
-              <span>Includes tip</span>
-              <span>${{ formatCents(invoice?.tipCents ?? 0) }}</span>
-            </div>
-          </div>
-        </AppCard>
-      </template>
+        </div>
 
-      <!-- Notes -->
-      <AppCard
-        v-if="appointment.notes"
-        title="Notes">
-        <p class="text-sm text-muted">{{ appointment.notes }}</p>
+        <hr class="border-default my-4" />
+        <div class="space-y-1 text-sm">
+          <div class="flex justify-between">
+            <span>Subtotal</span>
+            <span>{{ formatCurrency(invoice.subtotalCents) }}</span>
+          </div>
+          <div
+            v-if="invoice.discountCents > 0"
+            class="flex justify-between text-success">
+            <span>Discounts</span>
+            <span>{{ formatCurrency(-invoice.discountCents) }}</span>
+          </div>
+          <div
+            v-if="(invoice.tipCents ?? 0) > 0"
+            class="flex justify-between">
+            <span>Tip</span>
+            <span>{{ formatCurrency(invoice.tipCents) }}</span>
+          </div>
+          <div class="flex justify-between font-semibold text-base pt-1">
+            <span>Total</span>
+            <span>{{ formatCurrency(invoice.totalCents) }}</span>
+          </div>
+        </div>
+
+        <div
+          v-if="invoice.status === 'draft'"
+          class="pt-4">
+          <UButton
+            label="Finalize Invoice"
+            icon="i-lucide-lock"
+            color="primary"
+            @click="finalize" />
+        </div>
       </AppCard>
-    </div>
-  </div>
+
+      <AppCard
+        v-if="invoice?.status === 'finalized' && !paymentResult"
+        title="Checkout">
+        <div class="mb-4">
+          <p class="text-sm font-medium mb-2">Tip</p>
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              v-for="pct in TIP_PRESETS"
+              :key="pct"
+              :label="`${pct}%`"
+              :variant="selectedTipPreset === pct ? 'solid' : 'outline'"
+              size="sm"
+              @click="selectPreset(pct)" />
+            <UButton
+              label="Custom"
+              :variant="showCustomTip ? 'solid' : 'outline'"
+              size="sm"
+              @click="selectCustom" />
+          </div>
+
+          <div
+            v-if="showCustomTip"
+            class="mt-3 flex items-center gap-2">
+            <span class="text-sm">$</span>
+            <UInputNumber
+              v-model="customTipDollars"
+              :min="0"
+              :step="1"
+              placeholder="0.00"
+              class="w-32" />
+          </div>
+
+          <p
+            v-if="tipCents > 0"
+            class="text-sm text-muted mt-2">
+            Tip: {{ formatCurrency(tipCents) }}
+          </p>
+        </div>
+
+        <hr class="border-default my-4" />
+        <div class="flex justify-between font-semibold text-lg mb-4">
+          <span>Charge Total</span>
+          <span>{{ formatCurrency(chargeTotal) }}</span>
+        </div>
+
+        <div v-if="hasCardOnFile">
+          <UButton
+            label="Charge Card"
+            icon="i-lucide-credit-card"
+            color="primary"
+            size="lg"
+            :loading="charging"
+            @click="chargeCard" />
+        </div>
+
+        <div v-else>
+          <p class="text-sm text-muted mb-3">No payment method on file.</p>
+          <UButton
+            label="Record Payment (Cash/Other)"
+            icon="i-lucide-banknote"
+            variant="outline"
+            size="lg"
+            :loading="charging"
+            @click="recordCash" />
+        </div>
+      </AppCard>
+
+      <AppCard
+        v-if="invoice?.status === 'paid' || paymentResult"
+        title="Payment">
+        <div class="flex items-center gap-2 text-success mb-2">
+          <UIcon name="i-lucide-check-circle" />
+          <span class="font-semibold">Paid</span>
+        </div>
+        <div class="space-y-1 text-sm">
+          <div class="flex justify-between">
+            <span>Amount</span>
+            <span>{{ formatCurrency(invoice?.totalCents ?? 0) }}</span>
+          </div>
+          <div
+            v-if="(invoice?.tipCents ?? 0) > 0"
+            class="flex justify-between">
+            <span>Includes tip</span>
+            <span>{{ formatCurrency(invoice?.tipCents ?? 0) }}</span>
+          </div>
+        </div>
+      </AppCard>
+    </template>
+
+    <AppCard
+      v-if="appointment.notes"
+      title="Notes">
+      <p class="text-sm text-muted">{{ appointment.notes }}</p>
+    </AppCard>
+  </AppPage>
 </template>

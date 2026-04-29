@@ -50,23 +50,20 @@ async function onDelete() {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <AppPageHeader
-      :title="category.name"
-      back-to="/admin/settings/size-categories">
-      <template #actions>
-        <UButton
-          color="error"
-          variant="soft"
-          icon="i-lucide-trash-2"
-          label="Delete"
-          @click="onDelete" />
-      </template>
-    </AppPageHeader>
-
-    <SizeCategoriesEditLayout
-      mode="edit"
-      :initial-values="initialValues"
-      :category-id="categoryId" />
-  </div>
+  <SizeCategoriesEditLayout
+    mode="edit"
+    :title="category.name"
+    back-to="/admin/settings/size-categories"
+    :initial-values="initialValues"
+    :category-id="categoryId">
+    <template #extra-actions>
+      <UButton
+        color="error"
+        variant="soft"
+        icon="i-lucide-trash-2"
+        label="Delete"
+        size="sm"
+        @click="onDelete" />
+    </template>
+  </SizeCategoriesEditLayout>
 </template>

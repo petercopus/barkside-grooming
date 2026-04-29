@@ -4,10 +4,10 @@ export const site = {
   description: 'Small-batch grooming for dogs who deserve better than a production line.',
   email: 'hello@barkside.dev',
   phone: '(555) 123-BARK',
-  street_address: '42 Wharf Street',
+  street_address: '10 Woof Avenue',
   address_locality: 'Pawville',
   address_region: 'CA',
-  postal_code: '90210',
+  postal_code: '64570',
   address_country: 'US',
   social_links: [
     { service: 'instagram', url: 'https://instagram.com/barkside' },

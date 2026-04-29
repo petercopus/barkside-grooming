@@ -29,14 +29,10 @@ const initialValues = {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <AppPageHeader
-      :title="bundle.name"
-      back-to="/admin/settings/bundles" />
-
-    <BundlesEditLayout
-      mode="edit"
-      :initial-values="initialValues"
-      :bundle-id="bundleId" />
-  </div>
+  <BundlesEditLayout
+    mode="edit"
+    :title="bundle.name"
+    back-to="/admin/settings/bundles"
+    :initial-values="initialValues"
+    :bundle-id="bundleId" />
 </template>

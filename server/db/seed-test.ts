@@ -43,12 +43,12 @@ function daysAgo(n: number): Date {
 
 /** ISO date string (YYYY-MM-DD) for `daysAgo` days before today. */
 function dateAgo(n: number): string {
-  return daysAgo(n).toISOString().split('T')[0];
+  return daysAgo(n).toISOString().split('T')[0]!;
 }
 
 /** Add minutes to a HH:MM time string, returning HH:MM. */
 function addMinutes(time: string, mins: number): string {
-  const [h, m] = time.split(':').map(Number);
+  const [h = 0, m = 0] = time.split(':').map(Number);
   const total = h * 60 + m + mins;
   const hh = String(Math.floor(total / 60)).padStart(2, '0');
   const mm = String(total % 60).padStart(2, '0');
@@ -112,7 +112,7 @@ async function seedTestData() {
       .where(eq(users.email, emp.email))
       .limit(1);
     if (existing.length > 0) {
-      employeeIds[emp.email] = existing[0].id;
+      employeeIds[emp.email] = existing[0]!.id;
       continue;
     }
     const [user] = await db
@@ -125,15 +125,15 @@ async function seedTestData() {
         phone: emp.phone,
       })
       .returning();
-    employeeIds[emp.email] = user.id;
+    employeeIds[emp.email] = user!.id;
     await db
       .insert(userRoles)
-      .values({ userId: user.id, roleId: roleMap[emp.role] })
+      .values({ userId: user!.id, roleId: roleMap[emp.role]! })
       .onConflictDoNothing();
     // Also give them Employee role (parent)
     await db
       .insert(userRoles)
-      .values({ userId: user.id, roleId: roleMap['Employee'] })
+      .values({ userId: user!.id, roleId: roleMap['Employee']! })
       .onConflictDoNothing();
   }
 
@@ -150,7 +150,7 @@ async function seedTestData() {
   ];
 
   for (const sched of scheduleData) {
-    const userId = employeeIds[sched.email];
+    const userId = employeeIds[sched.email]!;
     for (const day of sched.days) {
       await db
         .insert(employeeSchedules)
@@ -184,7 +184,7 @@ async function seedTestData() {
       if (svcMap[name]) {
         await db
           .insert(employeeServices)
-          .values({ userId: employeeIds[email], serviceId: svcMap[name] })
+          .values({ userId: employeeIds[email]!, serviceId: svcMap[name]! })
           .onConflictDoNothing();
       }
     }
@@ -193,7 +193,7 @@ async function seedTestData() {
     if (svcMap[name]) {
       await db
         .insert(employeeServices)
-        .values({ userId: employeeIds['amanda@barkside.com'], serviceId: svcMap[name] })
+        .values({ userId: employeeIds['amanda@barkside.com']!, serviceId: svcMap[name]! })
         .onConflictDoNothing();
     }
   }
@@ -219,7 +219,7 @@ async function seedTestData() {
       .where(eq(users.email, cust.email))
       .limit(1);
     if (existing.length > 0) {
-      customerIds[cust.email] = existing[0].id;
+      customerIds[cust.email] = existing[0]!.id;
       continue;
     }
     const [user] = await db
@@ -232,10 +232,10 @@ async function seedTestData() {
         phone: cust.phone,
       })
       .returning();
-    customerIds[cust.email] = user.id;
+    customerIds[cust.email] = user!.id;
     await db
       .insert(userRoles)
-      .values({ userId: user.id, roleId: roleMap['Customer'] })
+      .values({ userId: user!.id, roleId: roleMap['Customer']! })
       .onConflictDoNothing();
   }
 
@@ -356,7 +356,7 @@ async function seedTestData() {
         coatType: p.coatType,
       })
       .returning();
-    petIds[p.name] = pet.id;
+    petIds[p.name] = pet!.id;
   }
 
   console.log('✓ Pets seeded (10 pets)');
@@ -885,7 +885,7 @@ async function seedTestData() {
     const [apptPet] = await db
       .insert(appointmentPets)
       .values({
-        appointmentId: appt.id,
+        appointmentId: appt!.id,
         petId,
         assignedGroomerId: groomerId,
         scheduledDate,
@@ -898,8 +898,8 @@ async function seedTestData() {
 
     // Create appointment service (base service)
     await db.insert(appointmentServices).values({
-      appointmentPetId: apptPet.id,
-      serviceId: svcMap[spec.serviceName],
+      appointmentPetId: apptPet!.id,
+      serviceId: svcMap[spec.serviceName]!,
       priceAtBookingCents: pricing.priceCents,
       durationAtBookingMinutes: pricing.durationMinutes,
     });
@@ -910,8 +910,8 @@ async function seedTestData() {
       const addonPricing = getPrice(spec.addonName, spec.petSize);
       addonPriceCents = addonPricing.priceCents;
       await db.insert(appointmentAddons).values({
-        appointmentPetId: apptPet.id,
-        serviceId: svcMap[spec.addonName],
+        appointmentPetId: apptPet!.id,
+        serviceId: svcMap[spec.addonName]!,
         priceAtBookingCents: addonPriceCents,
       });
     }
@@ -928,7 +928,7 @@ async function seedTestData() {
       const [invoice] = await db
         .insert(invoices)
         .values({
-          appointmentId: appt.id,
+          appointmentId: appt!.id,
           subtotalCents,
           discountCents: 0,
           taxCents,
@@ -942,7 +942,7 @@ async function seedTestData() {
 
       // Line items
       await db.insert(invoiceLineItems).values({
-        invoiceId: invoice.id,
+        invoiceId: invoice!.id,
         description: spec.serviceName,
         amountCents: pricing.priceCents,
         type: 'service',
@@ -950,7 +950,7 @@ async function seedTestData() {
 
       if (spec.addonName) {
         await db.insert(invoiceLineItems).values({
-          invoiceId: invoice.id,
+          invoiceId: invoice!.id,
           description: spec.addonName,
           amountCents: addonPriceCents,
           type: 'addon',
@@ -959,7 +959,7 @@ async function seedTestData() {
 
       if (taxCents > 0) {
         await db.insert(invoiceLineItems).values({
-          invoiceId: invoice.id,
+          invoiceId: invoice!.id,
           description: 'Tax',
           amountCents: taxCents,
           type: 'tax',
@@ -968,7 +968,7 @@ async function seedTestData() {
 
       if (tipCents > 0) {
         await db.insert(invoiceLineItems).values({
-          invoiceId: invoice.id,
+          invoiceId: invoice!.id,
           description: 'Tip',
           amountCents: tipCents,
           type: 'tip',
@@ -977,11 +977,11 @@ async function seedTestData() {
 
       // Payment
       await db.insert(payments).values({
-        appointmentId: appt.id,
+        appointmentId: appt!.id,
         amountCents: totalCents,
         status: 'captured',
         provider: 'stripe',
-        transactionId: `pi_test_${appt.id.slice(0, 8)}`,
+        transactionId: `pi_test_${appt!.id.slice(0, 8)}`,
         tipCents,
         createdAt: daysAgo(spec.daysAgo),
       });

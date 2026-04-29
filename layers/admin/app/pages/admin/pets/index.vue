@@ -5,7 +5,14 @@ definePageMeta({
   permission: 'pet:read:all',
 });
 
-const { data, status } = await useFetch('/api/admin/pets');
+const searchQuery = ref('');
+const debouncedSearch = useDebouncedRef(searchQuery, 300);
+
+const { data, status } = await useFetch('/api/admin/pets', {
+  params: computed(() => ({
+    search: debouncedSearch.value || undefined,
+  })),
+});
 
 const loading = computed(() => status.value === 'pending');
 const rows = computed(() => (data.value?.pets ?? []) as Record<string, unknown>[]);
@@ -16,40 +23,66 @@ function onRowSelect(_e: Event, row: any) {
 
 const columns = [
   { accessorKey: 'name', header: 'Name' },
-  { accessorKey: 'breed', header: 'Breed' },
-  { accessorKey: 'weightLbs', header: 'Weight (lbs)' },
   { accessorKey: 'owner', header: 'Owner' },
-  { accessorKey: 'gender', header: 'Gender' },
-  { accessorKey: 'coatType', header: 'Coat Type' },
+  { accessorKey: 'lastAppointment', header: 'Last Appointment' },
 ];
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      title="Pets"
-      description="All registered pets" />
+  <AppPage
+    title="Pets"
+    description="All registered pets"
+    width="wide">
+    <AppTable
+      card="default"
+      title="All Pets"
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :on-select="onRowSelect"
+      empty-icon="i-lucide-paw-print"
+      empty-title="No pets found"
+      empty-action-label="Add Pet"
+      empty-action-icon="i-lucide-plus"
+      @empty-action="navigateTo('/admin/pets/new')">
+      <template #actions>
+        <UInput
+          v-model="searchQuery"
+          icon="i-lucide-search"
+          placeholder="Search pets..."
+          size="sm"
+          class="w-64" />
+        <UButton
+          to="/admin/pets/new"
+          icon="i-lucide-plus"
+          label="Add Pet"
+          size="sm" />
+      </template>
 
-    <div class="py-4">
-      <AppTable
-        card="default"
-        title="All Pets"
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :on-select="onRowSelect"
-        empty-icon="i-lucide-paw-print"
-        empty-title="No pets found">
-        <!-- owner -->
-        <template #owner-cell="{ row }: any">
-          <NuxtLink
-            :to="`/admin/customers/${row.original.ownerId}`"
-            class="text-primary hover:underline"
-            @click.stop>
-            {{ row.original.ownerFirstName }} {{ row.original.ownerLastName }}
-          </NuxtLink>
-        </template>
-      </AppTable>
-    </div>
-  </div>
+      <template #name-cell="{ row }: any">
+        <div class="flex items-center gap-2">
+          <UAvatar
+            :alt="row.original.name"
+            size="lg" />
+
+          <div class="flex flex-col">
+            <AppPetLink :id="row.original.id">
+              {{ row.original.name }}
+            </AppPetLink>
+            {{ row.original.breed }}
+          </div>
+        </div>
+      </template>
+
+      <template #owner-cell="{ row }: any">
+        <AppCustomerLink :id="row.original.ownerId">
+          {{ formatFullName(row.original.ownerFirstName, row.original.ownerLastName) }}
+        </AppCustomerLink>
+      </template>
+
+      <template #lastAppointment-cell="{ row }: any">
+        {{ row.original.lastAppointment ? formatDate(row.original.lastAppointment) : 'Never' }}
+      </template>
+    </AppTable>
+  </AppPage>
 </template>

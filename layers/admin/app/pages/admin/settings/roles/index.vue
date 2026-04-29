@@ -22,41 +22,38 @@ const columns = [
 </script>
 
 <template>
-  <div>
-    <AppPageHeader
-      title="Roles"
-      description="Manage roles, permissions, and default service qualifications" />
+  <AppPage
+    title="Roles"
+    description="Manage roles, permissions, and default service qualifications"
+    width="wide">
+    <AppTable
+      card="default"
+      title="All Roles"
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :on-select="onRowSelect"
+      empty-icon="i-lucide-shield"
+      empty-title="No roles found"
+      empty-description="Add your first role to get started."
+      empty-action-label="Add Role"
+      empty-action-icon="i-lucide-plus"
+      @empty-action="navigateTo('/admin/settings/roles/new')">
+      <template #actions>
+        <UButton
+          to="/admin/settings/roles/new"
+          icon="i-lucide-plus"
+          label="Add Role"
+          size="sm" />
+      </template>
 
-    <div class="py-4">
-      <AppTable
-        card="default"
-        title="All Roles"
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :on-select="onRowSelect"
-        empty-icon="i-lucide-shield"
-        empty-title="No roles found"
-        empty-description="Add your first role to get started."
-        empty-action-label="Add Role"
-        empty-action-icon="i-lucide-plus"
-        @empty-action="navigateTo('/admin/settings/roles/new')">
-        <template #actions>
-          <UButton
-            to="/admin/settings/roles/new"
-            icon="i-lucide-plus"
-            label="Add Role"
-            size="sm" />
-        </template>
-
-        <template #isSystem-cell="{ row }">
-          <UIcon
-            v-if="row.original.isSystem"
-            name="i-lucide-check"
-            class="text-muted" />
-          <span v-else />
-        </template>
-      </AppTable>
-    </div>
-  </div>
+      <template #isSystem-cell="{ row }">
+        <UIcon
+          v-if="row.original.isSystem"
+          name="i-lucide-check"
+          class="text-muted" />
+        <span v-else />
+      </template>
+    </AppTable>
+  </AppPage>
 </template>

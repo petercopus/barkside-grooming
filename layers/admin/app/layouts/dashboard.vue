@@ -4,7 +4,7 @@ const { user, logout } = useAuth();
 const { hasPerm } = usePermissions();
 
 /* ─────────────────────────────────── *
- *  Main Nav
+ * Main Nav
  * ─────────────────────────────────── */
 const navItems = computed(() => {
   const items = [];
@@ -46,9 +46,14 @@ const navItems = computed(() => {
       to: '/admin/settings/services',
       active: route.path.startsWith('/admin/settings/services'),
     });
+    settingsChildren.push({
+      label: 'Bundles',
+      to: '/admin/settings/bundles',
+      active: route.path.startsWith('/admin/settings/bundles'),
+    });
   }
 
-  if (hasPerm('size-category:read')) {
+  if (hasPerm('size-category:manage')) {
     settingsChildren.push({
       label: 'Size Categories',
       to: '/admin/settings/size-categories',
@@ -64,7 +69,7 @@ const navItems = computed(() => {
     });
   }
 
-  if (hasPerm('role:read')) {
+  if (hasPerm('role:manage')) {
     settingsChildren.push({
       label: 'Roles',
       to: '/admin/settings/roles',
@@ -85,7 +90,7 @@ const navItems = computed(() => {
 });
 
 /* ─────────────────────────────────── *
- *  User Menu
+ * User Menu
  * ─────────────────────────────────── */
 const userInfo = computed(() => ({
   name: `${user.value?.firstName ?? ''} ${user.value?.lastName ?? ''}`.trim(),
@@ -115,9 +120,9 @@ const userItems = computed(() => [
 </script>
 
 <template>
-  <div class="flex min-h-screen">
+  <UDashboardGroup class="flex min-h-screen">
     <!-- Sidebar -->
-    <UDashboardSidebar>
+    <UDashboardSidebar :ui="{ root: 'lg:min-w-64' }">
       <template #header>
         <div class="flex items-center justify-between w-full">
           <AppLogo />
@@ -157,11 +162,14 @@ const userItems = computed(() => [
     </UDashboardSidebar>
 
     <!-- Main content -->
-    <main class="w-full max-w-6xl mx-auto flex-1 p-6">
-      <slot />
+    <main class="flex-1 overflow-y-auto">
+      <div class="w-full p-6">
+        <UDashboardSidebarToggle class="lg:hidden mb-4" />
+        <slot />
+      </div>
     </main>
 
     <!-- Notification drawer -->
     <AppNotificationDrawer />
-  </div>
+  </UDashboardGroup>
 </template>

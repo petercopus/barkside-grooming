@@ -12,7 +12,7 @@ const props = defineProps<{
   notes: string;
 }>();
 
-defineExpose({ canAdvance, buildPayload });
+defineExpose({ canAdvance, buildPayload, nextStepHint });
 
 const toast = useToast();
 
@@ -59,6 +59,7 @@ async function startNewCard() {
     const res = await $fetch<{ clientSecret: string }>('/api/payment-methods/setup-intent', {
       method: 'POST',
     });
+
     newCardClientSecret.value = res.clientSecret;
   } catch {
     showNewCardForm.value = false;
@@ -208,9 +209,42 @@ function autoDetectBundlePet(petId: string) {
     }
   }
 
+  const previousId = petBundles.value[petId]?.bundleId ?? null;
   petBundles.value[petId] = bestBundle
     ? { bundleId: bestBundle.id, discountCents: bestDiscount }
     : null;
+
+  if (bestBundle && bestBundle.id !== previousId) {
+    toast.add({
+      title: `${bestBundle.name} applied for ${getPetName(petId)}`,
+      description: `You saved $${formatCents(bestDiscount)}.`,
+      icon: 'i-lucide-sparkles',
+      color: 'success',
+    });
+  }
+}
+
+function bundleDiscountForPet(petId: string, bundle: any) {
+  return computeBundleDiscount(availableServicesForPet(petId), bundle);
+}
+
+function bestValueBundleForPet(petId: string): number | null {
+  const bundles = availableBundlesForPet(petId);
+  if (bundles.length < 2) return null;
+
+  const allServices = availableServicesForPet(petId);
+  let bestId: number | null = null;
+  let bestDiscount = 0;
+
+  for (const bundle of bundles) {
+    const d = computeBundleDiscount(allServices, bundle);
+    if (d > bestDiscount) {
+      bestDiscount = d;
+      bestId = bundle.id;
+    }
+  }
+
+  return bestId;
 }
 
 /* ─────────────────────────────────── *
@@ -226,16 +260,20 @@ function computeTotal(
     const svc = allServices.find((s: any) => s.id === id);
     return { name: svc?.name ?? '', priceCents: svc?.pricing.priceCents ?? 0 };
   });
+
   const addonItems = addonIds.map((id) => {
     const svc = allServices.find((s: any) => s.id === id);
     return { name: svc?.name ?? '', priceCents: svc?.pricing.priceCents ?? 0 };
   });
+
   const subtotal = [...baseItems, ...addonItems].reduce((sum, item) => sum + item.priceCents, 0);
+
   return { baseItems, addonItems, discountCents, subtotal, total: subtotal - discountCents };
 }
 
 const petTotals = computed(() => {
   const m = new Map<string, ReturnType<typeof computeTotal>>();
+
   for (const id of selectedPetIds.value) {
     m.set(
       id,
@@ -247,6 +285,7 @@ const petTotals = computed(() => {
       ),
     );
   }
+
   return m;
 });
 
@@ -260,6 +299,26 @@ function onPetDateChange(petId: string) {
   schedule(`pet:${petId}`, () => fetchAvailabilityPet(petId));
 }
 
+function durationForPet(petId: string) {
+  const baseIds = petBaseServices.value[petId] ?? [];
+  const addonIds = petAddons.value[petId] ?? [];
+  const allServices = availableServicesForPet(petId);
+
+  return [...baseIds, ...addonIds].reduce((sum, svcId) => {
+    const svc = allServices.find((s: any) => s.id === svcId);
+    return sum + (svc?.pricing.durationMinutes ?? 0);
+  }, 0);
+}
+
+function selectedGroomerNameForPet(petId: string) {
+  const slot = petSlots.value[petId];
+  if (!slot) return '';
+
+  const g = (petAvailability.value[petId] ?? []).find((g: any) => g.groomerId === slot.groomerId);
+
+  return g?.groomerName ?? 'Groomer';
+}
+
 async function fetchAvailabilityPet(petId: string) {
   const date = petDates.value[petId];
   if (!isCompleteCalendarDate(date)) return;
@@ -268,12 +327,7 @@ async function fetchAvailabilityPet(petId: string) {
   const addonIds = petAddons.value[petId] ?? [];
   if (!baseIds.length) return;
 
-  const allServices = availableServicesForPet(petId);
-  const totalDuration = [...baseIds, ...addonIds].reduce((sum, svcId) => {
-    const svc = allServices.find((s: any) => s.id === svcId);
-    return sum + (svc?.pricing.durationMinutes ?? 0);
-  }, 0);
-
+  const totalDuration = durationForPet(petId);
   if (totalDuration <= 0) return;
 
   const { slots } = await $fetch('/api/availability', {
@@ -308,6 +362,11 @@ onMounted(async () => {
       fetchAvailabilityPet(petId);
     }
   }
+
+  // skipp "Add a card" when theres nothing the switch from
+  if (savedCards.value.length === 0) {
+    startNewCard();
+  }
 });
 
 /* ─────────────────────────────────── *
@@ -328,16 +387,49 @@ function canAdvance(step: number): boolean {
   }
 }
 
+function nextStepHint(step: number): string | null {
+  switch (step) {
+    case 0:
+      return selectedPetIds.value.length > 0 ? null : 'Pick at least one pup to book.';
+    case 1: {
+      const missing = selectedPetIds.value.filter(
+        (id) => (petBaseServices.value[id] ?? []).length === 0,
+      );
+      if (!missing.length) return null;
+      const names = missing.map(getPetName).filter(Boolean).join(', ');
+      return names
+        ? `Pick at least one service for ${names}.`
+        : 'Pick at least one service per pup.';
+    }
+    case 2: {
+      const missing = selectedPetIds.value.filter((id) => !petSlots.value[id]);
+      if (!missing.length) return null;
+      const names = missing.map(getPetName).filter(Boolean).join(', ');
+      return names ? `Pick a time slot for ${names}.` : 'Pick a time slot for each pup.';
+    }
+    case 3:
+      if (showNewCardForm.value && !newCardComplete.value)
+        return 'Finish entering your card details.';
+      if (!selectedPaymentMethodId.value && !showNewCardForm.value)
+        return 'Choose a payment method.';
+      return null;
+    default:
+      return null;
+  }
+}
+
 async function buildPayload() {
   let paymentMethodId = selectedPaymentMethodId.value || undefined;
 
   if (showNewCardForm.value) {
     if (!cardFormRef.value) return null;
+
     try {
       paymentMethodId = await cardFormRef.value.confirm();
     } catch {
       return null;
     }
+
     selectedPaymentMethodId.value = paymentMethodId;
 
     if (saveNewCard.value) {
@@ -375,6 +467,7 @@ async function buildPayload() {
       <PetsList
         :pets="petData?.pets"
         selectable
+        show-add-new
         v-model:selected="selectedPetIds" />
     </div>
 
@@ -383,88 +476,120 @@ async function buildPayload() {
       <div
         v-for="petId in selectedPetIds"
         :key="petId"
-        class="mb-10">
-        <h3 class="text-lg font-semibold mb-4">{{ getPetName(petId) }}</h3>
+        :class="['grid grid-cols-1 lg:grid-cols-3 gap-6', 'mb-10']">
+        <div class="lg:col-span-2 space-y-6">
+          <header class="flex items-center gap-3">
+            <span
+              class="inline-flex size-9 items-center justify-center rounded-full bg-primary-100/70 text-primary-600">
+              <UIcon
+                name="i-lucide-paw-print"
+                class="size-5" />
+            </span>
 
-        <div
-          v-if="petContext[petId]?.bundles.length"
-          class="mb-6">
-          <h4 class="text-sm font-medium text-muted mb-2">Bundles</h4>
-          <UPageGrid>
-            <UPageCard
-              v-for="bundle in petContext[petId]!.bundles"
-              :key="bundle.id"
-              variant="subtle"
-              :class="{ 'ring-2 ring-success-400': petBundles[petId]?.bundleId === bundle.id }"
-              @click="toggleBundlePet(petId, bundle.id)">
-              <template #body>
+            <h3 class="text-xl font-semibold leading-none">{{ getPetName(petId) }}</h3>
+          </header>
+
+          <BookingSectionPanel
+            v-if="petContext[petId]?.bundles.length"
+            kicker="Save with a bundle"
+            title="Bundles &amp; savings"
+            description="Pre-picked combos with the lowest price per service."
+            icon="i-lucide-sparkles">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <BookingBundleCard
+                v-for="bundle in petContext[petId]!.bundles"
+                :key="bundle.id"
+                :bundle="bundle"
+                :services="petContext[petId]?.available ?? []"
+                :discount-cents="bundleDiscountForPet(petId, bundle)"
+                :selected="petBundles[petId]?.bundleId === bundle.id"
+                :best-value="bestValueBundleForPet(petId) === bundle.id"
+                @click="toggleBundlePet(petId, bundle.id)" />
+            </div>
+          </BookingSectionPanel>
+
+          <BookingSectionPanel
+            kicker="Pick what your pup needs"
+            title="Services"
+            description="Choose one or more — pricing reflects your pup's size."
+            icon="i-lucide-scissors">
+            <BookingServicesList
+              :services="petContext[petId]?.base ?? []"
+              v-model:selected="petBaseServices[petId]"
+              @update:selected="autoDetectBundlePet(petId)" />
+          </BookingSectionPanel>
+
+          <BookingSectionPanel
+            v-if="petContext[petId]?.addons.length"
+            kicker="Optional finishing touches"
+            title="Add-ons"
+            description="Quick extras you can tack on."
+            icon="i-lucide-plus-circle">
+            <BookingAddonList
+              :addons="petContext[petId]!.addons"
+              v-model:selected="petAddons[petId]"
+              @update:selected="autoDetectBundlePet(petId)" />
+          </BookingSectionPanel>
+        </div>
+
+        <aside class="lg:col-span-1">
+          <div class="lg:sticky lg:top-6">
+            <div class="rounded-2xl border border-default/70 bg-white/70 p-5 shadow-sm">
+              <p
+                class="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-600 mb-1">
+                Order summary
+              </p>
+
+              <h4 class="text-base font-semibold text-default mb-4">{{ getPetName(petId) }}</h4>
+
+              <div
+                v-if="!petTotals.get(petId)?.baseItems.length"
+                class="text-sm text-muted py-6 text-center">
+                Pick a service to see your total.
+              </div>
+
+              <div
+                v-else
+                class="space-y-3 text-sm">
                 <div class="space-y-1">
-                  <p class="font-medium">{{ bundle.name }}</p>
-                  <p
-                    v-if="bundle.description"
-                    class="text-sm text-muted">
-                    {{ bundle.description }}
-                  </p>
-                  <UBadge color="success">
-                    {{
-                      bundle.discountType === 'percent'
-                        ? `${bundle.discountValue}% off`
-                        : `$${formatCents(bundle.discountValue)} off`
-                    }}
-                  </UBadge>
+                  <div
+                    v-for="item in petTotals.get(petId)?.baseItems"
+                    :key="`base-${item.name}`"
+                    class="flex justify-between">
+                    <span class="text-default">{{ item.name }}</span>
+                    <span class="text-default">${{ formatCents(item.priceCents) }}</span>
+                  </div>
+
+                  <div
+                    v-for="item in petTotals.get(petId)?.addonItems"
+                    :key="`addon-${item.name}`"
+                    class="flex justify-between text-muted">
+                    <span>+ {{ item.name }}</span>
+                    <span>${{ formatCents(item.priceCents) }}</span>
+                  </div>
                 </div>
-              </template>
-            </UPageCard>
-          </UPageGrid>
-        </div>
 
-        <div class="mb-6">
-          <h4 class="text-sm font-medium text-muted mb-2">Services</h4>
-          <ServicesGrid
-            :services="petContext[petId]?.base ?? []"
-            v-model:selected="petBaseServices[petId]"
-            @update:selected="autoDetectBundlePet(petId)" />
-        </div>
+                <div
+                  v-if="(petTotals.get(petId)?.discountCents ?? 0) > 0"
+                  class="flex justify-between font-medium text-primary-600 pt-1 border-t border-default/70">
+                  <span class="inline-flex items-center gap-1">
+                    <UIcon
+                      name="i-lucide-sparkles"
+                      class="size-3.5" />
+                    Bundle discount
+                  </span>
 
-        <div
-          v-if="petContext[petId]?.addons.length"
-          class="mb-6">
-          <h4 class="text-sm font-medium text-muted mb-2">Addons</h4>
-          <ServicesGrid
-            :services="petContext[petId]!.addons"
-            v-model:selected="petAddons[petId]"
-            @update:selected="autoDetectBundlePet(petId)" />
-        </div>
+                  <span>-${{ formatCents(petTotals.get(petId)!.discountCents) }}</span>
+                </div>
 
-        <AppCard v-if="(petBaseServices[petId] ?? []).length > 0">
-          <div class="p-4 space-y-1 text-sm">
-            <div
-              v-for="item in petTotals.get(petId)?.baseItems"
-              :key="item.name"
-              class="flex justify-between">
-              <span>{{ item.name }}</span>
-              <span>${{ formatCents(item.priceCents) }}</span>
-            </div>
-            <div
-              v-for="item in petTotals.get(petId)?.addonItems"
-              :key="item.name"
-              class="flex justify-between text-muted">
-              <span>{{ item.name }}</span>
-              <span>${{ formatCents(item.priceCents) }}</span>
-            </div>
-            <div
-              v-if="(petTotals.get(petId)?.discountCents ?? 0) > 0"
-              class="flex justify-between text-success">
-              <span>Bundle discount</span>
-              <span>-${{ formatCents(petTotals.get(petId)!.discountCents) }}</span>
-            </div>
-            <hr class="my-2 border-default" />
-            <div class="flex justify-between font-semibold">
-              <span>Total</span>
-              <span>${{ formatCents(petTotals.get(petId)?.total ?? 0) }}</span>
+                <div class="flex justify-between text-base font-bold pt-2 border-t border-default">
+                  <span>Total</span>
+                  <span>${{ formatCents(petTotals.get(petId)?.total ?? 0) }}</span>
+                </div>
+              </div>
             </div>
           </div>
-        </AppCard>
+        </aside>
       </div>
     </div>
 
@@ -473,46 +598,110 @@ async function buildPayload() {
       <div
         v-for="petId in selectedPetIds"
         :key="petId"
-        class="space-y-4 mb-8">
-        <h3 class="font-semibold">{{ getPetName(petId) }}</h3>
-        <AppDatePicker
-          v-model="petDates[petId]"
-          :min-value="minBookingDate"
-          @update:model-value="onPetDateChange(petId)" />
-        <div v-if="petAvailability[petId]?.length">
-          <div
-            v-for="groomer in petAvailability[petId]"
-            :key="groomer.groomerId"
-            class="mb-4">
-            <p class="text-sm font-medium mb-2">{{ groomer.groomerName || 'Groomer' }}</p>
-            <div class="flex flex-wrap gap-2">
-              <UButton
-                v-for="slot in groomer.slots"
-                :key="slot.startTime"
-                size="sm"
-                :variant="
-                  petSlots[petId]?.groomerId === groomer.groomerId &&
-                  petSlots[petId]?.startTime === slot.startTime
-                    ? 'solid'
-                    : 'outline'
-                "
-                :label="slot.startTime"
-                @click="
-                  selectSlotPet(
-                    petId,
-                    groomer.groomerId,
-                    slot.startTime,
-                    calendarDateToString(petDates[petId]!),
-                  )
-                " />
+        class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        <div class="lg:col-span-2 space-y-6">
+          <header class="flex items-center gap-3">
+            <span
+              class="inline-flex size-9 items-center justify-center rounded-full bg-primary-100/70 text-primary-600">
+              <UIcon
+                name="i-lucide-paw-print"
+                class="size-5" />
+            </span>
+
+            <h3 class="text-xl font-semibold leading-none">{{ getPetName(petId) }}</h3>
+          </header>
+
+          <BookingSectionPanel
+            kicker="Step 1 of 2"
+            title="Choose a date"
+            description="We'll show openings for that day next."
+            icon="i-lucide-calendar">
+            <AppDatePicker
+              v-model="petDates[petId]"
+              :min-value="minBookingDate"
+              @update:model-value="onPetDateChange(petId)" />
+          </BookingSectionPanel>
+
+          <BookingSectionPanel
+            v-if="petDates[petId]"
+            kicker="Step 2 of 2"
+            title="Pick a time"
+            description="Times are grouped by part of day. Tap any opening to lock it in."
+            icon="i-lucide-clock">
+            <BookingSlotPicker
+              :groomers="petAvailability[petId] ?? []"
+              :selected-groomer-id="petSlots[petId]?.groomerId"
+              :selected-start-time="petSlots[petId]?.startTime"
+              :duration-minutes="durationForPet(petId)"
+              @select="
+                (groomerId, startTime) =>
+                  selectSlotPet(petId, groomerId, startTime, calendarDateToString(petDates[petId]!))
+              " />
+          </BookingSectionPanel>
+        </div>
+
+        <aside class="lg:col-span-1">
+          <div class="lg:sticky lg:top-6">
+            <div class="rounded-2xl border border-default/70 bg-white/70 p-5 shadow-sm">
+              <p
+                class="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-600 mb-1">
+                Your appointment
+              </p>
+
+              <h4 class="text-base font-semibold text-default mb-4">{{ getPetName(petId) }}</h4>
+
+              <div class="space-y-3 text-sm">
+                <div class="flex items-start gap-2">
+                  <UIcon
+                    name="i-lucide-calendar"
+                    class="size-4 text-primary-500 shrink-0 mt-0.5" />
+
+                  <span :class="petDates[petId] ? 'text-default' : 'text-muted italic'">
+                    {{
+                      petDates[petId]
+                        ? formatDate(calendarDateToString(petDates[petId]!), 'long')
+                        : 'Pick a date to start'
+                    }}
+                  </span>
+                </div>
+
+                <div class="flex items-start gap-2">
+                  <UIcon
+                    name="i-lucide-clock"
+                    class="size-4 text-primary-500 shrink-0 mt-0.5" />
+
+                  <span :class="petSlots[petId] ? 'text-default' : 'text-muted italic'">
+                    {{
+                      petSlots[petId]
+                        ? formatClockTime(petSlots[petId]!.startTime)
+                        : 'No time selected yet'
+                    }}
+                  </span>
+                </div>
+
+                <div
+                  v-if="petSlots[petId]"
+                  class="flex items-start gap-2">
+                  <UIcon
+                    name="i-lucide-user"
+                    class="size-4 text-primary-500 shrink-0 mt-0.5" />
+
+                  <span class="text-default">with {{ selectedGroomerNameForPet(petId) }}</span>
+                </div>
+
+                <div
+                  v-if="durationForPet(petId) > 0"
+                  class="flex items-start gap-2 pt-2 border-t border-default/60">
+                  <UIcon
+                    name="i-lucide-timer"
+                    class="size-4 text-muted shrink-0 mt-0.5" />
+
+                  <span class="text-muted">{{ durationForPet(petId) }} min appointment</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <p
-          v-else-if="petDates[petId]"
-          class="text-sm text-muted">
-          No available slots for this date
-        </p>
+        </aside>
       </div>
     </div>
 
@@ -522,26 +711,49 @@ async function buildPayload() {
       class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Inputs: bottom on mobile, left on desktop -->
       <div class="lg:col-span-2 order-2 lg:order-1">
-        <AppCard title="Payment">
+        <BookingSectionPanel
+          kicker="Final step"
+          title="Payment method"
+          :description="
+            savedCards.length > 0
+              ? 'Pick a card on file or add a new one. You won\'t be charged until your appointment is complete.'
+              : 'Add a card to confirm your booking. You won\'t be charged until your appointment is complete.'
+          "
+          icon="i-lucide-credit-card">
           <div
             v-if="savedCards.length > 0"
             class="space-y-2 mb-4">
             <label
               v-for="card in savedCards"
               :key="card.id"
-              class="flex items-center gap-3 p-3 rounded-lg border border-default cursor-pointer hover:bg-muted/50 transition"
-              :class="{
-                'ring-2 ring-primary': selectedPaymentMethodId === card.stripePaymentMethodId,
-              }">
+              class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all"
+              :class="
+                selectedPaymentMethodId === card.stripePaymentMethodId
+                  ? 'border-primary-500 bg-primary-50/50 ring-2 ring-primary-500/30 shadow-sm'
+                  : 'border-default bg-white/60 hover:border-primary-400 hover:bg-primary-50/30'
+              ">
               <input
                 type="radio"
                 name="payment-method"
                 :value="card.stripePaymentMethodId"
                 v-model="selectedPaymentMethodId"
-                class="accent-primary" />
-              <span class="text-sm font-medium capitalize">{{ card.brand }}</span>
-              <span class="text-sm text-muted">&bull;&bull;&bull;&bull; {{ card.last4 }}</span>
-              <span class="text-sm text-muted">{{ card.expMonth }}/{{ card.expYear }}</span>
+                class="accent-primary-500" />
+
+              <span
+                class="inline-flex size-8 items-center justify-center rounded-md bg-primary-100/70 text-primary-600 shrink-0">
+                <UIcon
+                  name="i-lucide-credit-card"
+                  class="size-4" />
+              </span>
+
+              <div class="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-semibold capitalize text-default">{{ card.brand }}</span>
+                <span class="text-sm text-muted tabular-nums"> •••• {{ card.last4 }} </span>
+                <span class="text-xs text-muted tabular-nums">
+                  exp {{ card.expMonth }}/{{ card.expYear }}
+                </span>
+              </div>
+
               <UBadge
                 v-if="card.isDefault"
                 label="Default"
@@ -556,30 +768,43 @@ async function buildPayload() {
               :label="savedCards.length > 0 ? 'Use a different card' : 'Add a card'"
               icon="i-lucide-plus"
               variant="outline"
+              size="lg"
               @click="startNewCard" />
           </div>
 
           <div
             v-else
-            class="mt-4">
+            class="mt-2 rounded-xl bg-white/60">
             <PaymentCardForm
               v-if="newCardClientSecret"
               ref="cardFormRef"
               :client-secret="newCardClientSecret"
               @update:complete="newCardComplete = $event" />
 
-            <p
+            <div
               v-else-if="loadingCardSetup"
-              class="text-sm text-muted">
-              Setting up secure payment…
-            </p>
+              class="flex items-center gap-2 text-sm text-muted py-3">
+              <UIcon
+                name="i-lucide-loader-2"
+                class="size-4 animate-spin text-primary-500" />
+
+              <span>Setting up secure payment...</span>
+            </div>
 
             <USwitch
               v-model="saveNewCard"
-              label="Save this card?"
+              label="Save this card for future bookings"
               class="mt-4" />
           </div>
-        </AppCard>
+
+          <p class="mt-4 flex items-center gap-1.5 text-xs text-muted">
+            <UIcon
+              name="i-lucide-shield-check"
+              class="size-3.5 text-primary-500" />
+
+            <span>Card details are encrypted and processed by Stripe.</span>
+          </p>
+        </BookingSectionPanel>
       </div>
 
       <!-- Summary: top on mobile, right on desktop -->
@@ -590,11 +815,21 @@ async function buildPayload() {
             :key="petId"
             :pet-name="getPetName(petId)"
             :total="petTotals.get(petId)!"
-            :slot="petSlots[petId]" />
+            :slot="petSlots[petId]"
+            :groomer-name="selectedGroomerNameForPet(petId)"
+            :duration-minutes="durationForPet(petId)" />
 
-          <div class="flex justify-between text-lg font-bold px-1">
-            <span>Grand Total</span>
-            <span>
+          <div
+            v-if="selectedPetIds.length > 1"
+            class="rounded-2xl bg-primary-500 text-white px-5 py-4 shadow-md flex items-center justify-between">
+            <div>
+              <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80">
+                Grand total
+              </p>
+
+              <p class="text-xs text-white/70 mt-0.5">{{ selectedPetIds.length }} pups</p>
+            </div>
+            <span class="text-2xl font-bold tabular-nums">
               ${{
                 formatCents(
                   selectedPetIds.reduce(
@@ -606,10 +841,24 @@ async function buildPayload() {
             </span>
           </div>
 
-          <div v-if="notes">
-            <p class="text-sm font-medium mb-1">Notes</p>
-            <p class="text-sm text-muted">{{ notes }}</p>
+          <div
+            v-if="notes"
+            class="rounded-2xl border border-default/70 bg-white/70 p-5 shadow-sm">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-600 mb-2">
+              Notes for the team
+            </p>
+
+            <p class="text-sm text-default leading-relaxed">{{ notes }}</p>
           </div>
+
+          <p class="flex items-center gap-1.5 text-xs text-muted px-1">
+            <UIcon
+              name="i-lucide-lock"
+              class="size-3.5 text-primary-500" />
+            <span>
+              Secure checkout · You won't be charged until your appointment is complete.
+            </span>
+          </p>
         </div>
       </aside>
     </div>
