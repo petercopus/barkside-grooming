@@ -14,7 +14,8 @@
     "postinstall": "nuxt prepare",
     "preview": "nuxt preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "npx nuxi typecheck"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1027.0",
