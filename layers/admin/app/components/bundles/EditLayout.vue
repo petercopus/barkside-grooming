@@ -20,6 +20,9 @@ const schema = computed(() => (isCreate.value ? createBundleSchema : updateBundl
 const { data: servicesData } = await useFetch('/api/admin/services');
 const allServices = computed(() => servicesData.value?.services ?? []);
 
+const { data: sizeCategoriesData } = await useFetch('/api/admin/size-categories');
+const sizeCategories = computed(() => sizeCategoriesData.value?.categories ?? []);
+
 const startDateCalendar = shallowRef(parseCalendarDate(props.initialValues?.startDate as string));
 const endDateCalendar = shallowRef(parseCalendarDate(props.initialValues?.endDate as string));
 
@@ -57,6 +60,46 @@ const discountAmountDollars = computed({
     state.discountValue = v == null ? undefined : Math.round(v * 100);
   },
 });
+
+const previewRows = computed<Record<string, unknown>[]>(() => {
+  if (state.serviceIds.length < 2) return [];
+
+  const selected = allServices.value.filter((s) =>
+    state.serviceIds.includes(s.id as number),
+  ) as Array<{
+    id: number;
+    name: string;
+    pricing?: Array<{ sizeCategoryId: number; priceCents: number }>;
+  }>;
+
+  return sizeCategories.value.map((size) => {
+    const subtotalCents = selected.reduce((sum, s) => {
+      const p = s.pricing?.find((pr) => pr.sizeCategoryId === size.id);
+      return sum + (p?.priceCents ?? 0);
+    }, 0);
+
+    const discountCents =
+      state.discountValue == null || subtotalCents === 0
+        ? 0
+        : state.discountType === 'percent'
+          ? Math.round(subtotalCents * (state.discountValue / 100))
+          : Math.min(state.discountValue, subtotalCents);
+
+    return {
+      sizeName: sizeCategoryLabel[size.name] ?? size.name,
+      subtotalCents,
+      discountCents,
+      totalCents: Math.max(0, subtotalCents - discountCents),
+    };
+  });
+});
+
+const previewColumns = [
+  { accessorKey: 'sizeName', header: 'Size' },
+  { accessorKey: 'subtotalCents', header: 'Subtotal' },
+  { accessorKey: 'discountCents', header: 'Discount' },
+  { accessorKey: 'totalCents', header: 'Total' },
+];
 
 function toggleService(id: number) {
   toggleArrayItem(state.serviceIds, id);
@@ -159,6 +202,38 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
       </div>
     </AppSection>
 
+    <AppSection title="Preview">
+      <p
+        v-if="state.serviceIds.length < 2"
+        class="text-sm text-muted">
+        Select atleast 2 services to see the discounted total per size.
+      </p>
+
+      <AppTable
+        v-else
+        :columns="previewColumns"
+        :data="previewRows"
+        :show-row-chevron="false">
+        <template #subtotalCents-cell="{ row }">
+          <span class="tabular-nums">
+            {{ formatCurrency(row.original.subtotalCents as number) }}
+          </span>
+        </template>
+
+        <template #discountCents-cell="{ row }">
+          <span class="tabular-nums text-muted">
+            -{{ formatCurrency(row.original.discountCents as number) }}
+          </span>
+        </template>
+
+        <template #totalCents-cell="{ row }">
+          <span class="tabular-nums font-medium">
+            {{ formatCurrency(row.original.totalCents as number) }}
+          </span>
+        </template>
+      </AppTable>
+    </AppSection>
+
     <template #sidebar>
       <AppSection title="Discount">
         <div class="space-y-4">
@@ -197,10 +272,10 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 
       <AppSection title="Options">
         <div class="space-y-4">
-          <UFormField
-            label="Active"
-            name="isActive">
-            <USwitch v-model="state.isActive" />
+          <UFormField name="isActive">
+            <USwitch
+              v-model="state.isActive"
+              label="Active" />
           </UFormField>
 
           <UFormField
