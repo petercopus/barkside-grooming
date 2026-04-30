@@ -89,6 +89,12 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
       <slot name="extra-actions" />
     </template>
 
+    <template
+      v-if="$slots.banner"
+      #banner>
+      <slot name="banner" />
+    </template>
+
     <AppSection :error="error">
       <div class="space-y-4">
         <UFormField

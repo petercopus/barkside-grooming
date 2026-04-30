@@ -26,18 +26,18 @@ export function useAuth() {
 
   /**
    * Fetch current user from /api/auth/me
-   * - Called on app init in order to restore session
-   * - SSR note: cookie forwarded automatically via useFetch
+   * - Called on app init (SSR plugin), in route middleware, and after auth actions
    */
   async function fetchUser() {
     try {
-      // using useFetch over $fetch here because this is not a user triggered action
-      // useFetch compatible with SSR and auto forwards cookie
-      const { data } = await useFetch<{ user: AuthUser; permissions: string[] }>('/api/auth/me');
+      const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined;
+      const data = await $fetch<{ user: AuthUser; permissions: string[] }>('/api/auth/me', {
+        headers,
+      });
 
-      if (data.value) {
-        user.value = data.value.user;
-        permissions.value = data.value.permissions;
+      if (data) {
+        user.value = data.user;
+        permissions.value = data.permissions;
       }
     } catch {
       // not auth'd

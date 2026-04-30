@@ -24,6 +24,8 @@ const initialValues = {
   maxWeight: category.maxWeight,
 };
 
+const deleteError = ref<string | null>(null);
+
 async function onDelete() {
   const confirmed = await confirm({
     title: 'Delete size category?',
@@ -35,16 +37,14 @@ async function onDelete() {
 
   if (!confirmed) return;
 
+  deleteError.value = null;
+
   try {
     await $fetch(`/api/admin/size-categories/${categoryId}`, { method: 'DELETE' });
     toast.add({ title: 'Size category deleted', color: 'success' });
     await navigateTo('/admin/settings/size-categories');
   } catch (e: any) {
-    toast.add({
-      title: 'Cannot delete',
-      description: e.data?.message ?? e.message ?? 'Something went wrong',
-      color: 'error',
-    });
+    deleteError.value = e.data?.message ?? e.message ?? 'Something went wrong';
   }
 }
 </script>
@@ -64,6 +64,18 @@ async function onDelete() {
         label="Delete"
         size="sm"
         @click="onDelete" />
+    </template>
+
+    <template
+      v-if="deleteError"
+      #banner>
+      <UAlert
+        color="error"
+        icon="i-lucide-alert-circle"
+        title="Cannot delete"
+        :description="deleteError"
+        :close-button="{ icon: 'i-lucide-x' }"
+        @close="deleteError = null" />
     </template>
   </SizeCategoriesEditLayout>
 </template>

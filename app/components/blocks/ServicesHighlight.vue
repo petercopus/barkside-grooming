@@ -25,8 +25,12 @@ interface Service {
 const { data: res } = await useFetch<{ services: Service[] }>('/api/services');
 
 const displayServices = computed<Service[]>(() => {
-  const list = (res.value?.services ?? []).filter((s) => !s.isAddon);
+  const list = (res.value?.services ?? []).filter(
+    (s) => !s.isAddon && (s.pricing?.length ?? 0) > 0,
+  );
+
   const max = props.maxItems ?? 0;
+
   return max > 0 ? list.slice(0, max) : list;
 });
 

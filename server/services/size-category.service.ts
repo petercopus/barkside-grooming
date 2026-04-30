@@ -11,10 +11,7 @@ export async function listSizeCategories() {
 }
 
 export async function getSizeCategory(id: number) {
-  const [category] = await db
-    .select()
-    .from(petSizeCategories)
-    .where(eq(petSizeCategories.id, id));
+  const [category] = await db.select().from(petSizeCategories).where(eq(petSizeCategories.id, id));
   if (!category) throw createError({ statusCode: 404, message: 'Size category not found' });
   return category;
 }
@@ -81,10 +78,7 @@ export async function deleteSizeCategory(id: number) {
 
 async function checkWeightOverlap(min: number, max: number, excludeId?: number) {
   const allCategories = excludeId
-    ? await db
-        .select()
-        .from(petSizeCategories)
-        .where(ne(petSizeCategories.id, excludeId))
+    ? await db.select().from(petSizeCategories).where(ne(petSizeCategories.id, excludeId))
     : await db.select().from(petSizeCategories);
 
   const overlap = allCategories.find((cat) => cat.minWeight <= max && cat.maxWeight >= min);

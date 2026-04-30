@@ -99,6 +99,19 @@ export function formatDateTime(
   return `${d} · ${t}`;
 }
 
+/**
+ * Format an ISO timestamp (or Date) as "Apr 29, 2026 · 2:30 PM" in the user's locale.
+ * Use for stored timestamps (createdAt, updatedAt) where the time component is meaningful.
+ */
+export function formatTimestamp(value: string | Date | null | undefined): string {
+  const d = toDate(value);
+  if (!d) return '—';
+
+  const date = d.toLocaleDateString('en-US', SHORT_DATE_OPTS);
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${date} · ${time}`;
+}
+
 export function formatTimeRange(
   start: string | null | undefined,
   end: string | null | undefined,

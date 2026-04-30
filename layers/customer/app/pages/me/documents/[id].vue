@@ -60,7 +60,7 @@ function docTypeIcon(type: string): string {
               Uploaded
             </dt>
             <dd class="text-default font-medium mt-1">
-              {{ formatDate(doc.createdAt, 'long') }}
+              {{ formatTimestamp(doc.createdAt) }}
             </dd>
           </div>
 

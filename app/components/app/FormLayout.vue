@@ -65,6 +65,12 @@ const hasSidebar = computed(() => !!slots.sidebar);
       :state="state"
       @submit="(e) => emit('submit', e as FormSubmitEvent<unknown>)">
       <div
+        v-if="$slots.banner"
+        class="mb-4">
+        <slot name="banner" />
+      </div>
+
+      <div
         v-if="hasSidebar"
         class="grid grid-cols-1 lg:grid-cols-[1fr_280px] items-start gap-6">
         <div class="space-y-6">
