@@ -39,11 +39,23 @@ const state = reactive({
   name: (props.initialValues?.name as string) ?? undefined,
   description: (props.initialValues?.description as string) ?? undefined,
   discountType: (props.initialValues?.discountType as 'percent' | 'fixed') ?? 'percent',
-  discountValue: (props.initialValues?.discountValue as number) ?? undefined,
+  discountValue: ((props.initialValues?.discountValue as number) ?? undefined) as
+    | number
+    | undefined,
   isActive: (props.initialValues?.isActive as boolean) ?? true,
   startDate: computed(() => formatCalendarDate(startDateCalendar.value) ?? null),
   endDate: computed(() => formatCalendarDate(endDateCalendar.value) ?? null),
   serviceIds: (props.initialValues?.serviceIds as number[]) ?? [],
+});
+
+const discountAmountDollars = computed({
+  get: () =>
+    state.discountValue == null || state.discountType !== 'fixed'
+      ? undefined
+      : state.discountValue / 100,
+  set: (v) => {
+    state.discountValue = v == null ? undefined : Math.round(v * 100);
+  },
 });
 
 function toggleService(id: number) {
@@ -159,13 +171,26 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
           </UFormField>
 
           <UFormField
-            :label="state.discountType === 'percent' ? 'Discount (%)' : 'Discount ($)'"
+            v-if="state.discountType === 'percent'"
+            label="Discount (%)"
             name="discountValue">
             <UInputNumber
               v-model="state.discountValue"
               :min="1"
-              :max="state.discountType === 'percent' ? 100 : undefined"
-              :step="state.discountType === 'percent' ? 1 : 0.01" />
+              :max="100"
+              :step="1" />
+          </UFormField>
+
+          <UFormField
+            v-else
+            label="Discount ($)"
+            name="discountValue">
+            <UInputNumber
+              v-model="discountAmountDollars"
+              :min="0.01"
+              :step="0.01"
+              :step-snapping="false"
+              :format-options="{ style: 'currency', currency: 'USD' }" />
           </UFormField>
         </div>
       </AppSection>

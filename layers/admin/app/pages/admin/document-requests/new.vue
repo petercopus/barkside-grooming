@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import type { CreateDocumentRequestInput } from '~~/shared/schemas/document';
+
+type DocumentType = CreateDocumentRequestInput['type'];
+
 definePageMeta({
   layout: 'dashboard',
   middleware: 'permission',
@@ -22,7 +26,7 @@ const customerItems = computed(() =>
 const state = reactive({
   targetUserId: undefined as string | undefined,
   petId: undefined as string | undefined,
-  documentType: undefined as string | undefined,
+  documentType: undefined as DocumentType | undefined,
   message: undefined as string | undefined,
   dueDate: undefined as string | undefined,
 });

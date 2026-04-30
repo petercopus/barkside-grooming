@@ -50,11 +50,15 @@ describe('loginSchema', () => {
 
 describe('createPetSchema', () => {
   it('accepts a minimal valid pet', () => {
-    expect(createPetSchema.safeParse({ name: 'Rex' }).success).toBe(true);
+    expect(createPetSchema.safeParse({ name: 'Rex', weightLbs: 25 }).success).toBe(true);
   });
 
   it('rejects an empty name', () => {
-    expect(createPetSchema.safeParse({ name: '' }).success).toBe(false);
+    expect(createPetSchema.safeParse({ name: '', weightLbs: 25 }).success).toBe(false);
+  });
+
+  it('rejects a missing weight', () => {
+    expect(createPetSchema.safeParse({ name: 'Rex' }).success).toBe(false);
   });
 
   it('rejects weights outside 1–300 lbs', () => {
