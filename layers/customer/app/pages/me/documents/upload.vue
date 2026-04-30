@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { MAX_FILE_SIZE } from '~~/shared/schemas/document';
+import { MAX_FILE_SIZE, type UploadDocumentInput } from '~~/shared/schemas/document';
+
+type DocumentType = UploadDocumentInput['type'];
 
 definePageMeta({
   layout: 'site',
@@ -18,7 +20,7 @@ const form = useFormAction({
 });
 
 const state = reactive({
-  type: prefillType ?? (undefined as string | undefined),
+  type: (prefillType as DocumentType | undefined) ?? undefined,
   petId: prefillPetId ?? (undefined as string | undefined),
   notes: undefined as string | undefined,
 });

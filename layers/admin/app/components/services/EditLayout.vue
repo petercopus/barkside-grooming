@@ -168,7 +168,18 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
       </div>
     </AppSection>
 
-    <AppSection title="Pricing by Size">
+    <AppSection
+      v-if="isCreate"
+      title="Pricing by Size">
+      <p class="text-sm text-muted">
+        Pricing and durations are configured after the service is created. You'll be taken to the
+        edit page on save.
+      </p>
+    </AppSection>
+
+    <AppSection
+      v-else
+      title="Pricing by Size">
       <div
         v-if="!categories.length"
         class="text-sm text-muted">
@@ -191,7 +202,8 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
               <UInputNumber
                 v-model="state.pricingMap[cat.id]!.priceDollars"
                 :min="0"
-                :step="0.01" />
+                :step="0.01"
+                :step-snapping="false" />
             </UFormField>
 
             <UFormField
@@ -200,7 +212,8 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
               <UInputNumber
                 v-model="state.pricingMap[cat.id]!.durationMinutes"
                 :min="1"
-                :step="5" />
+                :step="5"
+                :step-snapping="false" />
             </UFormField>
           </div>
         </div>

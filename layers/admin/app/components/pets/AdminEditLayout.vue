@@ -148,7 +148,8 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 
         <UFormField
           label="Weight (lbs)"
-          name="weightLbs">
+          name="weightLbs"
+          :required="isCreate">
           <UInputNumber
             v-model="state.weightLbs"
             :min="1"
