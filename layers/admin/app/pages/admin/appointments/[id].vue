@@ -179,7 +179,7 @@ async function finalize() {
 // Checkout
 const TIP_PRESETS = [15, 18, 20, 25] as const;
 const selectedTipPreset = ref<number | null>(null);
-const customTipDollars = ref<number | null>(null);
+const customTipCents = ref<number | null>(null);
 const showCustomTip = ref(false);
 const charging = ref(false);
 const paymentResult = ref<any>(null);
@@ -189,8 +189,8 @@ const hasCardOnFile = computed(
 );
 
 const tipCents = computed(() => {
-  if (showCustomTip.value && customTipDollars.value != null) {
-    return Math.round(customTipDollars.value * 100);
+  if (showCustomTip.value && customTipCents.value != null) {
+    return customTipCents.value;
   }
   if (selectedTipPreset.value != null && invoice.value) {
     return Math.round(invoice.value.totalCents * (selectedTipPreset.value / 100));
@@ -202,7 +202,7 @@ const chargeTotal = computed(() => (invoice.value?.totalCents ?? 0) + tipCents.v
 
 function selectPreset(pct: number) {
   showCustomTip.value = false;
-  customTipDollars.value = null;
+  customTipCents.value = null;
   selectedTipPreset.value = selectedTipPreset.value === pct ? null : pct;
 }
 
@@ -246,6 +246,49 @@ async function recordCash() {
     toast.add({ title: 'Failed to record payment', color: 'error' });
   } finally {
     charging.value = false;
+  }
+}
+
+// Refunds
+const refundedCents = computed(() => {
+  const refunds = (invoice.value?.payments ?? []).filter((p: any) => p.status === 'refunded');
+  return refunds.reduce((sum: number, p: any) => sum + Math.abs(p.amountCents), 0);
+});
+
+const remainingRefundableCents = computed(() => {
+  if (!invoice.value) return 0;
+  return Math.max(0, (invoice.value.totalCents ?? 0) - refundedCents.value);
+});
+
+const showRefundDialog = ref(false);
+const refundAmountCents = ref<number | null>(null);
+const refunding = ref(false);
+
+function openRefundDialog() {
+  refundAmountCents.value = remainingRefundableCents.value;
+  showRefundDialog.value = true;
+}
+
+async function submitRefund() {
+  if (!invoice.value || !refundAmountCents.value || refundAmountCents.value <= 0) return;
+
+  refunding.value = true;
+  try {
+    await $fetch(`/api/admin/invoices/${invoice.value.id}/refund`, {
+      method: 'POST',
+      body: { amountCents: refundAmountCents.value },
+    });
+    await refreshInvoice();
+    showRefundDialog.value = false;
+    toast.add({ title: 'Refund issued', color: 'success' });
+  } catch (err: any) {
+    toast.add({
+      title: 'Refund failed',
+      description: err?.data?.message ?? 'Unable to issue refund.',
+      color: 'error',
+    });
+  } finally {
+    refunding.value = false;
   }
 }
 </script>
@@ -393,9 +436,10 @@ async function recordCash() {
               v-model="item.description"
               placeholder="Description"
               class="flex-1" />
-            <UInputNumber
+            <AppCurrencyInput
               v-model="item.amountCents"
-              :step="100"
+              :step="1"
+              allow-negative
               class="w-32" />
             <USelect
               v-model="item.type"
@@ -497,12 +541,9 @@ async function recordCash() {
           <div
             v-if="showCustomTip"
             class="mt-3 flex items-center gap-2">
-            <span class="text-sm">$</span>
-            <UInputNumber
-              v-model="customTipDollars"
-              :min="0"
+            <AppCurrencyInput
+              v-model="customTipCents"
               :step="1"
-              placeholder="0.00"
               class="w-32" />
           </div>
 
@@ -542,12 +583,25 @@ async function recordCash() {
       </AppCard>
 
       <AppCard
-        v-if="invoice?.status === 'paid' || paymentResult"
+        v-if="invoice?.status === 'paid' || invoice?.status === 'refunded' || paymentResult"
         title="Payment">
-        <div class="flex items-center gap-2 text-success mb-2">
-          <UIcon name="i-lucide-check-circle" />
-          <span class="font-semibold">Paid</span>
+        <template #actions>
+          <AppStatusBadge
+            kind="invoice"
+            :value="invoice?.status ?? 'paid'" />
+        </template>
+
+        <div
+          class="flex items-center gap-2 mb-2"
+          :class="invoice?.status === 'refunded' ? 'text-muted' : 'text-success'">
+          <UIcon
+            :name="invoice?.status === 'refunded' ? 'i-lucide-undo-2' : 'i-lucide-check-circle'" />
+
+          <span class="font-semibold">
+            {{ invoice?.status === 'refunded' ? 'Refunded' : 'Paid' }}
+          </span>
         </div>
+
         <div class="space-y-1 text-sm">
           <div class="flex justify-between">
             <span>Amount</span>
@@ -559,8 +613,56 @@ async function recordCash() {
             <span>Includes tip</span>
             <span>{{ formatCurrency(invoice?.tipCents ?? 0) }}</span>
           </div>
+          <div
+            v-if="refundedCents > 0"
+            class="flex justify-between text-success">
+            <span>Refunded</span>
+            <span>-{{ formatCurrency(refundedCents) }}</span>
+          </div>
+        </div>
+
+        <div
+          v-if="remainingRefundableCents > 0 && invoice?.appointmentId"
+          class="pt-4">
+          <UButton
+            label="Issue Refund"
+            icon="i-lucide-undo-2"
+            variant="outline"
+            color="error"
+            size="sm"
+            @click="openRefundDialog" />
         </div>
       </AppCard>
+
+      <UModal
+        v-model:open="showRefundDialog"
+        title="Issue refund"
+        :description="`Refundable: ${formatCurrency(remainingRefundableCents)}`">
+        <template #body>
+          <UFormField label="Refund amount">
+            <AppCurrencyInput
+              v-model="refundAmountCents"
+              :step="1"
+              :max="remainingRefundableCents / 100" />
+          </UFormField>
+        </template>
+
+        <template #footer>
+          <div class="flex justify-end gap-2 w-full">
+            <UButton
+              label="Cancel"
+              variant="ghost"
+              @click="showRefundDialog = false" />
+
+            <UButton
+              label="Issue Refund"
+              color="error"
+              :loading="refunding"
+              :disabled="!refundAmountCents || refundAmountCents <= 0"
+              @click="submitRefund" />
+          </div>
+        </template>
+      </UModal>
     </template>
 
     <AppCard

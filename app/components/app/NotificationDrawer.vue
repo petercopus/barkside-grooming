@@ -77,6 +77,11 @@ const CATEGORY_STYLES: Record<string, CategoryStyle> = {
     tone: 'primary',
     label: 'New booking',
   },
+  payment_refunded: {
+    icon: 'i-lucide-undo-2',
+    tone: 'success',
+    label: 'Refund',
+  },
 };
 
 function styleFor(notif: AppNotification): CategoryStyle {

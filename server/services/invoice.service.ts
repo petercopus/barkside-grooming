@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { db } from '~~/server/db';
-import { appointments, invoiceLineItems, invoices } from '~~/server/db/schema';
+import { appointments, invoiceLineItems, invoices, payments } from '~~/server/db/schema';
 import { enrichAppointments } from '~~/server/services/appointment.service';
 import type { InvoiceLineItemInput } from '~~/shared/schemas/payment';
 
@@ -110,12 +110,16 @@ export async function getInvoiceByAppointment(appointmentId: string) {
 
   if (!invoice) return null;
 
-  const lineItems = await db
-    .select()
-    .from(invoiceLineItems)
-    .where(eq(invoiceLineItems.invoiceId, invoice.id));
+  const [lineItems, paymentRows] = await Promise.all([
+    db.select().from(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, invoice.id)),
+    db
+      .select()
+      .from(payments)
+      .where(eq(payments.appointmentId, appointmentId))
+      .orderBy(asc(payments.createdAt)),
+  ]);
 
-  return { ...invoice, lineItems };
+  return { ...invoice, lineItems, payments: paymentRows };
 }
 
 /**

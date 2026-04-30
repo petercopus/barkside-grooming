@@ -31,6 +31,10 @@ const categoryDescriptions: Record<NotificationCategory, { label: string; hint: 
     label: 'New booking (admin)',
     hint: 'Internal alerts when a customer books.',
   },
+  payment_refunded: {
+    label: 'Refunds',
+    hint: 'When we issue a refund on a paid appointment.',
+  },
 };
 
 interface PreferenceRow {

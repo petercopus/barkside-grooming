@@ -252,14 +252,24 @@ function dateWeekday(date: string) {
                   </span>
                 </div>
 
-                <UButton
-                  v-if="['pending', 'pending_documents', 'confirmed'].includes(appt.status)"
-                  variant="ghost"
-                  color="error"
-                  size="sm"
-                  icon="i-lucide-x"
-                  label="Cancel appointment"
-                  @click="cancelAppointment(appt.id)" />
+                <div class="flex items-center gap-2">
+                  <UButton
+                    :to="`/me/appointments/${appt.id}`"
+                    variant="ghost"
+                    size="sm"
+                    icon="i-lucide-arrow-right"
+                    trailing
+                    label="View details" />
+
+                  <UButton
+                    v-if="['pending', 'pending_documents', 'confirmed'].includes(appt.status)"
+                    variant="ghost"
+                    color="error"
+                    size="sm"
+                    icon="i-lucide-x"
+                    label="Cancel"
+                    @click="cancelAppointment(appt.id)" />
+                </div>
               </footer>
             </article>
           </div>
@@ -283,10 +293,11 @@ function dateWeekday(date: string) {
           </div>
 
           <div class="space-y-3">
-            <article
+            <NuxtLink
               v-for="appt in grouped.past"
               :key="appt.id"
-              class="rounded-2xl border border-default/60 bg-white/40 px-5 py-4">
+              :to="`/me/appointments/${appt.id}`"
+              class="block rounded-2xl border border-default/60 bg-white/40 px-5 py-4 transition hover:bg-white/70 hover:border-primary/40">
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-3 min-w-0">
                   <span
@@ -319,7 +330,7 @@ function dateWeekday(date: string) {
                     :label="apptStatusLabel[appt.status] ?? appt.status" />
                 </div>
               </div>
-            </article>
+            </NuxtLink>
           </div>
         </section>
       </template>

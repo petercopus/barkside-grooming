@@ -51,16 +51,6 @@ const state = reactive({
   serviceIds: (props.initialValues?.serviceIds as number[]) ?? [],
 });
 
-const discountAmountDollars = computed({
-  get: () =>
-    state.discountValue == null || state.discountType !== 'fixed'
-      ? undefined
-      : state.discountValue / 100,
-  set: (v) => {
-    state.discountValue = v == null ? undefined : Math.round(v * 100);
-  },
-});
-
 const previewRows = computed<Record<string, unknown>[]>(() => {
   if (state.serviceIds.length < 2) return [];
 
@@ -260,12 +250,7 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
             v-else
             label="Discount ($)"
             name="discountValue">
-            <UInputNumber
-              v-model="discountAmountDollars"
-              :min="0.01"
-              :step="0.01"
-              :step-snapping="false"
-              :format-options="{ style: 'currency', currency: 'USD' }" />
+            <AppCurrencyInput v-model="state.discountValue" />
           </UFormField>
         </div>
       </AppSection>

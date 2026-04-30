@@ -79,12 +79,13 @@ export function canMarkNoShow(currentStatus: AppointmentStatus): boolean {
   return NO_SHOW_STATUSES.includes(currentStatus);
 }
 
-export type InvoiceStatus = 'draft' | 'finalized' | 'paid' | 'void';
+export type InvoiceStatus = 'draft' | 'finalized' | 'paid' | 'refunded' | 'void';
 
 export const invoiceStatusColor: Record<string, BadgeColor> = {
   draft: 'warning',
   finalized: 'primary',
   paid: 'success',
+  refunded: 'neutral',
   void: 'neutral',
 } satisfies Record<InvoiceStatus, BadgeColor>;
 
@@ -92,5 +93,6 @@ export const invoiceStatusLabel: Record<string, string> = {
   draft: 'Draft',
   finalized: 'Finalized',
   paid: 'Paid',
+  refunded: 'Refunded',
   void: 'Void',
 } satisfies Record<InvoiceStatus, string>;

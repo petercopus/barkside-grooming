@@ -8,6 +8,7 @@ import {
   users,
 } from '~~/server/db/schema';
 import { getInvoice } from '~~/server/services/invoice.service';
+import { sendNotification } from '~~/server/services/notification.service';
 
 export async function ensureStripeCustomer(userId: string): Promise<string> {
   const [user] = await db.select().from(users).where(eq(users.id, userId));
@@ -193,6 +194,104 @@ export async function chargeAppointment(invoiceId: string, tipCents: number) {
     .returning();
 
   return payment;
+}
+
+/* ─────────────────────────────────── *
+ * Refunds
+ * ─────────────────────────────────── */
+
+/**
+ * Refund a paid invoice in full or in part.
+ */
+export async function refundInvoice(invoiceId: string, amountCents?: number) {
+  const invoice = await getInvoice(invoiceId);
+
+  if (invoice.status !== 'paid') {
+    throw createError({
+      statusCode: 400,
+      message: 'Only paid invoices can be refunded',
+    });
+  }
+
+  if (!invoice.appointmentId) {
+    throw createError({ statusCode: 400, message: 'Invoice has no appointment' });
+  }
+
+  const captured = await db
+    .select()
+    .from(payments)
+    .where(and(eq(payments.appointmentId, invoice.appointmentId), eq(payments.status, 'captured')));
+
+  if (captured.length === 0) {
+    throw createError({ statusCode: 400, message: 'No captured payment to refund' });
+  }
+
+  const charge = captured[0]!;
+  const remainingCents = captured.reduce((sum, p) => sum + p.amountCents, 0);
+  const refundAmount = amountCents ?? remainingCents;
+
+  if (refundAmount <= 0) {
+    throw createError({ statusCode: 400, message: 'Refund amount must be positive' });
+  }
+
+  if (refundAmount > remainingCents) {
+    throw createError({
+      statusCode: 400,
+      message: 'Refund exceeds remaining captured amount',
+    });
+  }
+
+  if (charge.provider === 'stripe') {
+    if (!charge.transactionId) {
+      throw createError({ statusCode: 400, message: 'Original charge has no transaction id' });
+    }
+
+    await createRefund(charge.transactionId, refundAmount);
+  }
+
+  const isFullRefund = refundAmount === remainingCents;
+
+  await db.transaction(async (tx) => {
+    if (isFullRefund) {
+      // flip every captured payment for this appointment to refunded
+      for (const p of captured) {
+        await tx.update(payments).set({ status: 'refunded' }).where(eq(payments.id, p.id));
+      }
+    } else {
+      await tx.insert(payments).values({
+        appointmentId: invoice.appointmentId,
+        amountCents: -refundAmount,
+        status: 'refunded',
+        provider: charge.provider,
+        transactionId: charge.transactionId,
+        paymentMethodId: charge.paymentMethodId,
+        stripeCustomerId: charge.stripeCustomerId,
+      });
+    }
+
+    await tx
+      .update(invoices)
+      .set({ status: isFullRefund ? 'refunded' : 'paid' })
+      .where(eq(invoices.id, invoiceId));
+  });
+
+  const [appt] = await db
+    .select({ customerId: appointments.customerId })
+    .from(appointments)
+    .where(eq(appointments.id, invoice.appointmentId));
+
+  if (appt?.customerId) {
+    await sendNotification({
+      userId: appt.customerId,
+      category: 'payment_refunded',
+      title: isFullRefund ? 'Refund issued' : 'Partial refund issued',
+      body: isFullRefund
+        ? 'Your appointment has been fully refunded.'
+        : `A refund of $${(refundAmount / 100).toFixed(2)} has been issued.`,
+    }).catch((err) => console.error(`[refund] notify failed for ${invoiceId}:`, err));
+  }
+
+  return { refundedCents: refundAmount, isFullRefund };
 }
 
 /**

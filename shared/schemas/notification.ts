@@ -6,6 +6,7 @@ export const NOTIFICATION_CATEGORIES = [
   'appointment_cancelled',
   'appointment_status_changed',
   'admin_new_booking',
+  'payment_refunded',
 ] as const;
 
 export const updatePreferencesSchema = z.object({
