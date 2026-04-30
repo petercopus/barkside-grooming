@@ -14,12 +14,15 @@ export default defineEventHandler(async (event) => {
 
   const appointment = await createBooking(user.id, input);
 
-  sendNotification({
-    userId: user.id,
-    category: 'appointment_confirmed',
-    title: 'Booking Confirmed',
-    body: 'Your appointment has been booked successfully.',
-  }).catch((err) => console.error('Notification failed:', err));
+  // only confirm immediately when no vaccination hold is in place
+  if (appointment.status === 'confirmed') {
+    sendNotification({
+      userId: user.id,
+      category: 'appointment_confirmed',
+      title: 'Booking Confirmed',
+      body: 'Your appointment has been booked successfully.',
+    }).catch((err) => console.error('Notification failed:', err));
+  }
 
   getAdminUserIds().then((adminIds) => {
     for (const adminId of adminIds) {

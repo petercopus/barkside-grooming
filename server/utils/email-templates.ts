@@ -1,3 +1,7 @@
+/**
+ * AI assisted with this file
+ */
+
 /* ─────────────────────────────────── *
  * Email templates — vaccination upload flow
  * Inline-styled HTML; safe for nodemailer + most clients.
@@ -103,6 +107,29 @@ export function renderHoldReminderEmail(opts: {
         ones from the original confirmation are no longer valid.
       </p>
       ${petBlocks}
+    </div>`;
+
+  return { subject, html };
+}
+
+export function renderBookingConfirmationEmail(opts: {
+  recipientName: string;
+  scheduledDate: string;
+  startTime: string | null;
+}): { subject: string; html: string } {
+  const subject = 'Your appointment is confirmed';
+  const html = `
+    <div style="${baseStyles.wrapper}">
+      <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
+      <p style="${baseStyles.paragraph}">
+        Your appointment on
+        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>
+        is confirmed. We can't wait to see you.
+      </p>
+      <p style="${baseStyles.paragraph}">
+        If anything changes on your end, just reply to this email and we'll
+        sort it out together.
+      </p>
     </div>`;
 
   return { subject, html };

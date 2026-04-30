@@ -43,7 +43,7 @@ export async function uploadDocument(
         filePath: key,
         fileName: file.fileName,
         mimeType: file.mimeType,
-        status: 'pending',
+        status: 'approved',
         petId: input.petId,
         appointmentId: input.appointmentId,
         documentRequestId: input.documentRequestId,

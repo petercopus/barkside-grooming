@@ -1,6 +1,6 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '~~/server/db';
-import { appointmentPets, appointments, documents } from '~~/server/db/schema';
+import { appointmentPets, appointments, documentRequests, documents } from '~~/server/db/schema';
 import { clearHoldIfSatisfied } from '~~/server/services/vaccination-hold.service';
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '~~/shared/schemas/document';
 
@@ -68,6 +68,19 @@ export default defineEventHandler(async (event) => {
   const key = `documents/${ownerSegment}/${docId}/${filePart.filename}`;
   const mimeType = filePart.type ?? 'application/octet-stream';
 
+  // find the open documentRequest for this appointmentPet so the upload satisfies guest pets (petId is null)
+  const [request] = await db
+    .select({ id: documentRequests.id })
+    .from(documentRequests)
+    .where(
+      and(
+        eq(documentRequests.appointmentPetId, appointmentPetId),
+        eq(documentRequests.status, 'pending'),
+        isNull(documentRequests.usedAt),
+      ),
+    )
+    .limit(1);
+
   await uploadFile(key, filePart.data, mimeType);
   try {
     const [document] = await db
@@ -76,13 +89,21 @@ export default defineEventHandler(async (event) => {
         uploadedByUserId: userId,
         petId: apptPet.petId,
         appointmentId,
+        documentRequestId: request?.id,
         type: 'vaccination_record',
         filePath: key,
         fileName: filePart.filename,
         mimeType,
-        status: 'pending',
+        status: 'approved',
       })
       .returning();
+
+    if (request) {
+      await db
+        .update(documentRequests)
+        .set({ status: 'fulfilled', usedAt: new Date() })
+        .where(eq(documentRequests.id, request.id));
+    }
 
     await clearHoldIfSatisfied(appointmentId);
 

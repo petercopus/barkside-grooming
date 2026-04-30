@@ -17,6 +17,7 @@ import {
   type IssuedUploadToken,
 } from '~~/server/services/vaccination-hold.service';
 import {
+  renderBookingConfirmationEmail,
   renderHoldInitialEmail,
   renderHoldReleasedEmail,
   renderHoldReminderEmail,
@@ -214,6 +215,24 @@ export async function sendVaccinationReleasedEmail(appointmentId: string): Promi
 
   const schedule = await getEarliestSchedule(appointmentId);
   const { subject, html } = renderHoldReleasedEmail({
+    recipientName: recipient.name,
+    scheduledDate: schedule.scheduledDate,
+    startTime: schedule.startTime,
+  });
+
+  await sendEmail(recipient.email, subject, html);
+}
+
+/* ─────────────────────────────────── *
+ * Booking confirmation (after hold clears for guest)
+ * ─────────────────────────────────── */
+
+export async function sendBookingConfirmationEmail(appointmentId: string): Promise<void> {
+  const recipient = await getRecipient(appointmentId);
+  if (!recipient) return;
+
+  const schedule = await getEarliestSchedule(appointmentId);
+  const { subject, html } = renderBookingConfirmationEmail({
     recipientName: recipient.name,
     scheduledDate: schedule.scheduledDate,
     startTime: schedule.startTime,

@@ -66,7 +66,7 @@ export default defineEventHandler(async (event) => {
       filePath: key,
       fileName: filePart.filename,
       mimeType,
-      status: 'pending',
+      status: 'approved',
     });
 
     await db
