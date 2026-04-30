@@ -28,9 +28,9 @@ export const docReqStatusLabel: Record<string, string> = {
   expired: 'Expired',
 } satisfies Record<DocReqStatus, string>;
 
-export const docTypeItems = documentTypeEnum.options.map((val) => ({
-  label: formatDocType(val),
-  val,
+export const docTypeItems = documentTypeEnum.options.map((value) => ({
+  label: formatDocType(value),
+  value,
 }));
 
 export function formatDocType(type: string) {
