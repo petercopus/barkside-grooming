@@ -2,7 +2,16 @@ import { and, asc, desc, eq } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '~~/server/db';
 import { documentRequests, pets, users } from '~~/server/db/schema';
+import { sendNotification } from '~~/server/services/notification.service';
+import { getRecipientName } from '~~/server/utils/email-context';
+import { renderDocumentRequestEmail } from '~~/server/utils/email-templates';
 import type { CreateDocumentRequestInput } from '~~/shared/schemas/document';
+
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  vaccination_record: 'vaccination record',
+  service_agreement: 'service agreement',
+  other: 'document',
+};
 
 export async function createDocumentRequest(
   requestedByUserId: string,
@@ -36,6 +45,38 @@ export async function createDocumentRequest(
       dueDate: input.dueDate,
     })
     .returning();
+
+  const documentTypeLabel = DOCUMENT_TYPE_LABELS[input.type] ?? 'document';
+  const recipientName = await getRecipientName(input.targetUserId);
+
+  let petName: string | null = null;
+  if (input.petId) {
+    const [petRow] = await db
+      .select({ name: pets.name })
+      .from(pets)
+      .where(eq(pets.id, input.petId));
+    petName = petRow?.name ?? null;
+  }
+
+  const { subject, html } = renderDocumentRequestEmail({
+    recipientName,
+    documentTypeLabel,
+    petName,
+    message: input.message ?? null,
+    dueDate: input.dueDate ?? null,
+  });
+
+  try {
+    await sendNotification({
+      userId: input.targetUserId,
+      category: 'document_request',
+      title: subject,
+      body: `We've requested a ${documentTypeLabel} from you.`,
+      html,
+    });
+  } catch (err) {
+    console.error('Failed to send document request notification:', err);
+  }
 
   return request;
 }

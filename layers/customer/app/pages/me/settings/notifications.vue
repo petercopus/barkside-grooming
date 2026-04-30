@@ -35,6 +35,10 @@ const categoryDescriptions: Record<NotificationCategory, { label: string; hint: 
     label: 'Refunds',
     hint: 'When we issue a refund on a paid appointment.',
   },
+  document_request: {
+    label: 'Document requests',
+    hint: 'When we ask you for a vaccination record or similar.',
+  },
 };
 
 interface PreferenceRow {

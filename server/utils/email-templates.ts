@@ -28,11 +28,6 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function formatDateTime(scheduledDate: string, startTime: string | null): string {
-  if (!startTime) return scheduledDate;
-  return `${scheduledDate} at ${startTime.slice(0, 5)}`;
-}
-
 export function renderHoldInitialEmail(opts: {
   recipientName: string;
   scheduledDate: string;
@@ -244,6 +239,41 @@ export function renderAppointmentStatusChangedEmail(opts: {
       </p>
       <p style="${baseStyles.paragraph}">
         Reply to this email if you have any questions.
+      </p>
+    </div>`;
+
+  return { subject, html };
+}
+
+export function renderDocumentRequestEmail(opts: {
+  recipientName: string;
+  documentTypeLabel: string;
+  petName: string | null;
+  message: string | null;
+  dueDate: string | null;
+}): { subject: string; html: string } {
+  const subject = `Action needed: ${opts.documentTypeLabel} request`;
+  const petLine = opts.petName
+    ? `<p style="${baseStyles.meta}">For: <strong>${escapeHtml(opts.petName)}</strong></p>`
+    : '';
+  const messageBlock = opts.message
+    ? `<p style="${baseStyles.paragraph}">${escapeHtml(opts.message)}</p>`
+    : '';
+  const dueLine = formatDate(opts.dueDate, 'long')
+    ? `<p style="${baseStyles.meta}">Please respond by <strong>${escapeHtml(opts.dueDate ?? '')}</strong>.</p>`
+    : '';
+
+  const html = `
+    <div style="${baseStyles.wrapper}">
+      <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
+      <p style="${baseStyles.paragraph}">
+        We've requested a <strong>${escapeHtml(opts.documentTypeLabel)}</strong> from you.
+      </p>
+      ${petLine}
+      ${messageBlock}
+      ${dueLine}
+      <p style="${baseStyles.paragraph}">
+        You can upload it from your documents page when you're ready.
       </p>
     </div>`;
 

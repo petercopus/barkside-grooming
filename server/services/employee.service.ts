@@ -10,6 +10,27 @@ import {
 import type { CreateEmployeeInput, UpdateEmployeeInput } from '~~/shared/schemas/employee';
 
 /**
+ * Expand a set of role IDs to include every ancestor in the parent chain
+ */
+async function collectRoleAndAncestorIds(roleIds: number[]): Promise<number[]> {
+  if (roleIds.length === 0) return [];
+
+  const allRoles = await db.select({ id: roles.id, parentRoleId: roles.parentRoleId }).from(roles);
+  const roleMap = new Map(allRoles.map((r) => [r.id, r]));
+
+  const expanded = new Set<number>();
+  for (const roleId of roleIds) {
+    let current = roleMap.get(roleId);
+    while (current && !expanded.has(current.id)) {
+      expanded.add(current.id);
+      current = current.parentRoleId ? roleMap.get(current.parentRoleId) : undefined;
+    }
+  }
+
+  return [...expanded];
+}
+
+/**
  * List all users who have >= 1 non customer role
  */
 export async function listEmployees() {
@@ -141,14 +162,18 @@ export async function updateEmployee(id: string, input: UpdateEmployeeInput) {
 
 /**
  * Merge default service qualifications from roles into an employee's services.
+ * Walks the parent chain so that defaults on ancestor roles are inherited.
  */
 async function mergeDefaultServices(userId: string, roleIds: number[]) {
   if (roleIds.length === 0) return;
 
+  const expandedRoleIds = await collectRoleAndAncestorIds(roleIds);
+  if (expandedRoleIds.length === 0) return;
+
   const defaults = await db
     .select({ serviceId: roleDefaultServices.serviceId })
     .from(roleDefaultServices)
-    .where(inArray(roleDefaultServices.roleId, roleIds));
+    .where(inArray(roleDefaultServices.roleId, expandedRoleIds));
 
   const defaultServiceIds = [...new Set(defaults.map((d) => d.serviceId))];
   if (defaultServiceIds.length === 0) return;

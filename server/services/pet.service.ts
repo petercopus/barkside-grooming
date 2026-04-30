@@ -1,4 +1,4 @@
-import { and, eq, ilike, inArray, max, or } from 'drizzle-orm';
+import { and, eq, ilike, inArray, max, notInArray, or } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import { appointmentPets, appointments, pets, petSizeCategories, users } from '~~/server/db/schema';
 import { enrichAppointments } from '~~/server/services/appointment.service';
@@ -82,8 +82,25 @@ export async function deletePet(petId: string, ownerId: string) {
   // verify ownership
   await getPet(petId, ownerId);
 
-  // Soft delete for now by setting is_active=false
-  // TODO: scheduled appointment canceling logic. Cannot set pet to inactive if there are open appointments
+  const [openAppt] = await db
+    .select({ id: appointmentPets.appointmentId })
+    .from(appointmentPets)
+    .where(
+      and(
+        eq(appointmentPets.petId, petId),
+        notInArray(appointmentPets.status, ['cancelled', 'no_show', 'completed']),
+      ),
+    )
+    .limit(1);
+
+  // block delete while the pet still has open appointments
+  if (openAppt) {
+    throw createError({
+      statusCode: 409,
+      message: 'This pet has upcoming appointments. Cancel them before removing the pet.',
+    });
+  }
+
   await db.update(pets).set({ isActive: false, updatedAt: new Date() }).where(eq(pets.id, petId));
 }
 

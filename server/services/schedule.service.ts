@@ -141,6 +141,14 @@ export async function getAvailableSlots(
     if (groomerIds.length === 0) return [];
   }
 
+  const activeRows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(inArray(users.id, groomerIds), eq(users.isActive, true)));
+
+  groomerIds = activeRows.map((r) => r.id);
+  if (groomerIds.length === 0) return [];
+
   // 2. Get weekly schedule entries for this day
   const scheduleRows = await db
     .select()
