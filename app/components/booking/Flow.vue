@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { getLocalTimeZone, today } from '@internationalized/date';
 import type { StepperItem } from '@nuxt/ui';
+import { bookingPolicy } from '~/data/policy';
 
 const props = withDefaults(
   defineProps<{
@@ -18,6 +19,12 @@ const props = withDefaults(
 
 const { isLoggedIn } = useAuth();
 const toast = useToast();
+
+/* ─────────────────────────────────── *
+ * Policy acceptance + modal
+ * ─────────────────────────────────── */
+const policyAccepted = ref(false);
+const policyModalOpen = ref(false);
 
 const minBookingDate = today(getLocalTimeZone());
 
@@ -89,16 +96,32 @@ type BranchApi = {
   canAdvance: (step: number) => boolean;
   nextStepHint: (step: number) => string | null;
   buildPayload: () => Promise<BranchPayload | null>;
+  refreshAvailability: () => Promise<void> | void;
 };
 const branch = useTemplateRef<BranchApi | null>('branch');
 
+const lastStepIndex = computed(() => stepperItems.value.length - 1);
+
 const canNextStep = computed(() => {
   if (step.value >= stepperItems.value.length) return false;
-  return branch.value?.canAdvance(step.value) ?? false;
+  const branchOk = branch.value?.canAdvance(step.value) ?? false;
+  if (!branchOk) return false;
+  if (step.value === lastStepIndex.value && !policyAccepted.value) return false;
+
+  return true;
 });
 const canPrevStep = computed(() => step.value > 0);
 const nextStepHint = computed(() => {
   if (canNextStep.value) return null;
+
+  if (
+    step.value === lastStepIndex.value &&
+    !policyAccepted.value &&
+    (branch.value?.canAdvance(step.value) ?? false)
+  ) {
+    return 'Please review and accept the booking policy to continue.';
+  }
+
   return branch.value?.nextStepHint(step.value) ?? null;
 });
 
@@ -130,6 +153,23 @@ async function submitBooking() {
     bookingState.clear();
     await navigateTo(payload.onSuccess(res));
   } catch (err: any) {
+    // slot conflict (someone else grabbed the slot)
+    if (err?.statusCode === 409 || err?.response?.status === 409) {
+      try {
+        await branch.value?.refreshAvailability();
+      } catch {}
+      step.value = 2;
+
+      toast.add({
+        title: 'That slot was just taken',
+        description:
+          err?.data?.message ?? "We've refreshed the schedule — please pick another time.",
+        color: 'warning',
+      });
+
+      return;
+    }
+
     toast.add({
       title: 'Booking failed',
       description: err?.data?.message ?? 'Something went wrong. Please try again.',
@@ -209,7 +249,30 @@ async function submitBooking() {
     <div
       v-if="step === 3"
       class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-      <div class="lg:col-span-2">
+      <div class="lg:col-span-2 space-y-6">
+        <BookingSectionPanel
+          kicker="Required"
+          title="Booking policy"
+          description="A quick read on cancellations, no-shows, and vaccinations."
+          icon="i-lucide-shield-check">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <UCheckbox
+              v-model="policyAccepted"
+              class="mt-0.5" />
+
+            <span class="text-sm text-default leading-relaxed">
+              I have read and agree to the
+              <button
+                type="button"
+                class="font-medium text-primary-600 underline underline-offset-2 hover:text-primary-700"
+                @click.prevent="policyModalOpen = true">
+                booking & cancellation policy
+              </button>
+              .
+            </span>
+          </label>
+        </BookingSectionPanel>
+
         <BookingSectionPanel
           kicker="Optional"
           title="Notes for the team"
@@ -223,6 +286,26 @@ async function submitBooking() {
         </BookingSectionPanel>
       </div>
     </div>
+
+    <UModal
+      v-model:open="policyModalOpen"
+      :title="bookingPolicy.title"
+      :ui="{ content: 'max-w-2xl' }">
+      <template #body>
+        <div
+          class="prose prose-sm max-w-none text-default"
+          v-html="bookingPolicy.bodyHtml" />
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end w-full">
+          <UButton
+            label="Close"
+            variant="ghost"
+            @click="policyModalOpen = false" />
+        </div>
+      </template>
+    </UModal>
 
     <!-- Navigation buttons -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6">

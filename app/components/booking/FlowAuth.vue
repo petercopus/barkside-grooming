@@ -12,7 +12,7 @@ const props = defineProps<{
   notes: string;
 }>();
 
-defineExpose({ canAdvance, buildPayload, nextStepHint });
+defineExpose({ canAdvance, buildPayload, nextStepHint, refreshAvailability });
 
 const toast = useToast();
 
@@ -353,8 +353,19 @@ function getPetName(petId: string) {
 }
 
 /* ─────────────────────────────────── *
- * Restore availability after reload
+ * Restore / re-fetch availability
  * ─────────────────────────────────── */
+async function refreshAvailability() {
+  // clear stale slot picks; user must reselect
+  petSlots.value = {};
+
+  await Promise.all(
+    selectedPetIds.value
+      .filter((petId) => petDates.value[petId] && (petBaseServices.value[petId] ?? []).length > 0)
+      .map((petId) => fetchAvailabilityPet(petId)),
+  );
+}
+
 onMounted(async () => {
   await nextTick(); // wait one tick for parent's hydration
   for (const petId of selectedPetIds.value) {
@@ -455,7 +466,10 @@ async function buildPayload() {
       })),
       paymentMethodId,
     },
-    onSuccess: () => '/me/appointments',
+    onSuccess: (res: any) => {
+      if (!res?.appointment) throw new Error('Booking failed');
+      return `/book/confirmation?id=${res.appointment.id}`;
+    },
   };
 }
 </script>

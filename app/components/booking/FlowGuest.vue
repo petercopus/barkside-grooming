@@ -11,7 +11,7 @@ const props = defineProps<{
   notes: string;
 }>();
 
-defineExpose({ canAdvance, buildPayload, nextStepHint });
+defineExpose({ canAdvance, buildPayload, nextStepHint, refreshAvailability });
 
 const toast = useToast();
 
@@ -331,8 +331,16 @@ function selectSlotGuest(groomerId: string, startTime: string, scheduledDate: st
 }
 
 /* ─────────────────────────────────── *
- * Restore availability after reload
+ * Restore / re-fetch availability
  * ─────────────────────────────────── */
+async function refreshAvailability() {
+  guestSlot.value = null;
+
+  if (guestDate.value && guestBaseServices.value.length > 0) {
+    await fetchAvailabilityGuest();
+  }
+}
+
 onMounted(async () => {
   await nextTick(); // wait one tick for parent's hydration
   if (guestDate.value && guestBaseServices.value.length > 0) {

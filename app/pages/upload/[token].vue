@@ -38,6 +38,7 @@ watch(file, (selected) => {
     file.value = null;
     return;
   }
+
   if (!ALLOWED_MIME_TYPES.includes(selected.type)) {
     fileError.value = 'Only PDF, JPEG, or PNG files are allowed';
     file.value = null;
@@ -71,12 +72,12 @@ async function onSubmit() {
       <h1 class="font-display-soft text-4xl text-barkside-900">Upload for your appointment</h1>
     </div>
 
-    <!-- ─── Error from initial fetch ─── -->
+    <!-- Error from initial fetch -->
     <AppCard v-if="error">
       <p class="text-error">Could not load this upload link.</p>
     </AppCard>
 
-    <!-- ─── Already uploaded ─── -->
+    <!-- Already uploaded -->
     <AppCard v-else-if="uploaded || data?.state === 'used'">
       <div class="flex items-start gap-3">
         <UIcon
@@ -91,7 +92,7 @@ async function onSubmit() {
       </div>
     </AppCard>
 
-    <!-- ─── Expired ─── -->
+    <!-- Expired -->
     <AppCard v-else-if="data?.state === 'expired'">
       <div class="flex items-start gap-3">
         <UIcon
@@ -106,21 +107,25 @@ async function onSubmit() {
       </div>
     </AppCard>
 
-    <!-- ─── Available ─── -->
+    <!-- Available -->
     <AppCard v-else-if="data?.state === 'available'">
-      <div>
+      <div class="mb-4">
         <p class="font-medium">{{ data.petName }}</p>
         <p
           v-if="data.scheduledDate"
           class="text-sm text-muted">
-          Appointment {{ data.scheduledDate
-          }}<span v-if="data.startTime"> at {{ data.startTime }}</span>
+          Appointment on
+          <span class="font-medium">{{ formatDate(data.scheduledDate, 'long') }}</span>
+          <span v-if="data.startTime">
+            at <span class="font-medium">{{ formatClockTime(data.startTime) }}</span>
+          </span>
         </p>
       </div>
 
       <UFormField
         label="File"
         :error="fileError ?? undefined"
+        class="mb-4"
         required>
         <UFileUpload
           v-model="file"
