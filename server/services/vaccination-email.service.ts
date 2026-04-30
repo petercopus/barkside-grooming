@@ -1,7 +1,7 @@
 /**
  * AI assisted with this file
  */
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '~~/server/db';
 import {
@@ -16,6 +16,7 @@ import {
   hashUploadToken,
   type IssuedUploadToken,
 } from '~~/server/services/vaccination-hold.service';
+import { getAppointmentSchedule } from '~~/server/utils/email-context';
 import {
   renderBookingConfirmationEmail,
   renderHoldInitialEmail,
@@ -56,24 +57,6 @@ async function getRecipient(appointmentId: string): Promise<Recipient | null> {
   return null;
 }
 
-async function getEarliestSchedule(
-  appointmentId: string,
-): Promise<{ scheduledDate: string; startTime: string | null }> {
-  const [first] = await db
-    .select({
-      scheduledDate: appointmentPets.scheduledDate,
-      startTime: appointmentPets.startTime,
-    })
-    .from(appointmentPets)
-    .where(eq(appointmentPets.appointmentId, appointmentId))
-    .orderBy(asc(appointmentPets.scheduledDate), asc(appointmentPets.startTime))
-    .limit(1);
-  return {
-    scheduledDate: first?.scheduledDate ?? '',
-    startTime: first?.startTime ?? null,
-  };
-}
-
 function buildUploadUrl(token: string): string {
   const { siteUrl } = useRuntimeConfig();
   return `${siteUrl.replace(/\/$/, '')}/upload/${token}`;
@@ -106,7 +89,7 @@ export async function sendVaccinationHoldEmail(
     .where(eq(appointments.id, appointmentId));
   if (!appt?.documentsHoldExpiresAt) return;
 
-  const schedule = await getEarliestSchedule(appointmentId);
+  const schedule = await getAppointmentSchedule(appointmentId);
   const { subject, html } = renderHoldInitialEmail({
     recipientName: recipient.name,
     scheduledDate: schedule.scheduledDate,
@@ -188,7 +171,7 @@ export async function sendVaccinationReminderEmail(appointmentId: string): Promi
     issued.push({ name: displayName, uploadUrl: buildUploadUrl(fresh) });
   }
 
-  const schedule = await getEarliestSchedule(appointmentId);
+  const schedule = await getAppointmentSchedule(appointmentId);
   const { subject, html } = renderHoldReminderEmail({
     recipientName: recipient.name,
     scheduledDate: schedule.scheduledDate,
@@ -213,7 +196,7 @@ export async function sendVaccinationReleasedEmail(appointmentId: string): Promi
   const recipient = await getRecipient(appointmentId);
   if (!recipient) return;
 
-  const schedule = await getEarliestSchedule(appointmentId);
+  const schedule = await getAppointmentSchedule(appointmentId);
   const { subject, html } = renderHoldReleasedEmail({
     recipientName: recipient.name,
     scheduledDate: schedule.scheduledDate,
@@ -231,7 +214,7 @@ export async function sendBookingConfirmationEmail(appointmentId: string): Promi
   const recipient = await getRecipient(appointmentId);
   if (!recipient) return;
 
-  const schedule = await getEarliestSchedule(appointmentId);
+  const schedule = await getAppointmentSchedule(appointmentId);
   const { subject, html } = renderBookingConfirmationEmail({
     recipientName: recipient.name,
     scheduledDate: schedule.scheduledDate,

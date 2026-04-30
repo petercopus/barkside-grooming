@@ -639,6 +639,8 @@ async function buildPayload() {
           <AppDatePicker
             v-model="guestDate"
             :min-value="minBookingDate"
+            size="xl"
+            class="ml-12"
             @update:model-value="onGuestDateChange()" />
         </BookingSectionPanel>
 

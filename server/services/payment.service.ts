@@ -9,6 +9,8 @@ import {
 } from '~~/server/db/schema';
 import { getInvoice } from '~~/server/services/invoice.service';
 import { sendNotification } from '~~/server/services/notification.service';
+import { getRecipientName } from '~~/server/utils/email-context';
+import { renderPaymentRefundedEmail } from '~~/server/utils/email-templates';
 
 export async function ensureStripeCustomer(userId: string): Promise<string> {
   const [user] = await db.select().from(users).where(eq(users.id, userId));
@@ -281,13 +283,21 @@ export async function refundInvoice(invoiceId: string, amountCents?: number) {
     .where(eq(appointments.id, invoice.appointmentId));
 
   if (appt?.customerId) {
+    const recipientName = await getRecipientName(appt.customerId);
+    const { subject, html } = renderPaymentRefundedEmail({
+      recipientName,
+      amountCents: refundAmount,
+      isFullRefund,
+    });
+
     await sendNotification({
       userId: appt.customerId,
       category: 'payment_refunded',
-      title: isFullRefund ? 'Refund issued' : 'Partial refund issued',
+      title: subject,
       body: isFullRefund
         ? 'Your appointment has been fully refunded.'
         : `A refund of $${(refundAmount / 100).toFixed(2)} has been issued.`,
+      html,
     }).catch((err) => console.error(`[refund] notify failed for ${invoiceId}:`, err));
   }
 

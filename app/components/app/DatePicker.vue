@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import type { CalendarDate } from '@internationalized/date';
 
-defineProps<{
-  disabled?: boolean;
-  minValue?: CalendarDate;
-  maxValue?: CalendarDate;
-}>();
+withDefaults(
+  defineProps<{
+    disabled?: boolean;
+    minValue?: CalendarDate;
+    maxValue?: CalendarDate;
+    size?: 'sm' | 'md' | 'lg' | 'xl';
+  }>(),
+  {
+    size: 'md',
+  },
+);
 
 const modelValue = defineModel<CalendarDate | undefined>();
 const inputDate = useTemplateRef('inputDate');
@@ -22,7 +28,8 @@ watch(modelValue, () => {
     v-model="modelValue"
     :disabled="disabled"
     :min-value="minValue"
-    :max-value="maxValue">
+    :max-value="maxValue"
+    :size="size">
     <template #trailing>
       <UPopover
         v-model:open="open"

@@ -49,10 +49,10 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
     </UFormField>
 
     <!-- Available switch -->
-    <UFormField
-      label="Available"
-      name="isAvailable">
-      <USwitch v-model="state.isAvailable" />
+    <UFormField name="isAvailable">
+      <USwitch
+        v-model="state.isAvailable"
+        label="Available" />
     </UFormField>
 
     <template v-if="state.isAvailable">

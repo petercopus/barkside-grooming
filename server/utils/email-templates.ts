@@ -157,3 +157,120 @@ export function renderHoldReleasedEmail(opts: {
 
   return { subject, html };
 }
+
+/* ─────────────────────────────────── *
+ * Email templates: appointment lifecycle
+ * ─────────────────────────────────── */
+export function renderAppointmentReminderEmail(opts: {
+  recipientName: string;
+  scheduledDate: string;
+  startTime: string | null;
+}): { subject: string; html: string } {
+  const subject = 'Reminder: your appointment is tomorrow';
+  const html = `
+    <div style="${baseStyles.wrapper}">
+      <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
+      <p style="${baseStyles.paragraph}">
+        Just a quick reminder that your appointment is on
+        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>.
+      </p>
+      <p style="${baseStyles.paragraph}">
+        Reply to this email if anything has changed and we'll sort it out together.
+      </p>
+    </div>`;
+
+  return { subject, html };
+}
+
+export function renderAdminNewBookingEmail(opts: {
+  customerName: string;
+  isGuest: boolean;
+  scheduledDate: string;
+  startTime: string | null;
+}): { subject: string; html: string } {
+  const subject = 'New booking received';
+  const guestSuffix = opts.isGuest ? ' (Guest)' : '';
+  const html = `
+    <div style="${baseStyles.wrapper}">
+      <h1 style="${baseStyles.heading}">New booking</h1>
+      <p style="${baseStyles.paragraph}">
+        <strong>${escapeHtml(opts.customerName)}${guestSuffix}</strong> booked an appointment for
+        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>.
+      </p>
+      <p style="${baseStyles.footer}">
+        Open the admin dashboard to review the booking.
+      </p>
+    </div>`;
+
+  return { subject, html };
+}
+
+export function renderAppointmentCancelledEmail(opts: {
+  recipientName: string;
+  scheduledDate: string;
+  startTime: string | null;
+}): { subject: string; html: string } {
+  const subject = 'Your appointment has been cancelled';
+  const html = `
+    <div style="${baseStyles.wrapper}">
+      <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
+      <p style="${baseStyles.paragraph}">
+        Your appointment on
+        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>
+        has been cancelled.
+      </p>
+      <p style="${baseStyles.paragraph}">
+        Whenever you're ready to rebook, we'd love to have you back.
+      </p>
+    </div>`;
+
+  return { subject, html };
+}
+
+export function renderAppointmentStatusChangedEmail(opts: {
+  recipientName: string;
+  status: string;
+  scheduledDate: string;
+  startTime: string | null;
+}): { subject: string; html: string } {
+  const subject = 'Your appointment was updated';
+  const html = `
+    <div style="${baseStyles.wrapper}">
+      <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
+      <p style="${baseStyles.paragraph}">
+        Your appointment on
+        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>
+        is now <strong>${escapeHtml(opts.status)}</strong>.
+      </p>
+      <p style="${baseStyles.paragraph}">
+        Reply to this email if you have any questions.
+      </p>
+    </div>`;
+
+  return { subject, html };
+}
+
+export function renderPaymentRefundedEmail(opts: {
+  recipientName: string;
+  amountCents: number;
+  isFullRefund: boolean;
+}): { subject: string; html: string } {
+  const subject = opts.isFullRefund ? 'Refund issued' : 'Partial refund issued';
+  const formatted = `$${(opts.amountCents / 100).toFixed(2)}`;
+  const html = `
+    <div style="${baseStyles.wrapper}">
+      <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
+      <p style="${baseStyles.paragraph}">
+        ${
+          opts.isFullRefund
+            ? `Your appointment has been fully refunded — <strong>${escapeHtml(formatted)}</strong> will return to your card.`
+            : `A refund of <strong>${escapeHtml(formatted)}</strong> has been issued to your card.`
+        }
+      </p>
+      <p style="${baseStyles.footer}">
+        It can take a few business days for the refund to appear on your statement.
+      </p>
+    </div>`;
+
+  return { subject, html };
+}

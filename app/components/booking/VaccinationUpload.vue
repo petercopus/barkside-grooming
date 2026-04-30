@@ -23,11 +23,14 @@ watch(file, (selected) => {
   if (selected.size > MAX_FILE_SIZE) {
     fileError.value = 'File exceeds the 10 MB size limit';
     file.value = null;
+
     return;
   }
+
   if (!ALLOWED_MIME_TYPES.includes(selected.type)) {
     fileError.value = 'Only PDF, JPEG, or PNG files are allowed';
     file.value = null;
+
     return;
   }
 });
@@ -37,6 +40,7 @@ async function onSubmit() {
 
   uploading.value = true;
   submitError.value = null;
+
   try {
     const fd = new FormData();
     fd.append('file', file.value);
@@ -46,6 +50,7 @@ async function onSubmit() {
       method: 'POST',
       body: fd,
     });
+
     uploaded.value = true;
     emit('uploaded');
   } catch (err: any) {
@@ -58,11 +63,12 @@ async function onSubmit() {
 
 <template>
   <AppCard>
-    <div class="flex items-center justify-between gap-3">
+    <div class="flex items-center justify-between gap-3 mb-4">
       <div>
         <p class="font-medium">{{ petName }}</p>
         <p class="text-sm text-muted">Vaccination record</p>
       </div>
+
       <UIcon
         v-if="uploaded"
         name="i-lucide-check-circle-2"
@@ -73,6 +79,7 @@ async function onSubmit() {
       <UFormField
         label="File"
         :error="fileError ?? undefined"
+        class="mb-4"
         required>
         <UFileUpload
           v-model="file"

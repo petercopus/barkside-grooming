@@ -9,6 +9,8 @@ import {
   userRoles,
   users,
 } from '~~/server/db/schema';
+import { getAppointmentSchedule, getRecipientName } from '~~/server/utils/email-context';
+import { renderAppointmentReminderEmail } from '~~/server/utils/email-templates';
 import type { NotificationCategory, UpdatePreferencesInput } from '~~/shared/schemas/notification';
 
 /* ─────────────────────────────────── *
@@ -222,11 +224,20 @@ export async function sendAppointmentReminders(now: Date = new Date()): Promise<
   let sentCount = 0;
   for (const appt of eligible) {
     try {
+      const recipientName = await getRecipientName(appt.customerId!);
+      const schedule = await getAppointmentSchedule(appt.id);
+      const { subject, html } = renderAppointmentReminderEmail({
+        recipientName,
+        scheduledDate: schedule.scheduledDate,
+        startTime: schedule.startTime,
+      });
+
       await sendNotification({
         userId: appt.customerId!,
         category: 'appointment_reminder',
-        title: 'Appointment Reminder',
+        title: subject,
         body: 'You have an appointment scheduled for tomorrow.',
+        html,
       });
 
       await db

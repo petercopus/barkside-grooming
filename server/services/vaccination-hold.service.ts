@@ -17,6 +17,11 @@ import {
   sendVaccinationReleasedEmail,
   sendVaccinationReminderEmail,
 } from '~~/server/services/vaccination-email.service';
+import { getAppointmentSchedule, getRecipientName } from '~~/server/utils/email-context';
+import {
+  renderAppointmentCancelledEmail,
+  renderBookingConfirmationEmail,
+} from '~~/server/utils/email-templates';
 
 /* ─────────────────────────────────── *
  * Constants
@@ -196,11 +201,20 @@ export async function clearHoldIfSatisfied(appointmentId: string): Promise<void>
     .where(eq(appointmentPets.appointmentId, appointmentId));
 
   if (appt.customerId) {
+    const recipientName = await getRecipientName(appt.customerId);
+    const schedule = await getAppointmentSchedule(appointmentId);
+    const { subject, html } = renderBookingConfirmationEmail({
+      recipientName,
+      scheduledDate: schedule.scheduledDate,
+      startTime: schedule.startTime,
+    });
+
     await sendNotification({
       userId: appt.customerId,
       category: 'appointment_confirmed',
-      title: 'Booking Confirmed',
+      title: subject,
       body: 'Your appointment has been confirmed.',
+      html,
     }).catch((err) => console.error(`[clear-hold] notify failed for ${appointmentId}:`, err));
   } else {
     await sendBookingConfirmationEmail(appointmentId).catch((err) =>
@@ -247,11 +261,19 @@ export async function releaseExpiredHolds(now: Date = new Date()): Promise<numbe
       );
 
       if (appt.customerId) {
+        const recipientName = await getRecipientName(appt.customerId);
+        const schedule = await getAppointmentSchedule(appt.id);
+        const { html } = renderAppointmentCancelledEmail({
+          recipientName,
+          scheduledDate: schedule.scheduledDate,
+          startTime: schedule.startTime,
+        });
         await sendNotification({
           userId: appt.customerId,
           category: 'appointment_cancelled',
           title: 'Appointment Released',
           body: 'Your appointment was released because vaccination records were not received in time.',
+          html,
         }).catch((err) => console.error(`[release-holds] notify failed for ${appt.id}:`, err));
       }
 

@@ -66,7 +66,7 @@ const missingPets = computed(() => statusData.value?.missingPets ?? []);
         <span class="font-mono text-sm font-medium text-barkside-900">{{ appointmentId }}</span>
       </div>
 
-      <!-- ─── Vaccination upload (only if hold active) ─── -->
+      <!-- Vaccination upload -->
       <div
         v-if="isHeld && missingPets.length > 0 && appointmentId"
         class="mx-auto mt-12 max-w-xl text-left space-y-4 delay-5 reveal-subtle">
@@ -75,7 +75,7 @@ const missingPets = computed(() => statusData.value?.missingPets ?? []);
           <h2 class="font-display-soft text-3xl text-barkside-900">Upload vaccination records</h2>
           <p class="text-sm text-barkside-700">
             Your appointment is held until we have current vaccination records on file. Upload a PDF
-            or image (max 10 MB) for each pet below.
+            or image for each pet below.
           </p>
         </div>
 
@@ -94,10 +94,10 @@ const missingPets = computed(() => statusData.value?.missingPets ?? []);
         {{ statusError }}
       </p>
 
-      <!-- ─── Fall-through CTA + nav ─── -->
+      <!-- CTA -->
       <div class="mx-auto mt-12 flex max-w-xs items-center gap-4 delay-5 reveal-subtle">
         <span class="h-px flex-1 bg-bone-300" />
-        <span class="font-hand text-sm text-coral-600">one more thing</span>
+        <span class="font-hand text-lg text-coral-600">one more thing</span>
         <span class="h-px flex-1 bg-bone-300" />
       </div>
 
