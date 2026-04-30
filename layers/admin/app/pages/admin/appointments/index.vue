@@ -5,12 +5,12 @@ definePageMeta({
   permission: 'booking:read:all',
 });
 
-const statusFilter = ref<AppointmentStatus>();
+const statusFilter = ref<AppointmentStatus | 'all'>('all');
 const dateFilter = ref<string>();
 
 const { data, status, refresh } = await useFetch('/api/admin/appointments', {
   params: computed(() => ({
-    status: statusFilter.value || undefined,
+    status: statusFilter.value === 'all' ? undefined : statusFilter.value,
     date: dateFilter.value || undefined,
   })),
 });
@@ -28,38 +28,21 @@ const columns = [
   { accessorKey: 'actions', header: '' },
 ];
 
-const statusItems = apptStatusOptions.map((value) => ({
-  label: apptStatusLabel[value] ?? value,
-  value,
-}));
+const statusItems = [
+  { label: 'All', value: 'all' },
+  ...apptStatusOptions.map((value) => ({
+    label: apptStatusLabel[value] ?? value,
+    value,
+  })),
+];
 
-async function updateStatus(id: string, newStatus: string) {
+async function updateStatus(id: string, newStatus: AppointmentStatus) {
   await $fetch(`/api/admin/appointments/${id}/status`, {
     method: 'PATCH',
     body: { status: newStatus },
   });
 
   await refresh();
-}
-
-const NEXT_ACTION: Partial<
-  Record<AppointmentStatus, { label: string; icon: string; status: AppointmentStatus }>
-> = {
-  pending: { label: 'Confirm', icon: 'i-lucide-check', status: 'confirmed' },
-  confirmed: { label: 'Check In', icon: 'i-lucide-log-in', status: 'in_progress' },
-  in_progress: { label: 'Complete', icon: 'i-lucide-check-check', status: 'completed' },
-};
-
-const CANCELLABLE_STATUSES: string[] = [
-  'pending',
-  'pending_documents',
-  'confirmed',
-] satisfies AppointmentStatus[];
-
-function nextAction(currentStatus: AppointmentStatus) {
-  const next = NEXT_ACTION[currentStatus];
-  if (!next) return null;
-  return { ...next, color: apptStatusColor[next.status] };
 }
 
 function onRowSelect(_e: Event, row: any) {
@@ -86,7 +69,6 @@ function onRowSelect(_e: Event, row: any) {
         <USelect
           v-model="statusFilter"
           :items="statusItems"
-          placeholder="All statuses"
           class="w-48"
           size="xs" />
       </template>
@@ -177,7 +159,20 @@ function onRowSelect(_e: Event, row: any) {
           </UTooltip>
 
           <UTooltip
-            v-if="CANCELLABLE_STATUSES.includes(row.original.status)"
+            v-if="canMarkNoShow(row.original.status)"
+            text="Mark No-show">
+            <UButton
+              icon="i-lucide-user-x"
+              color="error"
+              aria-label="Mark No-show"
+              variant="ghost"
+              size="xs"
+              square
+              @click.stop="updateStatus(row.original.id, 'no_show')" />
+          </UTooltip>
+
+          <UTooltip
+            v-if="canCancel(row.original.status)"
             text="Cancel">
             <UButton
               icon="i-lucide-x"

@@ -39,6 +39,46 @@ export const apptStatusLabel: Record<string, string> = {
   no_show: 'No Show',
 } satisfies Record<AppointmentStatus, string>;
 
+/* ─────────────────────────────────── *
+ * Status transition helpers (admin)
+ * ─────────────────────────────────── */
+export type StatusAction = {
+  label: string;
+  icon: string;
+  status: AppointmentStatus;
+  color: BadgeColor;
+};
+
+const NEXT_ACTION: Partial<
+  Record<AppointmentStatus, { label: string; icon: string; status: AppointmentStatus }>
+> = {
+  pending: { label: 'Confirm', icon: 'i-lucide-check', status: 'confirmed' },
+  confirmed: { label: 'Check In', icon: 'i-lucide-log-in', status: 'in_progress' },
+  in_progress: { label: 'Complete', icon: 'i-lucide-check-check', status: 'completed' },
+};
+
+export const CANCELLABLE_STATUSES: AppointmentStatus[] = [
+  'pending',
+  'pending_documents',
+  'confirmed',
+];
+
+export const NO_SHOW_STATUSES: AppointmentStatus[] = ['confirmed'];
+
+export function nextAction(currentStatus: AppointmentStatus): StatusAction | null {
+  const next = NEXT_ACTION[currentStatus];
+  if (!next) return null;
+  return { ...next, color: apptStatusColor[next.status]! };
+}
+
+export function canCancel(currentStatus: AppointmentStatus): boolean {
+  return CANCELLABLE_STATUSES.includes(currentStatus);
+}
+
+export function canMarkNoShow(currentStatus: AppointmentStatus): boolean {
+  return NO_SHOW_STATUSES.includes(currentStatus);
+}
+
 export type InvoiceStatus = 'draft' | 'finalized' | 'paid' | 'void';
 
 export const invoiceStatusColor: Record<string, BadgeColor> = {

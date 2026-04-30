@@ -8,13 +8,14 @@ definePageMeta({
 const route = useRoute();
 const id = route.params.id as string;
 
-const { data } = await useFetch(`/api/admin/appointments/${id}`);
+const { data, refresh: refreshAppointment } = await useFetch(`/api/admin/appointments/${id}`);
 
 if (!data.value?.appointment) {
   throw createError({ statusCode: 404, message: 'Appointment not found' });
 }
 
-const appointment = data.value.appointment;
+const appointment = computed(() => data.value!.appointment!);
+const apptStatus = computed(() => appointment.value.status as AppointmentStatus);
 
 function petSubtotal(pet: any): number {
   const services =
@@ -27,19 +28,66 @@ function petSubtotal(pet: any): number {
 }
 
 const grandTotal = computed(() =>
-  (appointment.pets ?? []).reduce((sum: number, pet: any) => sum + petSubtotal(pet), 0),
+  (appointment.value.pets ?? []).reduce((sum: number, pet: any) => sum + petSubtotal(pet), 0),
 );
 
 const headerDate = computed(() => {
-  const dates = (appointment.pets ?? [])
+  const dates = (appointment.value.pets ?? [])
     .map((p: any) => p.scheduledDate)
     .filter(Boolean)
     .sort();
-  return dates[0] ?? appointment.createdAt;
+  return dates[0] ?? appointment.value.createdAt;
 });
 
 const toast = useToast();
 const confirm = useConfirmDialog();
+
+const updatingStatus = ref(false);
+
+async function updateStatus(newStatus: AppointmentStatus) {
+  updatingStatus.value = true;
+
+  try {
+    await $fetch(`/api/admin/appointments/${id}/status`, {
+      method: 'PATCH',
+      body: { status: newStatus },
+    });
+
+    await refreshAppointment();
+  } catch (err: any) {
+    toast.add({
+      title: 'Failed to update status',
+      description: err?.data?.message,
+      color: 'error',
+    });
+  } finally {
+    updatingStatus.value = false;
+  }
+}
+
+async function markNoShow() {
+  const ok = await confirm({
+    title: 'Mark as no-show?',
+    description: 'The customer will be notified.',
+    confirmLabel: 'Mark No-show',
+    confirmColor: 'error',
+  });
+  if (!ok) return;
+
+  await updateStatus('no_show');
+}
+
+async function cancelAppointment() {
+  const ok = await confirm({
+    title: 'Cancel this appointment?',
+    description: 'The customer will be notified.',
+    confirmLabel: 'Cancel Appointment',
+    confirmColor: 'error',
+  });
+  if (!ok) return;
+
+  await updateStatus('cancelled');
+}
 
 const INVOICE_STATUSES: string[] = ['in_progress', 'completed'] satisfies AppointmentStatus[];
 
@@ -137,7 +185,7 @@ const charging = ref(false);
 const paymentResult = ref<any>(null);
 
 const hasCardOnFile = computed(
-  () => !!appointment.paymentMethodId && !!appointment.stripeCustomerId,
+  () => !!appointment.value.paymentMethodId && !!appointment.value.stripeCustomerId,
 );
 
 const tipCents = computed(() => {
@@ -219,6 +267,34 @@ async function recordCash() {
           {{ formatDate(headerDate) }}
         </span>
       </div>
+    </template>
+
+    <template #actions>
+      <UButton
+        v-if="nextAction(apptStatus)"
+        :label="nextAction(apptStatus)!.label"
+        :icon="nextAction(apptStatus)!.icon"
+        :color="nextAction(apptStatus)!.color"
+        :loading="updatingStatus"
+        @click="updateStatus(nextAction(apptStatus)!.status)" />
+
+      <UButton
+        v-if="canMarkNoShow(apptStatus)"
+        label="Mark No-show"
+        icon="i-lucide-user-x"
+        color="error"
+        variant="outline"
+        :loading="updatingStatus"
+        @click="markNoShow" />
+
+      <UButton
+        v-if="canCancel(apptStatus)"
+        label="Cancel"
+        icon="i-lucide-x"
+        color="error"
+        variant="ghost"
+        :loading="updatingStatus"
+        @click="cancelAppointment" />
     </template>
     <AppCard
       v-for="pet in appointment.pets"

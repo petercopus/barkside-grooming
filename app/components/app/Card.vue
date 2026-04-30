@@ -17,14 +17,17 @@ withDefaults(
     }"
     @click="to ? navigateTo(to) : undefined">
     <template
-      v-if="title || $slots.actions"
+      v-if="title || $slots.title || $slots.actions"
       #header>
       <div class="flex justify-between items-center">
-        <h3
-          v-if="title"
-          class="text-sm font-medium">
-          {{ title }}
-        </h3>
+        <slot name="title">
+          <h3
+            v-if="title"
+            class="text-sm font-medium">
+            {{ title }}
+          </h3>
+        </slot>
+
         <div
           v-if="$slots.actions"
           class="flex gap-2">
