@@ -24,6 +24,7 @@ const initialValues = {
   permissionIds: role.permissionIds,
   inheritedPermissionIds: role.inheritedPermissionIds,
   defaultServiceIds: role.defaultServiceIds,
+  inheritedDefaultServiceIds: role.inheritedDefaultServiceIds,
   parentRoleId: role.parentRoleId,
   hasAllPermissions: role.hasAllPermissions,
 };
@@ -58,7 +59,8 @@ async function onDelete() {
     :title="role.name"
     back-to="/admin/settings/roles"
     :initial-values="initialValues"
-    :role-id="roleId">
+    :role-id="roleId"
+    :read-only="role.isSystem">
     <template
       v-if="!role.isSystem"
       #extra-actions>

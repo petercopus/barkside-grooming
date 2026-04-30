@@ -6,6 +6,7 @@ definePageMeta({
 });
 
 const route = useRoute();
+const { hasPerm } = usePermissions();
 const id = route.params.id as string;
 
 const { data } = await useFetch(`/api/admin/customers/${id}`);
@@ -41,6 +42,7 @@ function onAppointmentSelect(_e: Event, row: any) {
     back-to="/admin/customers">
     <template #actions>
       <UButton
+        v-if="hasPerm('customer:manage')"
         :to="`/admin/customers/${id}/edit`"
         icon="i-lucide-pencil"
         label="Edit"
@@ -74,11 +76,12 @@ function onAppointmentSelect(_e: Event, row: any) {
       :on-select="onPetSelect"
       empty-icon="i-lucide-paw-print"
       empty-title="No pets"
-      empty-action-label="Add Pet"
+      :empty-action-label="hasPerm('pet:manage:all') ? 'Add Pet' : undefined"
       empty-action-icon="i-lucide-plus"
       @empty-action="navigateTo(`/admin/pets/new?ownerId=${id}`)">
       <template #actions>
         <UButton
+          v-if="hasPerm('pet:manage:all')"
           :to="`/admin/pets/new?ownerId=${id}`"
           icon="i-lucide-plus"
           label="Add Pet"

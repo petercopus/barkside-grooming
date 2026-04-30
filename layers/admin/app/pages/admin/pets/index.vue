@@ -5,6 +5,9 @@ definePageMeta({
   permission: 'pet:read:all',
 });
 
+const { hasPerm } = usePermissions();
+const canCreate = computed(() => hasPerm('pet:manage:all'));
+
 const searchQuery = ref('');
 const debouncedSearch = useDebouncedRef(searchQuery, 300);
 
@@ -42,7 +45,7 @@ const columns = [
       :on-select="onRowSelect"
       empty-icon="i-lucide-paw-print"
       empty-title="No pets found"
-      empty-action-label="Add Pet"
+      :empty-action-label="canCreate ? 'Add Pet' : undefined"
       empty-action-icon="i-lucide-plus"
       @empty-action="navigateTo('/admin/pets/new')">
       <template #actions>
@@ -52,7 +55,9 @@ const columns = [
           placeholder="Search pets..."
           size="sm"
           class="w-64" />
+
         <UButton
+          v-if="canCreate"
           to="/admin/pets/new"
           icon="i-lucide-plus"
           label="Add Pet"

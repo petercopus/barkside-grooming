@@ -28,13 +28,13 @@ export async function getRole(id: number) {
     .from(roleDefaultServices)
     .where(eq(roleDefaultServices.roleId, id));
 
-  // get inherited permissions by walking the parent chain
+  // walk parent chain once, then collect inherited perms + default services
   const inheritedPermIds = new Set<number>();
+  const inheritedServiceIds = new Set<number>();
   if (role.parentRoleId) {
     const allRoles = await db.select().from(roles);
     const roleMap = new Map(allRoles.map((r) => [r.id, r]));
 
-    // get all ancestor role IDs
     const ancestorIds: number[] = [];
     let current = roleMap.get(role.parentRoleId);
     while (current) {
@@ -51,6 +51,15 @@ export async function getRole(id: number) {
       for (const row of ancestorPerms) {
         inheritedPermIds.add(row.permissionId);
       }
+
+      const ancestorServices = await db
+        .select({ serviceId: roleDefaultServices.serviceId })
+        .from(roleDefaultServices)
+        .where(inArray(roleDefaultServices.roleId, ancestorIds));
+
+      for (const row of ancestorServices) {
+        inheritedServiceIds.add(row.serviceId);
+      }
     }
   }
 
@@ -59,6 +68,7 @@ export async function getRole(id: number) {
     permissionIds: permRows.map((r) => r.permissionId),
     inheritedPermissionIds: [...inheritedPermIds],
     defaultServiceIds: defaultServiceRows.map((r) => r.serviceId),
+    inheritedDefaultServiceIds: [...inheritedServiceIds],
   };
 }
 
@@ -92,6 +102,10 @@ export async function createRole(input: CreateRoleInput) {
 
 export async function updateRole(id: number, input: UpdateRoleInput) {
   const existing = await getRole(id);
+
+  if (existing.isSystem) {
+    throw createError({ statusCode: 403, message: 'System roles cannot be modified' });
+  }
 
   // Check for circular inheritance
   if (input.parentRoleId !== undefined && input.parentRoleId !== null) {

@@ -8,6 +8,7 @@ const props = defineProps<{
   roleId?: number;
   title: string;
   backTo: string;
+  readOnly?: boolean;
 }>();
 
 const isCreate = computed(() => props.mode === 'create');
@@ -36,16 +37,60 @@ const inheritedPermissionIds = ref<number[]>(
   (props.initialValues?.inheritedPermissionIds as number[]) ?? [],
 );
 
-function isInherited(permId: number) {
+const inheritedDefaultServiceIds = ref<number[]>(
+  (props.initialValues?.inheritedDefaultServiceIds as number[]) ?? [],
+);
+
+// when parent role changes, refetch the parent's full perm/service set
+watch(
+  () => state.parentRoleId,
+  async (parentId, oldParentId) => {
+    if (parentId === oldParentId) return;
+
+    if (!parentId) {
+      inheritedPermissionIds.value = [];
+      inheritedDefaultServiceIds.value = [];
+
+      return;
+    }
+
+    try {
+      const res = await $fetch<{ role: any }>(`/api/admin/roles/${parentId}`);
+
+      const perms = new Set<number>([
+        ...(res.role.permissionIds ?? []),
+        ...(res.role.inheritedPermissionIds ?? []),
+      ]);
+
+      const services = new Set<number>([
+        ...(res.role.defaultServiceIds ?? []),
+        ...(res.role.inheritedDefaultServiceIds ?? []),
+      ]);
+
+      inheritedPermissionIds.value = [...perms];
+      inheritedDefaultServiceIds.value = [...services];
+    } catch {
+      inheritedPermissionIds.value = [];
+      inheritedDefaultServiceIds.value = [];
+    }
+  },
+);
+
+function isInheritedPerm(permId: number) {
   return inheritedPermissionIds.value.includes(permId);
 }
 
+function isInheritedService(serviceId: number) {
+  return inheritedDefaultServiceIds.value.includes(serviceId);
+}
+
 function togglePermission(id: number) {
-  if (isInherited(id)) return;
+  if (isInheritedPerm(id)) return;
   toggleArrayItem(state.permissionIds, id);
 }
 
 function toggleDefaultService(id: number) {
+  if (isInheritedService(id)) return;
   toggleArrayItem(state.defaultServiceIds, id);
 }
 
@@ -108,13 +153,25 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
     @submit="onSubmit"
     @discard="discardChanges">
     <template
-      v-if="$slots['extra-actions']"
+      v-if="$slots['extra-actions'] || readOnly"
       #extra-actions>
       <slot name="extra-actions" />
     </template>
 
+    <template
+      v-if="readOnly"
+      #banner>
+      <UAlert
+        color="info"
+        icon="i-lucide-lock"
+        title="System role"
+        description="This role is built-in and cannot be edited." />
+    </template>
+
     <AppSection :error="error">
-      <div class="space-y-4">
+      <fieldset
+        :disabled="readOnly"
+        class="space-y-4">
         <UFormField
           label="Name"
           name="name"
@@ -135,9 +192,10 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
             v-model="state.parentRoleId"
             :items="parentRoleOptions"
             placeholder="None"
-            value-key="id" />
+            value-key="id"
+            :ui="{ content: 'min-w-fit' }" />
         </UFormField>
-      </div>
+      </fieldset>
     </AppSection>
 
     <AppSection title="Permissions">
@@ -146,8 +204,9 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
         class="text-sm text-muted">
         This role has full system access.
       </div>
-      <div
+      <fieldset
         v-else
+        :disabled="readOnly"
         class="space-y-2 max-h-80 overflow-y-auto">
         <div
           v-for="perm in permissionsData?.permissions ?? []"
@@ -155,17 +214,25 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
           class="flex items-center gap-2">
           <UCheckbox
             :label="perm.key"
-            :model-value="isInherited(perm.id) || state.permissionIds.includes(perm.id)"
-            :disabled="isInherited(perm.id)"
+            :model-value="isInheritedPerm(perm.id) || state.permissionIds.includes(perm.id)"
+            :disabled="readOnly || isInheritedPerm(perm.id)"
             @update:model-value="togglePermission(perm.id)" />
+
+          <UBadge
+            v-if="isInheritedPerm(perm.id)"
+            variant="subtle"
+            size="sm">
+            inherited
+          </UBadge>
         </div>
-      </div>
+      </fieldset>
     </AppSection>
 
     <template #sidebar>
       <AppSection title="Access Level">
         <USwitch
           v-model="state.hasAllPermissions"
+          :disabled="readOnly"
           label="Full access (all permissions)" />
       </AppSection>
 
@@ -173,23 +240,36 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
         <p class="text-sm text-muted mb-3">
           Services auto-assigned to employees when given this role.
         </p>
-        <div class="space-y-2">
+        <fieldset
+          :disabled="readOnly"
+          class="space-y-2">
           <div
             v-for="service in servicesData?.services ?? []"
             :key="service.id"
             class="flex items-center gap-2">
             <UCheckbox
               :label="service.name"
-              :model-value="state.defaultServiceIds.includes(service.id)"
+              :model-value="
+                isInheritedService(service.id) || state.defaultServiceIds.includes(service.id)
+              "
+              :disabled="readOnly || isInheritedService(service.id)"
               @update:model-value="toggleDefaultService(service.id)" />
+
             <UBadge
               v-if="service.isAddon"
               variant="subtle"
               size="sm">
               addon
             </UBadge>
+
+            <UBadge
+              v-if="isInheritedService(service.id)"
+              variant="subtle"
+              size="sm">
+              inherited
+            </UBadge>
           </div>
-        </div>
+        </fieldset>
       </AppSection>
     </template>
   </AppFormLayout>

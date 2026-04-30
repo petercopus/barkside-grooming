@@ -6,6 +6,7 @@ definePageMeta({
 });
 
 const route = useRoute();
+const { hasPerm } = usePermissions();
 const id = route.params.id as string;
 
 const { data } = await useFetch(`/api/admin/pets/${id}`);
@@ -59,6 +60,7 @@ function onAppointmentSelect(_e: Event, row: any) {
     </template>
     <template #actions>
       <UButton
+        v-if="hasPerm('pet:manage:all')"
         :to="`/admin/pets/${id}/edit`"
         icon="i-lucide-pencil"
         label="Edit"

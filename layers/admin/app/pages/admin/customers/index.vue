@@ -5,6 +5,9 @@ definePageMeta({
   permission: 'customer:read',
 });
 
+const { hasPerm } = usePermissions();
+const canCreate = computed(() => hasPerm('customer:manage'));
+
 const searchQuery = ref('');
 const debouncedSearch = useDebouncedRef(searchQuery, 300);
 
@@ -43,7 +46,7 @@ const columns = [
       empty-icon="i-lucide-contact"
       empty-title="No customers found"
       empty-description="No customers match the current search."
-      empty-action-label="Add Customer"
+      :empty-action-label="canCreate ? 'Add Customer' : undefined"
       empty-action-icon="i-lucide-plus"
       @empty-action="navigateTo('/admin/customers/new')">
       <template #actions>
@@ -54,6 +57,7 @@ const columns = [
           size="sm"
           class="w-64" />
         <UButton
+          v-if="canCreate"
           to="/admin/customers/new"
           icon="i-lucide-plus"
           label="Add Customer"

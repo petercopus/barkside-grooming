@@ -6,7 +6,7 @@
  *
  * Roles under test:
  *   Customer            — booking/pet :own + booking:cancel
- *   Employee (default)  — admin:access, booking/pet read:all, document:*, employee:read
+ *   Employee (default)  — admin:access, booking/pet read:all, document:*
  *   Admin               — wildcard (hasAllPermissions)
  *
  * Hierarchy: Customer ← Employee ← {Groomer, Bather, Front Desk}, so
@@ -128,7 +128,6 @@ describe('Permissions matrix', () => {
       expect(data.permissions).toContain('admin:access');
       expect(data.permissions).toContain('booking:read:all');
       expect(data.permissions).toContain('document:approve');
-      expect(data.permissions).toContain('employee:read');
       expect(data.permissions).not.toContain('service:manage');
       expect(data.permissions).not.toContain('role:manage');
       expect(data.permissions).not.toContain('employee:manage');
@@ -371,8 +370,8 @@ describe('Permissions matrix', () => {
     });
   });
 
-  describe('employee:read (employee+, view-only)', () => {
-    /* Employees can view schedule, but cannot edit it */
+  describe('employee:manage (admin-only — schedule view + edit)', () => {
+    /* schedule GET and PUT both require employee:manage */
     it('customer → 403 on GET schedule', async () => {
       const { res } = await get(
         '/api/admin/employees/00000000-0000-0000-0000-000000000000/schedule',
@@ -380,14 +379,14 @@ describe('Permissions matrix', () => {
       );
       expectForbidden(res);
     });
-    it('employee → allowed on GET schedule', async () => {
+    it('employee → 403 on GET schedule', async () => {
       const { res } = await get(
         '/api/admin/employees/00000000-0000-0000-0000-000000000000/schedule',
         employeeCookie,
       );
-      expectAllowed(res);
+      expectForbidden(res);
     });
-    it('employee → 403 on PUT schedule (employee:manage required)', async () => {
+    it('employee → 403 on PUT schedule', async () => {
       const { res } = await put(
         '/api/admin/employees/00000000-0000-0000-0000-000000000000/schedule',
         { entries: [] },

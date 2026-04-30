@@ -61,7 +61,7 @@ const navItems = computed(() => {
     });
   }
 
-  if (hasPerm('employee:read')) {
+  if (hasPerm('employee:manage')) {
     settingsChildren.push({
       label: 'Employees',
       to: '/admin/settings/employees',
