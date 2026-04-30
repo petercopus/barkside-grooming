@@ -48,6 +48,7 @@ const state = reactive({
   description: (props.initialValues?.description as string) ?? undefined,
   category: (props.initialValues?.category as string) ?? undefined,
   isAddon: (props.initialValues?.isAddon as boolean) ?? false,
+  isActive: (props.initialValues?.isActive as boolean) ?? true,
   sortOrder: (props.initialValues?.sortOrder as number) ?? 0,
   pricingMap,
   addonLinkIds:
@@ -55,6 +56,22 @@ const state = reactive({
     props.initialAddonLinks?.addonServiceIds ??
     ([] as number[]),
 });
+
+function isPricingRowPartial(v: { priceDollars?: number; durationMinutes?: number }) {
+  return (v.priceDollars == null) !== (v.durationMinutes == null);
+}
+
+const pricingRowErrors = computed<Record<number, string | undefined>>(() => {
+  const errors: Record<number, string | undefined> = {};
+  for (const [id, v] of Object.entries(state.pricingMap)) {
+    if (isPricingRowPartial(v)) {
+      errors[Number(id)] = 'Both price and duration are required';
+    }
+  }
+  return errors;
+});
+
+const hasPricingErrors = computed(() => Object.keys(pricingRowErrors.value).length > 0);
 
 function buildPricingRows() {
   return Object.entries(state.pricingMap)
@@ -85,6 +102,7 @@ const pageSave = !isCreate.value
             description: state.description,
             category: state.category,
             isAddon: state.isAddon,
+            isActive: state.isActive,
             sortOrder: state.sortOrder,
           }),
           save: (data) =>
@@ -92,11 +110,18 @@ const pageSave = !isCreate.value
         },
         pricing: {
           track: () => buildPricingRows(),
-          save: (rows) =>
-            $fetch(`/api/admin/services/${props.serviceId}/pricing`, {
+          save: (rows) => {
+            if (hasPricingErrors.value) {
+              throw createError({
+                statusCode: 400,
+                message: 'Each pricing row needs both price and duration.',
+              });
+            }
+            return $fetch(`/api/admin/services/${props.serviceId}/pricing`, {
               method: 'PUT',
               body: { pricing: rows },
-            }),
+            });
+          },
         },
         addons: {
           track: () => [...state.addonLinkIds].sort(),
@@ -198,7 +223,12 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
           <div class="flex gap-3">
             <UFormField
               label="Price ($)"
-              class="flex-1">
+              class="flex-1"
+              :error="
+                pricingRowErrors[cat.id] && state.pricingMap[cat.id]!.priceDollars == null
+                  ? pricingRowErrors[cat.id]
+                  : undefined
+              ">
               <UInputNumber
                 v-model="state.pricingMap[cat.id]!.priceDollars"
                 :min="0"
@@ -208,7 +238,12 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
 
             <UFormField
               label="Duration (min)"
-              class="flex-1">
+              class="flex-1"
+              :error="
+                pricingRowErrors[cat.id] && state.pricingMap[cat.id]!.durationMinutes == null
+                  ? pricingRowErrors[cat.id]
+                  : undefined
+              ">
               <UInputNumber
                 v-model="state.pricingMap[cat.id]!.durationMinutes"
                 :min="1"
@@ -259,10 +294,17 @@ function onSubmit(event: FormSubmitEvent<unknown>) {
     <template #sidebar>
       <AppSection title="Options">
         <div class="space-y-4">
-          <UFormField
-            label="Addon Service"
-            name="isAddon">
-            <USwitch v-model="state.isAddon" />
+          <UFormField name="isActive">
+            <USwitch
+              v-model="state.isActive"
+              label="Active"
+              description="Inactive services are hidden from the public catalog and booking flow." />
+          </UFormField>
+
+          <UFormField name="isAddon">
+            <USwitch
+              v-model="state.isAddon"
+              label="Addon" />
           </UFormField>
 
           <UFormField
