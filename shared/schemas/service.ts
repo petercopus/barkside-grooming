@@ -5,6 +5,7 @@ export const createServiceSchema = z.object({
   description: z.string().max(2000).optional(),
   category: z.string().max(50).optional(),
   isAddon: z.boolean().default(false),
+  isActive: z.boolean().default(true),
   sortOrder: z.number().int().min(0).default(0),
 });
 

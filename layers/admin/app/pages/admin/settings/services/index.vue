@@ -17,6 +17,7 @@ const columns = [
   { accessorKey: 'name', header: 'Name' },
   { accessorKey: 'category', header: 'Category' },
   { accessorKey: 'isAddon', header: 'Addon' },
+  { accessorKey: 'isActive', header: 'Status' },
   { accessorKey: 'sortOrder', header: 'Order' },
 ];
 </script>
@@ -59,6 +60,13 @@ const columns = [
           class="text-muted">
           —
         </span>
+      </template>
+
+      <!-- Status badge -->
+      <template #isActive-cell="{ row }">
+        <AppStatusBadge
+          kind="active"
+          :value="!!row.original.isActive" />
       </template>
     </AppTable>
   </AppPage>
