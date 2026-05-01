@@ -11,6 +11,12 @@ const router = useRouter();
 
 const items: (TabsItem & { path: string })[] = [
   {
+    label: 'Profile',
+    icon: 'i-lucide-user-round',
+    value: 'profile',
+    path: '/me/settings/profile',
+  },
+  {
     label: 'Notifications',
     icon: 'i-lucide-bell',
     value: 'notifications',
@@ -40,8 +46,7 @@ const activeTab = computed({
   <div class="cms-container py-10 sm:py-14">
     <AppPageIntro
       kicker="Your account"
-      title="Settings"
-      description="Tune your notifications and manage how you pay." />
+      title="Settings" />
 
     <nav class="mt-8 -mx-4 px-4 overflow-x-auto">
       <div class="flex gap-2 border-b border-default/70">

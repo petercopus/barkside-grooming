@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({
-  redirect: '/me/settings/notifications',
+  redirect: '/me/settings/profile',
 });
 </script>
 

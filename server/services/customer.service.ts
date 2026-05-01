@@ -1,4 +1,4 @@
-import { and, count, eq, ilike, inArray, max, or } from 'drizzle-orm';
+import { and, count, eq, ilike, inArray, max, ne, or } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import { appointments, pets, roles, userRoles, users } from '~~/server/db/schema';
 import { listBookings } from '~~/server/services/appointment.service';
@@ -130,6 +130,18 @@ export async function createCustomer(input: CreateCustomerInput) {
 
 export async function updateCustomer(id: string, input: UpdateCustomerInput) {
   await getCustomer(id);
+
+  if (input.email) {
+    const [conflict] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.email, input.email), ne(users.id, id)))
+      .limit(1);
+
+    if (conflict) {
+      throw createError({ statusCode: 409, message: 'Email already in use' });
+    }
+  }
 
   const [updated] = await db
     .update(users)

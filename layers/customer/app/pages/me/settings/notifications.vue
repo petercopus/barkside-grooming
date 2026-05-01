@@ -144,7 +144,7 @@ const channels = [
         <div
           v-for="ch in channels"
           :key="ch.key"
-          class="hidden sm:flex justify-center">
+          class="hidden sm:flex justify-center min-w-15">
           <USwitch
             v-model="getPreference(category)[ch.key]"
             @update:model-value="save(getPreference(category))" />
