@@ -1,6 +1,7 @@
-import { and, eq, gt, inArray } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, ne } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import {
+  passwordResetTokens,
   permissions,
   rolePermissions,
   roles,
@@ -9,7 +10,14 @@ import {
   userRoles,
   users,
 } from '~~/server/db/schema';
-import type { LoginInput, RegisterInput } from '~~/shared/schemas/auth';
+import { sendNotification } from '~~/server/services/notification.service';
+import { renderPasswordResetEmail, renderWelcomeEmail } from '~~/server/utils/email-templates';
+import type {
+  ChangePasswordInput,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+} from '~~/shared/schemas/auth';
 
 //#region REGISTER
 export async function register(input: RegisterInput) {
@@ -69,7 +77,25 @@ export async function register(input: RegisterInput) {
     expiresAt,
   });
 
-  // 6. Return user and raw token
+  // 6. Welcome email
+  try {
+    const { siteUrl } = useRuntimeConfig();
+    const { subject, html } = renderWelcomeEmail({
+      recipientName: user.firstName,
+      bookingUrl: `${siteUrl}/book`,
+    });
+    await sendNotification({
+      userId: user.id,
+      category: 'welcome',
+      title: subject,
+      body: 'Thanks for creating an account with Barkside Grooming.',
+      html,
+    });
+  } catch (err) {
+    console.error('[auth] Welcome notification failed:', err);
+  }
+
+  // 7. Return user and raw token
   // dont return hashed password/token
   const { passwordHash: _, ...cleanUser } = user;
   return { user: cleanUser, token };
@@ -203,5 +229,116 @@ export async function logout(token: string) {
   // hash token then delete db record
   const tokenHash = hashSessionToken(token);
   await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
+}
+//#endregion
+
+//#region PASSWORD CHANGE
+export async function changePassword(
+  userId: string,
+  input: ChangePasswordInput,
+  currentToken: string,
+) {
+  // 1. Look up user
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+  if (!user || !user.passwordHash) {
+    throw createError({ statusCode: 401, message: 'Invalid current password' });
+  }
+
+  // 2. Verify current password
+  const valid = await verifyPassword(input.currentPassword, user.passwordHash);
+  if (!valid) {
+    throw createError({ statusCode: 401, message: 'Invalid current password' });
+  }
+
+  // 3. Reject same as current password
+  if (input.currentPassword === input.newPassword) {
+    throw createError({
+      statusCode: 400,
+      message: 'New password must be different from current password',
+    });
+  }
+
+  // 4. Hash + update
+  const newHash = await hashPassword(input.newPassword);
+  await db
+    .update(users)
+    .set({ passwordHash: newHash, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  // 5. Invalidate every session except the one making the request
+  const currentTokenHash = hashSessionToken(currentToken);
+  await db
+    .delete(sessions)
+    .where(and(eq(sessions.userId, userId), ne(sessions.tokenHash, currentTokenHash)));
+}
+//#endregion
+
+//#region PASSWORD RESET
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+export async function requestPasswordReset(email: string) {
+  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+  if (!user || !user.isActive) return;
+
+  const token = generateSessionToken();
+  const tokenHash = hashSessionToken(token);
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+  await db.insert(passwordResetTokens).values({
+    userId: user.id,
+    tokenHash,
+    expiresAt,
+  });
+
+  const { siteUrl } = useRuntimeConfig();
+  const resetUrl = `${siteUrl}/reset-password?token=${encodeURIComponent(token)}`;
+  const { subject, html } = renderPasswordResetEmail({
+    recipientName: user.firstName,
+    resetUrl,
+    expiresAt,
+  });
+
+  await sendEmail(user.email, subject, html);
+}
+
+export async function resetPassword(input: ResetPasswordInput) {
+  // 1. Look up token by hash
+  const tokenHash = hashSessionToken(input.token);
+  const [record] = await db
+    .select()
+    .from(passwordResetTokens)
+    .where(
+      and(
+        eq(passwordResetTokens.tokenHash, tokenHash),
+        gt(passwordResetTokens.expiresAt, new Date()),
+        isNull(passwordResetTokens.usedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!record) {
+    throw createError({
+      statusCode: 400,
+      message: 'This reset link is invalid or has expired. Please request a new one.',
+    });
+  }
+
+  // 2. Update password
+  const newHash = await hashPassword(input.newPassword);
+  await db
+    .update(users)
+    .set({ passwordHash: newHash, updatedAt: new Date() })
+    .where(eq(users.id, record.userId));
+
+  // 3. Mark token used
+  await db
+    .update(passwordResetTokens)
+    .set({ usedAt: new Date() })
+    .where(eq(passwordResetTokens.id, record.id));
+
+  // 4. Invalidate every session for the user
+  await db.delete(sessions).where(eq(sessions.userId, record.userId));
 }
 //#endregion

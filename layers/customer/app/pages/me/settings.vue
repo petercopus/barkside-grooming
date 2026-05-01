@@ -17,6 +17,12 @@ const items: (TabsItem & { path: string })[] = [
     path: '/me/settings/profile',
   },
   {
+    label: 'Password',
+    icon: 'i-lucide-key-round',
+    value: 'password',
+    path: '/me/settings/password',
+  },
+  {
     label: 'Notifications',
     icon: 'i-lucide-bell',
     value: 'notifications',

@@ -10,36 +10,38 @@ definePageMeta({
 const { hasPerm } = usePermissions();
 const toast = useToast();
 
-const categoryDescriptions: Record<NotificationCategory, { label: string; hint: string }> = {
-  appointment_confirmed: {
-    label: 'Booking confirmed',
-    hint: 'When a new appointment lands on the calendar.',
-  },
-  appointment_reminder: {
-    label: 'Appointment reminders',
-    hint: "A friendly nudge ahead of your pup's visit.",
-  },
-  appointment_cancelled: {
-    label: 'Booking cancelled',
-    hint: 'If a visit is cancelled — by you or by us.',
-  },
-  appointment_status_changed: {
-    label: 'Status updates',
-    hint: 'Pickups, drop-offs, and check-ins along the way.',
-  },
-  admin_new_booking: {
-    label: 'New booking (admin)',
-    hint: 'Internal alerts when a customer books.',
-  },
-  payment_refunded: {
-    label: 'Refunds',
-    hint: 'When we issue a refund on a paid appointment.',
-  },
-  document_request: {
-    label: 'Document requests',
-    hint: 'When we ask you for a vaccination record or similar.',
-  },
-};
+const categoryDescriptions: Partial<Record<NotificationCategory, { label: string; hint: string }>> =
+  {
+    appointment_confirmed: {
+      label: 'Booking confirmed',
+      hint: 'When a new appointment lands on the calendar.',
+    },
+    appointment_reminder: {
+      label: 'Appointment reminders',
+      hint: "A friendly nudge ahead of your pup's visit.",
+    },
+    appointment_cancelled: {
+      label: 'Booking cancelled',
+      hint: 'If a visit is cancelled — by you or by us.',
+    },
+    appointment_status_changed: {
+      label: 'Status updates',
+      hint: 'Pickups, drop-offs, and check-ins along the way.',
+    },
+    admin_new_booking: {
+      label: 'New booking (admin)',
+      hint: 'Internal alerts when a customer books.',
+    },
+    payment_refunded: {
+      label: 'Refunds',
+      hint: 'When we issue a refund on a paid appointment.',
+    },
+    document_request: {
+      label: 'Document requests',
+      hint: 'When we ask you for a vaccination record or similar.',
+    },
+    // welcome notification is transactional and therefore not use toggleable
+  };
 
 interface PreferenceRow {
   category: NotificationCategory;
@@ -52,12 +54,12 @@ const { data } = await useFetch<{ preferences: PreferenceRow[] }>('/api/notifica
 
 const visibleCategories = computed(() =>
   NOTIFICATION_CATEGORIES.filter(
-    (cat) => cat !== 'admin_new_booking' || hasPerm('booking:read:all'),
+    (cat) => cat !== 'welcome' && (cat !== 'admin_new_booking' || hasPerm('booking:read:all')),
   ),
 );
 
 const preferences = ref<PreferenceRow[]>(
-  NOTIFICATION_CATEGORIES.map((category) => {
+  NOTIFICATION_CATEGORIES.filter((cat) => cat !== 'welcome').map((category) => {
     const existing = data.value?.preferences.find((p) => p.category === category);
 
     return {
@@ -126,8 +128,8 @@ const channels = [
         :key="category"
         class="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto] sm:gap-x-8 gap-y-3 items-center py-4">
         <div class="min-w-0">
-          <p class="font-medium text-default">{{ categoryDescriptions[category].label }}</p>
-          <p class="text-sm text-muted mt-0.5">{{ categoryDescriptions[category].hint }}</p>
+          <p class="font-medium text-default">{{ categoryDescriptions[category]?.label }}</p>
+          <p class="text-sm text-muted mt-0.5">{{ categoryDescriptions[category]?.hint }}</p>
         </div>
 
         <!-- Mobile -->

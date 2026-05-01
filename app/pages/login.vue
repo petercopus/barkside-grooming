@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui';
+import type { AuthFormField, FormSubmitEvent } from '@nuxt/ui';
 import { loginSchema, type LoginInput } from '~~/shared/schemas/auth';
 
 definePageMeta({ layout: 'default' });
@@ -66,6 +66,14 @@ async function onSubmit(event: FormSubmitEvent<LoginInput>) {
             color="error"
             icon="i-lucide-circle-alert"
             :title="error" />
+        </template>
+
+        <template #password-hint>
+          <NuxtLink
+            to="/forgot-password"
+            class="text-primary text-xs font-medium">
+            Forgot password?
+          </NuxtLink>
         </template>
 
         <!-- Registration -->

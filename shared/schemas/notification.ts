@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const NOTIFICATION_CATEGORIES = [
+  'welcome',
   'appointment_confirmed',
   'appointment_reminder',
   'appointment_cancelled',

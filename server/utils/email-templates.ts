@@ -98,8 +98,7 @@ export function renderHoldReminderEmail(opts: {
         <strong>${escapeHtml(opts.expiresAt.toUTCString())}</strong>.
       </p>
       <p style="${baseStyles.paragraph}">
-        Use the fresh link${opts.pets.length > 1 ? 's' : ''} below — earlier
-        ones from the original confirmation are no longer valid.
+        Use the fresh link${opts.pets.length > 1 ? 's' : ''} below — earlier ones from the original confirmation are no longer valid.
       </p>
       ${petBlocks}
     </div>`;
@@ -118,12 +117,10 @@ export function renderBookingConfirmationEmail(opts: {
       <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
       <p style="${baseStyles.paragraph}">
         Your appointment on
-        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>
-        is confirmed. We can't wait to see you.
+        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong> is confirmed. We can't wait to see you.
       </p>
       <p style="${baseStyles.paragraph}">
-        If anything changes on your end, just reply to this email and we'll
-        sort it out together.
+        If anything changes on your end, just reply to this email and we'll sort it out together.
       </p>
     </div>`;
 
@@ -145,8 +142,7 @@ export function renderHoldReleasedEmail(opts: {
         has been released and the slot is back on the calendar.
       </p>
       <p style="${baseStyles.paragraph}">
-        We'd still love to groom your pup — feel free to book a new appointment
-        whenever you're ready.
+        We'd still love to groom your pup — feel free to book a new appointment whenever you're ready.
       </p>
     </div>`;
 
@@ -166,8 +162,7 @@ export function renderAppointmentReminderEmail(opts: {
     <div style="${baseStyles.wrapper}">
       <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
       <p style="${baseStyles.paragraph}">
-        Just a quick reminder that your appointment is on
-        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>.
+        Just a quick reminder that your appointment is on <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>.
       </p>
       <p style="${baseStyles.paragraph}">
         Reply to this email if anything has changed and we'll sort it out together.
@@ -189,8 +184,7 @@ export function renderAdminNewBookingEmail(opts: {
     <div style="${baseStyles.wrapper}">
       <h1 style="${baseStyles.heading}">New booking</h1>
       <p style="${baseStyles.paragraph}">
-        <strong>${escapeHtml(opts.customerName)}${guestSuffix}</strong> booked an appointment for
-        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>.
+        <strong>${escapeHtml(opts.customerName)}${guestSuffix}</strong> booked an appointment for <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>.
       </p>
       <p style="${baseStyles.footer}">
         Open the admin dashboard to review the booking.
@@ -211,8 +205,7 @@ export function renderAppointmentCancelledEmail(opts: {
       <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
       <p style="${baseStyles.paragraph}">
         Your appointment on
-        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>
-        has been cancelled.
+        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong> has been cancelled.
       </p>
       <p style="${baseStyles.paragraph}">
         Whenever you're ready to rebook, we'd love to have you back.
@@ -234,8 +227,7 @@ export function renderAppointmentStatusChangedEmail(opts: {
       <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
       <p style="${baseStyles.paragraph}">
         Your appointment on
-        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong>
-        is now <strong>${escapeHtml(opts.status)}</strong>.
+        <strong>${escapeHtml(formatDateTime(opts.scheduledDate, opts.startTime))}</strong> is now <strong>${escapeHtml(opts.status)}</strong>.
       </p>
       <p style="${baseStyles.paragraph}">
         Reply to this email if you have any questions.
@@ -299,6 +291,62 @@ export function renderPaymentRefundedEmail(opts: {
       </p>
       <p style="${baseStyles.footer}">
         It can take a few business days for the refund to appear on your statement.
+      </p>
+    </div>`;
+
+  return { subject, html };
+}
+
+/* ─────────────────────────────────── *
+ * Email templates: account lifecycle
+ * ─────────────────────────────────── */
+export function renderWelcomeEmail(opts: { recipientName: string; bookingUrl: string }): {
+  subject: string;
+  html: string;
+} {
+  const subject = 'Welcome to Barkside Grooming';
+  const html = `
+    <div style="${baseStyles.wrapper}">
+      <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
+      <p style="${baseStyles.paragraph}">
+        Thanks for creating an account with Barkside Grooming. We're so happy
+        to have you and your pup with us.
+      </p>
+      <p style="${baseStyles.paragraph}">
+        Whenever you're ready, you can book your first appointment below.
+        We'll keep your details on file so future visits are even quicker.
+      </p>
+      <p style="${baseStyles.paragraph}">
+        <a href="${escapeHtml(opts.bookingUrl)}" style="${baseStyles.button}">Book an appointment</a>
+      </p>
+      <p style="${baseStyles.footer}">
+        Reply to this email any time — we love hearing from new families.
+      </p>
+    </div>`;
+
+  return { subject, html };
+}
+
+export function renderPasswordResetEmail(opts: {
+  recipientName: string;
+  resetUrl: string;
+  expiresAt: Date;
+}): { subject: string; html: string } {
+  const subject = 'Reset your Barkside Grooming password';
+  const html = `
+    <div style="${baseStyles.wrapper}">
+      <h1 style="${baseStyles.heading}">Hi ${escapeHtml(opts.recipientName)},</h1>
+      <p style="${baseStyles.paragraph}">
+        We received a request to reset your password. Use the link below to choose a new one.
+      </p>
+      <p style="${baseStyles.paragraph}">
+        <a href="${escapeHtml(opts.resetUrl)}" style="${baseStyles.button}">Reset password</a>
+      </p>
+      <p style="${baseStyles.meta}">
+        This link expires at <strong>${escapeHtml(opts.expiresAt.toUTCString())}</strong> and can only be used once.
+      </p>
+      <p style="${baseStyles.footer}">
+        If you didn't request this, you can safely ignore this email — your password won't change.
       </p>
     </div>`;
 
