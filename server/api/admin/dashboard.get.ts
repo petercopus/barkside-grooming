@@ -2,12 +2,13 @@ import { and, between, count, desc, eq, inArray, sum } from 'drizzle-orm';
 import { db } from '~~/server/db';
 import { appointmentPets, appointments, payments } from '~~/server/db/schema';
 import { enrichAppointments } from '~~/server/services/appointment.service';
+import { todayDateString } from '~~/shared/utils/date';
 
 export default defineEventHandler(async (event) => {
   await requirePermission(event, 'admin:access');
 
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = todayDateString();
   const weekStart = new Date(now);
   weekStart.setDate(weekStart.getDate() - 7);
 

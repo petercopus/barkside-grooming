@@ -53,7 +53,7 @@ defineEmits<{
   <!-- Page variant (default) -->
   <div
     v-else
-    class="rounded-2xl border border-default/70 bg-white/40 px-6 py-16 text-center flex flex-col items-center justify-center">
+    class="rounded-2xl bg-white/40 px-6 py-16 text-center flex flex-col items-center justify-center">
     <div
       v-if="icon"
       class="inline-flex size-16 items-center justify-center rounded-2xl bg-primary-100/70 text-primary-600 mb-5 shadow-sm">

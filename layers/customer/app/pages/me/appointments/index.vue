@@ -20,7 +20,7 @@ async function cancelAppointment(id: string) {
   await refresh();
 }
 
-const today = new Date().toISOString().slice(0, 10);
+const today = todayDateString();
 
 const grouped = computed(() => {
   const all = data.value?.appointments ?? [];
