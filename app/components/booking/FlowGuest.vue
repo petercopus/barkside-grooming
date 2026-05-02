@@ -553,7 +553,7 @@ async function buildPayload() {
         </div>
 
         <aside class="lg:col-span-1">
-          <div class="lg:sticky lg:top-6">
+          <div class="lg:sticky lg:top-20">
             <div class="rounded-2xl border border-default/70 bg-white/70 p-5 shadow-sm">
               <p
                 class="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-600 mb-1">
@@ -663,7 +663,7 @@ async function buildPayload() {
       </div>
 
       <aside class="lg:col-span-1">
-        <div class="lg:sticky lg:top-6">
+        <div class="lg:sticky lg:top-20">
           <div class="rounded-2xl border border-default/70 bg-white/70 p-5 shadow-sm">
             <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-600 mb-1">
               Your appointment
@@ -821,7 +821,7 @@ async function buildPayload() {
 
       <!-- Summary: top on mobile, right on desktop -->
       <aside class="lg:col-span-1 order-1 lg:order-2">
-        <div class="lg:sticky lg:top-6 space-y-4">
+        <div class="lg:sticky lg:top-20 space-y-4">
           <BookingPetSummaryCard
             :pet-name="guestPet.name"
             :total="guestTotalResult"

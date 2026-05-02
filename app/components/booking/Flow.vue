@@ -34,6 +34,12 @@ const minBookingDate = today(getLocalTimeZone());
 const bookingState = useBookingState();
 const { step, notes } = bookingState;
 
+const flowRoot = useTemplateRef<HTMLElement>('flowRoot');
+watch(step, async () => {
+  await nextTick();
+  flowRoot.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
 // Reset whenever login state changes and onMount
 if (import.meta.client) {
   watch(
@@ -182,7 +188,9 @@ async function submitBooking() {
 </script>
 
 <template>
-  <div>
+  <div
+    ref="flowRoot"
+    style="scroll-margin-top: calc(var(--spacing) * 22)">
     <UStepper
       v-if="showProgressBar"
       disabled
